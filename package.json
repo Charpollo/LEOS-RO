@@ -1,0 +1,10 @@
+{
+  "name": "leos-first-orbit",
+  "version": "1.0.0",
+  "description": "LEOS First Orbit Project",
+  "private": true,
+  "devDependencies": {
+    "javascript-obfuscator": "^4.1.1",
+    "terser": "^5.39.0"
+  }
+}

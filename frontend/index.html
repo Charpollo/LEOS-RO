@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>LEOS: FIRST ORBIT</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAABmJLR0QA/wD/AP+gvaeTAAAA30lEQVRYhe2XMQ7CMAxFXyPEDRi5Qo/AFbgBO1dgYWRhYWJm5AhI3IIDwIxQJSoVOY5DHKfi/yVy5Lz4J5ItQgghhHhSAzMwAFsHvRbogeS8L6fpHPU7oAuuOxCAfZFapZiAnYNuBdS/CFQxYPHX/A+owsxhXwvUrtGANQytQO0azedIGmoB04qs21/FI+ouASuGdj8JQ5mcD3Q5KpWQ46Ng9ffxQdiBZxVMxKvnJxZ7HB8TtGizxcMYrRqtwcjVbLaGU0/T1Q5n68DJ3XwODa9GacNj0GpZCSGEENfhDggYUhFMnEzGAAAAAElFTkSuQmCC">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="description" content="LEOS: FIRST ORBIT - Interactive satellite orbit visualization">
+  <meta name="theme-color" content="#000000">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <!-- Preconnect to improve loading performance -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+</head>
+<body>
+  <!-- Main 3D container -->
+  <div id="threeContainer"></div>
+  
+  <!-- LEOS Logo with link -->
+  <a href="https://www.cyberrts.com" id="logo-container" target="_blank" rel="noopener noreferrer">
+    <img src="assets/leos_logo.png" alt="LEOS Logo" id="leos-logo">
+  </a>
+  
+  <!-- First Orbit Information Panel -->
+  <div id="orbit-info-panel">
+    <button id="toggle-info-panel">×</button>
+    <div id="orbit-info-title">About LEOS: First Orbit</div>
+    <div id="orbit-info-content">
+      <div class="info-section">
+        <div class="info-header">The LEOS Engine</div>
+        <p>You're witnessing a real-time orbital simulation powered by the LEOS (Low Earth Orbit Simulation) engine. This advanced physics-based simulation calculates precise satellite trajectories using actual orbital mechanics principles and Keplerian motion equations.</p>
+        <p>The engine models gravitational effects, atmospheric drag, and real-world orbital parameters to create authentic satellite behavior in Low Earth Orbit (LEO).</p>
+      </div>
+      
+      <div class="info-section">
+        <div class="info-header">About the Satellites</div>
+        <p><strong>CRTS1</strong> - Earth Observation Satellite equipped with advanced optical sensors and high-resolution imaging payload. Designed to monitor environmental conditions, weather patterns, and surface features with multi-spectral imaging capabilities.</p>
+        <p><strong>BULLDOG</strong> - Experimental support satellite with cutting-edge propulsion systems and communication relay capabilities. Serves as a technology demonstrator for next-generation satellite networking and autonomous orbital maneuvers.</p>
+      </div>
+      
+      <div class="info-section">
+        <div class="info-header">Orbital Mechanics</div>
+        <p>The satellites follow realistic orbital paths calculated using Kepler's laws of planetary motion. Their velocity and altitude change throughout their orbit as they respond to Earth's gravitational field.</p>
+        <p>LEO satellites orbit between 160-2,000 km above Earth's surface and complete an orbit approximately every 90-120 minutes at speeds exceeding 7.8 km/s (28,000 km/h) For simulation purposes we have increased the visual speed..</p>
+      </div>
+      
+      <div class="info-section">
+        <div class="info-header">Interaction</div>
+        <p>Try clicking on the satellites to view detailed information and follow them in orbit. You can rotate around satellites and zoom in close to examine them.</p>
+        <p>Press ESC to exit satellite view while maintaining your current position, or press 'R' to reset to the default view.</p>
+      </div>
+    </div>
+  </div>
+  <!-- Expand button (visible when panel is collapsed) -->
+  <button id="expand-info-panel">
+    <span class="info-icon">➡</span>
+  </button>
+  
+  <!-- Instructions overlay -->
+  <div id="instructions-overlay">
+    <div class="instruction-panel">
+      <div class="instruction-title">Welcome to LEOS: FIRST ORBIT</div>
+      <ul class="instruction-list">
+        <li><span class="instruction-icon">🖱️</span> <strong>Rotate View:</strong> Click and drag</li>
+        <li><span class="instruction-icon">⚙️</span> <strong>Zoom:</strong> Scroll wheel or pinch</li>
+        <li><span class="instruction-icon">🛰️</span> <strong>Satellite Info:</strong> Click on satellite</li>
+        <li><span class="instruction-icon">🌍</span> <strong>Reset View:</strong> Press 'R' key</li>
+        <li><span class="instruction-icon">↩️</span> <strong>Exit Satellite View:</strong> Click empty space or press ESC</li>
+      </ul>
+      <button id="dismiss-instructions">Got it!</button>
+    </div>
+  </div>
+  
+  <!-- Satellite info panel -->
+  <div id="satellite-info" style="display: none;">
+    <div id="satellite-name"></div>
+    <div id="satellite-altitude"></div>
+    <div id="satellite-velocity"></div>
+    <div id="satellite-position"></div>
+  </div>
+  
+  <!-- Loading indicator (keeping this for initial loading) -->
+  <div id="loadingOverlay">
+    <div class="loader"></div>
+    <div class="loadingText">LAUNCHING LEOS: FIRST ORBIT</div>
+    <div id="loadingStatus" class="loading-status">Loading assets...</div>
+  </div>
+  
+  <!-- Error message container -->
+  <div id="errorContainer"></div>
+  
+  <!-- Update library paths -->
+  <script src="js/vendor/three.min.js"></script>
+  <script src="js/vendor/OrbitControls.js"></script>
+  <script src="js/vendor/GLTFLoader.js"></script>
+  
+  <!-- Core application modules -->
+  <script type="module" src="js/main.js"></script>
+  
+  <!-- Prevent pull-to-refresh on mobile devices -->
+  <script>
+    document.addEventListener('touchmove', function(e) {
+      if (e.touches.length > 1) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+    
+    // Prevent context menu on right-click or long press
+    document.addEventListener('contextmenu', function(e) {
+      e.preventDefault();
+    });
+  </script>
+</body>
+</html>
