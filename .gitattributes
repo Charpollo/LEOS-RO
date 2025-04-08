@@ -1,2 +1,5 @@
+frontend/assets/*.glb filter=lfs diff=lfs merge=lfs -text
+frontend/assets/*.obj filter=lfs diff=lfs merge=lfs -text
+frontend/assets/*.fbx filter=lfs diff=lfs merge=lfs -text
 *.glb filter=lfs diff=lfs merge=lfs -text
 *.dylib filter=lfs diff=lfs merge=lfs -text
