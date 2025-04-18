@@ -155,7 +155,7 @@ def minify_and_obfuscate_js():
                     "deadCodeInjection": True,
                     "deadCodeInjectionThreshold": 0.4,
                     "debugProtection": True,
-                    "debugProtectionInterval": 1000,  # Using a numeric value instead of boolean
+                    "debugProtectionInterval": 0,
                     "disableConsoleOutput": True,
                     "identifierNamesGenerator": "hexadecimal",
                     "log": False,
