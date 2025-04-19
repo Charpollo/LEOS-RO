@@ -19,13 +19,14 @@ REGISTRY_NAME="leos-registry"
 REGISTRY_LOCATION="us-central1"
 OBFUSCATE=true
 ENV="dev"
+PRODUCT="first-orbit"
 
 # Function to show banner
 show_banner() {
   clear
   echo -e "${BLUE}${BOLD}"
   echo "╔═══════════════════════════════════════════╗"
-  echo "║         LEOS: FIRST ORBIT DEPLOYER        ║"
+  echo "║             LEOS DEPLOYER                 ║"
   echo "╚═══════════════════════════════════════════╝"
   echo -e "${NC}"
 }
@@ -37,6 +38,8 @@ show_help() {
   echo -e "${BOLD}Options:${NC}"
   echo "  --dev               Deploy to development environment (default)"
   echo "  --production        Deploy to production environment"
+  echo "  --first-orbit       Deploy First Orbit product (default)"
+  echo "  --mission-ready     Deploy Mission Ready product"
   echo "  --obfuscate         Enable code obfuscation (default)"
   echo "  --no-obfuscate      Disable code obfuscation"
   echo "  --interactive       Run in interactive mode with prompts (default if no args provided)"
@@ -45,6 +48,7 @@ show_help() {
   echo -e "${BOLD}Examples:${NC}"
   echo "  ./deploy.sh --dev --no-obfuscate     # Deploy to dev without obfuscation"
   echo "  ./deploy.sh --production             # Deploy to production with obfuscation"
+  echo "  ./deploy.sh --mission-ready --dev    # Deploy Mission Ready to dev"
   echo "  ./deploy.sh --interactive            # Start interactive deployment process"
   echo ""
 }
@@ -58,13 +62,17 @@ else
     case $1 in
       --dev)
         ENV="dev"
-        PROJECT_ID="leos-first-orbit-dev"
-        SERVICE_NAME="leos-first-orbit-dev"
+        # Project ID and service name will be set based on product
         ;;
       --production)
         ENV="prod"
-        PROJECT_ID="leos-first-orbit"
-        SERVICE_NAME="leos-first-orbit"
+        # Project ID and service name will be set based on product
+        ;;
+      --first-orbit)
+        PRODUCT="first-orbit"
+        ;;
+      --mission-ready)
+        PRODUCT="mission-ready"
         ;;
       --obfuscate)
         OBFUSCATE=true
@@ -88,36 +96,78 @@ else
     esac
     shift
   done
+  
+  # Set project ID and service name based on product and environment
+  if [[ "$PRODUCT" == "first-orbit" ]]; then
+    if [[ "$ENV" == "dev" ]]; then
+      PROJECT_ID="leos-first-orbit-dev"
+      SERVICE_NAME="leos-first-orbit-dev"
+    else
+      PROJECT_ID="leos-first-orbit"
+      SERVICE_NAME="leos-first-orbit"
+    fi
+  else # mission-ready
+    if [[ "$ENV" == "dev" ]]; then
+      PROJECT_ID="leos-mission-ready-dev"
+      SERVICE_NAME="leos-mission-ready-dev"
+    else
+      PROJECT_ID="leos-mission-ready"
+      SERVICE_NAME="leos-mission-ready"
+    fi
+  fi
 fi
 
 # Interactive mode
 if $INTERACTIVE; then
   show_banner
   
-  echo -e "${BOLD}Welcome to the LEOS: First Orbit deployment tool!${NC}"
+  echo -e "${BOLD}Welcome to the LEOS deployment tool!${NC}"
   echo "This script will help you deploy the application to Google Cloud Run."
   echo ""
   
+  # Product selection
+  echo -e "${BOLD}Step 1: Select product to deploy${NC}"
+  echo "1) First Orbit"
+  echo "2) Mission Ready"
+  echo ""
+  
+  PRODUCT_SELECTED=false
+  while ! $PRODUCT_SELECTED; do
+    read -p "Select product [1-2, default: 1]: " product_choice
+    case $product_choice in
+      2)
+        PRODUCT="mission-ready"
+        PRODUCT_SELECTED=true
+        ;;
+      1|"")
+        PRODUCT="first-orbit"
+        PRODUCT_SELECTED=true
+        ;;
+      *)
+        echo -e "${RED}Invalid selection. Please choose 1 or 2.${NC}"
+        ;;
+    esac
+  done
+  
+  echo -e "${GREEN}✓ Product set to: ${BOLD}${PRODUCT}${NC}"
+  echo ""
+  
   # Environment selection
-  echo -e "${BOLD}Step 1: Select deployment environment${NC}"
-  echo "1) Development (leos-first-orbit-dev)"
-  echo "2) Production (leos-first-orbit)"
+  echo -e "${BOLD}Step 2: Select deployment environment${NC}"
+  echo "1) Development (dev)"
+  echo "2) Production (prod)"
   echo ""
   
   ENV_SELECTED=false
   while ! $ENV_SELECTED; do
-    read -p "Select environment [1-2]: " env_choice
+    read -p "Select environment [1-2, default: 1]: " env_choice
     case $env_choice in
-      1)
-        ENV="dev"
-        PROJECT_ID="leos-first-orbit-dev"
-        SERVICE_NAME="leos-first-orbit-dev"
-        ENV_SELECTED=true
-        ;;
       2)
         ENV="prod"
-        PROJECT_ID="leos-first-orbit"
-        SERVICE_NAME="leos-first-orbit"
+        ENV_SELECTED=true
+        ;;
+      1|"")
+        ENV="dev"
         ENV_SELECTED=true
         ;;
       *)
@@ -129,8 +179,27 @@ if $INTERACTIVE; then
   echo -e "${GREEN}✓ Environment set to: ${BOLD}${ENV}${NC}"
   echo ""
   
+  # Set project ID and service name based on selections
+  if [[ "$PRODUCT" == "first-orbit" ]]; then
+    if [[ "$ENV" == "dev" ]]; then
+      PROJECT_ID="leos-first-orbit-dev"
+      SERVICE_NAME="leos-first-orbit-dev"
+    else
+      PROJECT_ID="leos-first-orbit"
+      SERVICE_NAME="leos-first-orbit"
+    fi
+  else # mission-ready
+    if [[ "$ENV" == "dev" ]]; then
+      PROJECT_ID="leos-mission-ready-dev"
+      SERVICE_NAME="leos-mission-ready-dev"
+    else
+      PROJECT_ID="leos-mission-ready"
+      SERVICE_NAME="leos-mission-ready"
+    fi
+  fi
+  
   # Obfuscation selection
-  echo -e "${BOLD}Step 2: Configure code obfuscation${NC}"
+  echo -e "${BOLD}Step 3: Configure code obfuscation${NC}"
   echo "Obfuscation protects your source code but makes debugging harder."
   echo "Recommended: Enable for production, disable for development."
   echo ""
@@ -174,7 +243,7 @@ if $INTERACTIVE; then
   echo ""
   
   # Region selection
-  echo -e "${BOLD}Step 3: Select deployment region${NC}"
+  echo -e "${BOLD}Step 4: Select deployment region${NC}"
   echo "1) us-central1 (Iowa) - Default"
   echo "2) us-east1 (South Carolina)"
   echo "3) us-west1 (Oregon)"
@@ -209,6 +278,7 @@ fi
 show_banner
 echo -e "${BOLD}DEPLOYMENT SUMMARY${NC}"
 echo "────────────────────────────────────────────"
+echo -e "• Product:        ${BLUE}${PRODUCT}${NC}"
 echo -e "• Environment:    ${BLUE}${ENV^^}${NC}"
 echo -e "• Project ID:     ${PROJECT_ID}"
 echo -e "• Service Name:   ${SERVICE_NAME}"
@@ -376,11 +446,7 @@ echo -e "${GREEN}${BOLD}✅ Deployment complete!${NC}"
 echo -e "${BOLD}Your application is now available at:${NC}"
 echo -e "${BLUE}${BOLD}$SERVICE_URL${NC}"
 echo ""
-if [[ "$ENV" == "dev" ]]; then
-  echo -e "You deployed to the ${BLUE}DEVELOPMENT${NC} environment."
-else
-  echo -e "You deployed to the ${YELLOW}PRODUCTION${NC} environment."
-fi
+echo -e "You deployed ${BLUE}${PRODUCT}${NC} to the ${ENV} environment."
 echo -e "Deployed version: $(date +"%Y-%m-%d %H:%M:%S")"
 echo ""
 echo -e "${BOLD}Would you like to:${NC}"
