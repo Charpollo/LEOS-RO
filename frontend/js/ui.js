@@ -139,16 +139,19 @@ function initInstructionsOverlay() {
     });
   }
   
-  // Always show instructions for new sessions
-  const instructionsShown = sessionStorage.getItem('instructionsShown') === 'true';
-  if (!instructionsShown) {
-    showInstructions();
-  } else {
-    hideInstructions();
-  }
+  // Always hide instructions initially during loading
+  hideInstructions();
   
   // Add a "Show Instructions" button in the corner
   createInstructionButton();
+}
+
+// Check if instructions should be shown after loading
+export function showInstructionsAfterLoading() {
+  const instructionsShown = sessionStorage.getItem('instructionsShown') === 'true';
+  if (!instructionsShown) {
+    showInstructions();
+  }
 }
 
 // Create a button to show instructions

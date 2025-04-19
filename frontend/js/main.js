@@ -150,9 +150,9 @@ async function monitorSimulationProgress() {
       dots = (dots + 1) % (maxDots + 1);
       const dotString = '.'.repeat(dots) + ' '.repeat(maxDots - dots);
       elapsedTime += checkInterval;
-      const timeStr = (elapsedTime / 1000).toFixed(0);
       
-      updateLoadingMessage(`Preparing simulation data${dotString} (${timeStr}s)`);
+      // Remove seconds timer, just show the message with animated dots
+      updateLoadingMessage(`Preparing simulation data${dotString}`);
       await new Promise(resolve => setTimeout(resolve, checkInterval));
     }
   }
@@ -182,6 +182,11 @@ async function loadSatelliteData() {
     
     // Start the animation automatically
     startAnimation();
+    
+    // Now that loading is complete, show instructions if needed
+    import('./ui.js').then(ui => {
+      ui.showInstructionsAfterLoading();
+    });
   } catch (error) {
     logMessage(`Error loading satellite data: ${error.message}`);
     displayError("Failed to load satellite data. Please try refreshing the page.");
