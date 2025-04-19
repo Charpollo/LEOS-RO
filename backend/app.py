@@ -5,17 +5,26 @@ Flask application initialization and configuration.
 
 import os
 import logging
-from flask import Flask, send_from_directory
+import threading
+from flask import Flask, send_from_directory, jsonify
 from flask_cors import CORS
 
 from .config import DEBUG_MODE, PORT, HOST, STATIC_FOLDER, STATIC_URL_PATH
 from .api.routes import api_bp
 from .utils.helpers import setup_logging, timing_decorator
 from .simulation.engine import run_simulation
+from .simulation.data_store import get_simulation_data
 
 # Set up logging
 setup_logging()
 logger = logging.getLogger(__name__)
+
+# Global variable to track simulation initialization status
+simulation_status = {
+    "initialized": False,
+    "in_progress": False,
+    "error": None
+}
 
 @timing_decorator
 def create_app():
@@ -51,25 +60,45 @@ def create_app():
         logger.info(f"Serving static file: {filename}")
         return send_from_directory(STATIC_FOLDER, filename)
     
+    # Add route to check simulation initialization status
+    @app.route('/api/simulation/status')
+    def get_simulation_status():
+        return jsonify({
+            "initialized": simulation_status["initialized"],
+            "in_progress": simulation_status["in_progress"],
+            "error": simulation_status["error"]
+        })
+    
     # Initialize simulation data - using with_appcontext instead of before_first_request
     @app.route('/init-simulation', endpoint='init_simulation')
     def init_simulation_endpoint():
-        initialize_data()
-        return {"status": "success", "message": "Simulation data initialized"}, 200
+        # Start initialization in background if not already done or in progress
+        if not simulation_status["initialized"] and not simulation_status["in_progress"]:
+            thread = threading.Thread(target=initialize_data_async)
+            thread.daemon = True
+            thread.start()
+            return {"status": "initializing", "message": "Started simulation data initialization"}, 202
+        elif simulation_status["in_progress"]:
+            return {"status": "in_progress", "message": "Simulation initialization already in progress"}, 202
+        else:
+            return {"status": "success", "message": "Simulation data already initialized"}, 200
     
-    # Initialize data function (now separate from the endpoint)
-    def initialize_data():
-        logger.info("Initializing simulation data")
+    # Initialize data function that runs in a separate thread
+    def initialize_data_async():
+        global simulation_status
+        simulation_status["in_progress"] = True
+        simulation_status["error"] = None
+        
+        logger.info("Starting simulation data initialization in background thread")
         try:
             run_simulation()
+            simulation_status["initialized"] = True
             logger.info("Simulation data initialized successfully")
         except Exception as e:
+            simulation_status["error"] = str(e)
             logger.error(f"Error initializing simulation data: {str(e)}", exc_info=True)
-    
-    # Register a function to run after the app context is created
-    # This is the modern replacement for before_first_request
-    with app.app_context():
-        initialize_data()
+        finally:
+            simulation_status["in_progress"] = False
     
     logger.info(f"Application created with static folder: {STATIC_FOLDER}")
     return app

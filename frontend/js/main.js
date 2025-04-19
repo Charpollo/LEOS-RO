@@ -5,7 +5,7 @@
 
 import { initScene } from './scene.js';
 import { createEarthGroup, createMoon } from './earth.js';
-import { fetchTrajectory } from './data.js';
+import { fetchTrajectory, initializeSimulation, checkSimulationStatus, getRandomSpaceFact } from './data.js';
 import { createSatellite } from './satellites.js';
 import { CRTS1_COLOR, BULLDOG_COLOR } from './config.js';
 import { logMessage } from './utils.js';
@@ -16,6 +16,10 @@ import { setupEventListeners } from './user-interaction.js';
 
 // Store scene components
 let sceneComponents;
+// Store space fact timer
+let factTimer = null;
+// Current space fact index
+let currentFactIndex = -1;
 
 // Main initialization function
 async function init() {
@@ -27,6 +31,12 @@ async function init() {
   
   // Set DEBUG_MODE to false for production
   window.DEBUG_MODE = false;
+  
+  // Show loading overlay with initial message
+  updateLoadingMessage("Initializing application...");
+  
+  // Start displaying space facts
+  startSpaceFactsRotation();
   
   // Initialize the 3D scene and store all returned components
   sceneComponents = initScene();
@@ -42,38 +52,22 @@ async function init() {
   // Setup user interaction event listeners
   setupEventListeners();
   
-  // Create Earth and Moon
+  // Create Earth and Moon - these can be done immediately
+  updateLoadingMessage("Loading 3D models...");
   createEarthGroup();
   createMoon(moonCamera);
   
   // Initialize animation systems
   initAnimation();
   
-  // Load satellite trajectories
-  try {
-    const crts1Data = await fetchTrajectory("CRTS1");
-    const bulldogData = await fetchTrajectory("BULLDOG");
-    
-    // Create satellites from data
-    createSatellite("CRTS1", CRTS1_COLOR, crts1Data);
-    createSatellite("BULLDOG", BULLDOG_COLOR, bulldogData);
-    
-    logMessage("Satellite data loaded successfully");
-    
-    // Hide loading overlay
-    const loadingOverlay = document.getElementById('loadingOverlay');
-    if (loadingOverlay) {
-      loadingOverlay.style.display = 'none';
-    }
-    
-    // Start the animation automatically
-    startAnimation();
-  } catch (error) {
-    logMessage(`Error loading satellite data: ${error.message}`);
-    displayError("Failed to load satellite data. Please try refreshing the page.");
-  }
+  // Trigger simulation initialization but don't wait for it to complete
+  updateLoadingMessage("Preparing simulation data...");
+  initializeSimulation();
   
-  // Setup renderer for continuous updates
+  // Setup progress monitoring for simulation initialization
+  monitorSimulationProgress();
+  
+  // Setup renderer for continuous updates (start rendering immediately)
   function renderLoop() {
     requestAnimationFrame(renderLoop);
     
@@ -90,11 +84,125 @@ async function init() {
     }
   }
   
-  // Start render loop
+  // Start render loop immediately - don't wait for data loading
   renderLoop();
   
-  // Performance overlay is no longer created in production
-  logMessage("Initialization complete - simulation starting automatically");
+  logMessage("Basic initialization complete - simulation loading in background");
+}
+
+// Start rotating through space facts during loading
+function startSpaceFactsRotation() {
+  // Display first fact immediately
+  displayNextSpaceFact();
+  
+  // Set up timer to rotate facts every 6 seconds
+  factTimer = setInterval(displayNextSpaceFact, 6000);
+}
+
+// Display the next space fact
+function displayNextSpaceFact() {
+  const spaceFact = getRandomSpaceFact();
+  const factElement = document.getElementById('spaceFact');
+  
+  if (factElement) {
+    // Fade out
+    factElement.style.opacity = 0;
+    
+    // Change text and fade in after a short delay
+    setTimeout(() => {
+      factElement.textContent = `"${spaceFact}"`;
+      factElement.style.opacity = 1;
+    }, 500);
+  }
+}
+
+// Stop rotating space facts
+function stopSpaceFactsRotation() {
+  if (factTimer) {
+    clearInterval(factTimer);
+    factTimer = null;
+  }
+}
+
+// Monitor simulation initialization progress
+async function monitorSimulationProgress() {
+  let dots = 0;
+  const maxDots = 3;
+  let elapsedTime = 0;
+  const checkInterval = 1000; // Check every second
+  
+  // Keep checking until simulation is ready
+  while (true) {
+    const status = await checkSimulationStatus();
+    
+    if (status.initialized) {
+      // Simulation is ready, load satellites
+      updateLoadingMessage("Loading satellite data...");
+      await loadSatelliteData();
+      break;
+    } else if (status.error) {
+      // Error in simulation
+      displayError(`Failed to initialize simulation: ${status.error}`);
+      updateLoadingMessage("Error loading simulation data");
+      break;
+    } else {
+      // Still initializing
+      dots = (dots + 1) % (maxDots + 1);
+      const dotString = '.'.repeat(dots) + ' '.repeat(maxDots - dots);
+      elapsedTime += checkInterval;
+      const timeStr = (elapsedTime / 1000).toFixed(0);
+      
+      updateLoadingMessage(`Preparing simulation data${dotString} (${timeStr}s)`);
+      await new Promise(resolve => setTimeout(resolve, checkInterval));
+    }
+  }
+}
+
+// Load satellite data after simulation is initialized
+async function loadSatelliteData() {
+  try {
+    // Load satellite trajectories
+    const crts1Data = await fetchTrajectory("CRTS1");
+    const bulldogData = await fetchTrajectory("BULLDOG");
+    
+    // Create satellites from data
+    createSatellite("CRTS1", CRTS1_COLOR, crts1Data);
+    createSatellite("BULLDOG", BULLDOG_COLOR, bulldogData);
+    
+    logMessage("Satellite data loaded successfully");
+    
+    // Stop space facts rotation
+    stopSpaceFactsRotation();
+    
+    // Hide loading overlay
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    if (loadingOverlay) {
+      loadingOverlay.style.display = 'none';
+    }
+    
+    // Start the animation automatically
+    startAnimation();
+  } catch (error) {
+    logMessage(`Error loading satellite data: ${error.message}`);
+    displayError("Failed to load satellite data. Please try refreshing the page.");
+  }
+}
+
+// Update loading message in the UI
+function updateLoadingMessage(message) {
+  const loadingMessage = document.getElementById('loadingMessage');
+  if (loadingMessage) {
+    loadingMessage.textContent = message;
+  }
+}
+
+// Display error message
+function displayError(message) {
+  const errorContainer = document.getElementById('errorContainer');
+  if (errorContainer) {
+    errorContainer.textContent = message;
+    errorContainer.style.display = 'block';
+  }
 }
 
 // Create a simple performance overlay - this function is no longer called
@@ -125,15 +233,6 @@ function createPerformanceOverlay() {
   overlay.appendChild(indicator);
   
   document.body.appendChild(overlay);
-}
-
-// Display error message
-function displayError(message) {
-  const errorContainer = document.getElementById('errorContainer');
-  if (errorContainer) {
-    errorContainer.textContent = message;
-    errorContainer.style.display = 'block';
-  }
 }
 
 // Start the application

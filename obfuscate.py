@@ -150,22 +150,20 @@ def minify_and_obfuscate_js():
             with open(config_file, 'w') as f:
                 json.dump({
                     "compact": True,
-                    "controlFlowFlattening": True,
-                    "controlFlowFlatteningThreshold": 0.7,
-                    "deadCodeInjection": True,
-                    "deadCodeInjectionThreshold": 0.4,
-                    "debugProtection": True,
+                    "controlFlowFlattening": False,      # Disabled - major performance impact
+                    "deadCodeInjection": False,          # Disabled - major performance impact
+                    "debugProtection": False,            # Disabled - moderate performance impact
                     "debugProtectionInterval": 0,
                     "disableConsoleOutput": True,
                     "identifierNamesGenerator": "hexadecimal",
                     "log": False,
                     "renameGlobals": True,
                     "rotateStringArray": True,
-                    "selfDefending": True,
+                    "selfDefending": False,              # Disabled - performance impact
                     "stringArray": True,
-                    "stringArrayEncoding": ["base64"],
-                    "stringArrayThreshold": 0.8,
-                    "transformObjectKeys": True,
+                    "stringArrayEncoding": [],           # Removed encoding - significant performance impact
+                    "stringArrayThreshold": 0.75,
+                    "transformObjectKeys": False,        # Disabled - performance impact
                     "unicodeEscapeSequence": False
                 }, f, indent=2)
             

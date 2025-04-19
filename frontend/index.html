@@ -80,11 +80,20 @@
     <div id="satellite-position"></div>
   </div>
   
-  <!-- Loading indicator (keeping this for initial loading) -->
+  <!-- Loading indicator with progress information -->
   <div id="loadingOverlay">
     <div class="loader"></div>
     <div class="loadingText">LAUNCHING LEOS: FIRST ORBIT</div>
-    <div id="loadingStatus" class="loading-status">Loading assets...</div>
+    <div id="loadingMessage" class="loading-status">Initializing application...</div>
+    <div id="loadingProgress" class="loading-progress">
+      <div class="progress-bar">
+        <div class="progress-bar-fill"></div>
+      </div>
+    </div>
+    <div id="spaceFactContainer">
+      <div id="spaceFact" class="space-fact"></div>
+      <div class="fact-label">SPACE FACT</div>
+    </div>
   </div>
   
   <!-- Error message container -->
