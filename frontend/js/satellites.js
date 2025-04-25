@@ -502,14 +502,14 @@ function updateCameraFollow() {
   const controls = getControls();
   if (!camera || !controls) return;
   
-  // Don't use automatic following if the user has enabled orbit controls
-  // This allows manual rotation around the satellite without the camera
-  // constantly trying to snap back to a fixed position
-  if (controls.enabled && controls.userData && controls.userData.inSatelliteView) {
-    // Just ensure the target stays on the satellite
-    controls.target.copy(selectedSatellite.group.position);
+  // Skip ALL camera control if in satellite view mode
+  // This is critical - we need to let user-interaction.js handle it
+  if (controls.userData && controls.userData.inSatelliteView) {
     return;
   }
+  
+  // Only run this code if we're NOT in satellite view mode
+  // This is the normal follow mode, not the click-to-view mode
   
   // Get satellite position
   const satPosition = selectedSatellite.group.position.clone();

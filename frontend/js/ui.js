@@ -355,6 +355,210 @@ export function updateSatelliteLabel(satellite) {
   }
 }
 
+// Show temporary message overlay
+export function showTemporaryMessage(message, duration = 3000) {
+  // Create temporary message element if it doesn't exist
+  let tempMessage = document.getElementById('temp-message');
+  
+  if (!tempMessage) {
+    tempMessage = document.createElement('div');
+    tempMessage.id = 'temp-message';
+    tempMessage.className = 'temp-message';
+    document.body.appendChild(tempMessage);
+  }
+  
+  // Set message content
+  tempMessage.textContent = message;
+  
+  // Show the message
+  tempMessage.style.display = 'block';
+  tempMessage.style.opacity = '1';
+  
+  // Hide after duration
+  setTimeout(() => {
+    tempMessage.style.opacity = '0';
+    setTimeout(() => {
+      tempMessage.style.display = 'none';
+    }, 500); // Fade out transition time
+  }, duration);
+}
+
+// Show satellite view control instructions
+export function showSatelliteViewInstructions() {
+  // Create satellite controls overlay if it doesn't exist
+  let satControlsOverlay = document.getElementById('satellite-controls-overlay');
+  
+  if (!satControlsOverlay) {
+    satControlsOverlay = document.createElement('div');
+    satControlsOverlay.id = 'satellite-controls-overlay';
+    satControlsOverlay.className = 'satellite-controls-overlay';
+    
+    // Create content with keyboard shortcuts and mouse controls
+    satControlsOverlay.innerHTML = `
+      <div class="controls-panel">
+        <h3>Satellite View Controls</h3>
+        <div class="control-group">
+          <div class="control-item">
+            <span class="key-combo">Click + Drag</span>
+            <span class="action">Orbit around satellite</span>
+          </div>
+          <div class="control-item">
+            <span class="key-combo">Scroll / Pinch</span>
+            <span class="action">Zoom in/out</span>
+          </div>
+          <div class="control-item">
+            <span class="key-combo">ESC</span>
+            <span class="action">Exit satellite view</span>
+          </div>
+          <div class="control-item">
+            <span class="key-combo">R</span>
+            <span class="action">Reset to Earth view</span>
+          </div>
+        </div>
+        <button id="dismiss-sat-controls">Got it</button>
+      </div>
+    `;
+    
+    document.body.appendChild(satControlsOverlay);
+    
+    // Add event listener to dismiss button
+    const dismissButton = document.getElementById('dismiss-sat-controls');
+    if (dismissButton) {
+      dismissButton.addEventListener('click', () => {
+        hideSatelliteViewInstructions();
+        // Remember that instructions were shown in this session
+        sessionStorage.setItem('satControlsShown', 'true');
+      });
+    }
+    
+    // Add CSS for the controls overlay
+    addSatelliteControlsCSS();
+  }
+  
+  // Only show instructions if they haven't been shown this session
+  const controlsShown = sessionStorage.getItem('satControlsShown') === 'true';
+  if (!controlsShown) {
+    satControlsOverlay.style.display = 'flex';
+    
+    // Auto-hide after 10 seconds even if not dismissed
+    setTimeout(() => {
+      hideSatelliteViewInstructions();
+    }, 10000);
+  } else {
+    // Just show a brief reminder message
+    showTemporaryMessage('Satellite View: ESC to exit, R to reset, drag to orbit', 3000);
+  }
+}
+
+// Hide satellite view instructions
+export function hideSatelliteViewInstructions() {
+  const satControlsOverlay = document.getElementById('satellite-controls-overlay');
+  if (satControlsOverlay) {
+    satControlsOverlay.style.display = 'none';
+  }
+}
+
+// Add CSS for satellite controls overlay
+function addSatelliteControlsCSS() {
+  // Only add if it doesn't exist already
+  if (!document.getElementById('satellite-controls-css')) {
+    const style = document.createElement('style');
+    style.id = 'satellite-controls-css';
+    style.textContent = `
+      .satellite-controls-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        transition: opacity 0.5s ease;
+      }
+      
+      .controls-panel {
+        background-color: rgba(20, 20, 40, 0.9);
+        border: 2px solid #03cafc;
+        border-radius: 10px;
+        padding: 20px;
+        max-width: 400px;
+        color: white;
+        box-shadow: 0 0 20px rgba(3, 202, 252, 0.5);
+      }
+      
+      .controls-panel h3 {
+        margin-top: 0;
+        color: #03cafc;
+        text-align: center;
+        font-size: 1.2em;
+      }
+      
+      .control-group {
+        margin: 15px 0;
+      }
+      
+      .control-item {
+        display: flex;
+        justify-content: space-between;
+        margin: 10px 0;
+        align-items: center;
+      }
+      
+      .key-combo {
+        background-color: #1e3a50;
+        padding: 5px 10px;
+        border-radius: 4px;
+        font-family: monospace;
+        margin-right: 10px;
+        min-width: 100px;
+        text-align: center;
+      }
+      
+      .action {
+        flex-grow: 1;
+        text-align: left;
+      }
+      
+      #dismiss-sat-controls {
+        display: block;
+        margin: 0 auto;
+        background-color: #03cafc;
+        color: #000;
+        border: none;
+        padding: 8px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: bold;
+      }
+      
+      #dismiss-sat-controls:hover {
+        background-color: #0099cc;
+      }
+      
+      .temp-message {
+        position: fixed;
+        top: 50px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 5px;
+        z-index: 1000;
+        transition: opacity 0.5s ease;
+        display: none;
+        font-weight: bold;
+        border: 1px solid #03cafc;
+        box-shadow: 0 0 10px rgba(3, 202, 252, 0.5);
+      }
+    `;
+    document.head.appendChild(style);
+  }
+}
+
 // The following are kept to maintain compatibility with other modules
 export function addLogEntry() {} // Empty placeholder
 export function updateTelemetryPanel() {} // Empty placeholder

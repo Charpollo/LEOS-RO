@@ -3,6 +3,10 @@
  * Initializes all components in the correct order
  */
 
+// Add version timestamp for cache busting
+const VERSION = Date.now();
+console.log(`🚀 Loading LEOS First Orbit v${VERSION} - Camera Control Update`);
+
 import { initScene } from './scene.js';
 import { createEarthGroup, createMoon } from './earth.js';
 import { fetchTrajectory, initializeSimulation, checkSimulationStatus, getRandomSpaceFact } from './data.js';

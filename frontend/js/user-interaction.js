@@ -37,7 +37,7 @@ export function setupEventListeners() {
   // Mouse events for desktop
   if (deviceInfo.type === 'desktop') {
     container.addEventListener('click', onMouseClick, false);
-    container.addEventListener('dblclick', onDoubleClick, false);
+    // Removed double-click handler as requested
     container.addEventListener('mousemove', onMouseMove, false);
   }
   
@@ -122,6 +122,7 @@ function onMouseClick(event) {
 
 // Position camera to look at satellite with Earth in background
 function positionCameraForSatelliteView(satellite) {
+  console.log('📸 Improved satellite camera tracking active');
   const camera = getCamera();
   const controls = getControls();
   
@@ -134,11 +135,9 @@ function positionCameraForSatelliteView(satellite) {
   const dirFromEarth = satPosition.clone().normalize();
   
   // Position camera on the opposite side of the satellite from Earth
-  // This will make the camera look down at the satellite with Earth in the background
-  const offsetDistance = satPosition.length() * 0.4; // Distance from satellite (reduced for better view)
+  const offsetDistance = satPosition.length() * 0.4; // Distance from satellite
   
   // Use a slightly different angle to ensure Earth is visible in background
-  // By adding a slight "up" component, we ensure we're not directly on the Earth-satellite line
   const upVector = new THREE.Vector3(0, 1, 0);
   
   // Create a vector that's partially towards the up direction to ensure Earth is visible
@@ -146,72 +145,105 @@ function positionCameraForSatelliteView(satellite) {
     .copy(dirFromEarth)
     .multiplyScalar(0.85) // Reduce direct-away component
     .add(upVector.clone().multiplyScalar(0.2)); // Add upward component
-    
+  
   // Normalize the combined vector
   viewAngle.normalize();
   
-  // Calculate camera position by going further out along this adjusted angle
+  // Calculate camera position 
   const cameraPos = satPosition.clone().add(
     viewAngle.clone().multiplyScalar(offsetDistance)
   );
   
-  // Set camera position smoothly
-  gsapCameraTransition(camera.position, cameraPos, controls, satPosition);
+  // Save original camera control values
+  controls.userData = {
+    ...controls.userData,
+    originalDampingFactor: controls.dampingFactor,
+    originalMinDistance: controls.minDistance,
+    originalMaxDistance: controls.maxDistance,
+    originalMinZoom: controls.minZoom || 0.001,
+    originalMaxZoom: controls.maxZoom || 10,
+    inSatelliteView: true,
+    followingSatellite: satellite,
+    initialSatDistance: offsetDistance,
+    userHasManuallyRotated: false,
+    lastCameraPosition: camera.position.clone(),
+    lastSatPosition: satPosition.clone()
+  };
   
-  // Clear any existing satellite view interval to prevent multiple intervals
+  // Clear any existing update interval
   if (window.satelliteViewUpdateInterval) {
-    clearInterval(window.satelliteViewUpdateInterval);
+    cancelAnimationFrame(window.satelliteViewUpdateInterval);
     window.satelliteViewUpdateInterval = null;
   }
   
-  // Important: Enable controls but modify them for satellite view
+  // Set camera position smoothly
+  gsapCameraTransition(camera.position, cameraPos, controls, satPosition);
+  
+  // Set up the camera controls for better satellite viewing
   setTimeout(() => {
-    // Enable controls so user can rotate around the satellite
+    // Re-enable controls after transition
     controls.enabled = true;
     
     // Set the target to the satellite position
     controls.target.copy(satPosition);
     
-    // Constrain rotation to keep Earth in view
-    // We don't completely restrict but make it slower to go out of "Earth view"
-    const originalDampingFactor = controls.dampingFactor;
-    controls.dampingFactor = 0.25; // Higher damping for smoother rotation
+    // Adjusted control settings for much closer inspection
+    controls.dampingFactor = 0.1; // Reduced for smoother movement
+    controls.minDistance = offsetDistance * 0.01; // Allow extremely close zoom
+    controls.maxDistance = offsetDistance * 2; // Limit max zoom out to keep focus on satellite
+    controls.minZoom = 0.01; // Allow very close zoom
+    controls.maxZoom = 10; // Increased max zoom
     
-    // Set minimum distance to allow zooming much closer to the satellite
-    const originalMinDistance = controls.minDistance;
-    controls.minDistance = 0.05; // Allow very close zoom for detailed inspection
-    
-    // Set maximum distance to prevent getting too far from satellite
-    const originalMaxDistance = controls.maxDistance;
-    controls.maxDistance = offsetDistance * 3;
-    
-    // Store original values to be restored when exiting satellite view
-    controls.userData = {
-      originalDampingFactor,
-      originalMinDistance,
-      originalMaxDistance,
-      inSatelliteView: true,
-      followingSatellite: satellite // Store reference to the satellite we're following
-    };
-    
-    // Set an animation loop that updates the target position
-    // This ensures the camera stays focused on the moving satellite
-    // Use requestAnimationFrame for smoother updates than setInterval
+    // Set up satellite position tracking that maintains user view preferences
     function updateSatelliteView() {
       const controls = getControls();
-      if (controls && controls.userData && controls.userData.followingSatellite) {
-        // Update target to current satellite position
+      const camera = getCamera();
+      
+      if (controls && camera && controls.userData?.followingSatellite) {
         const sat = controls.userData.followingSatellite;
-        controls.target.copy(sat.group.position);
+        const satPos = sat.group.position.clone();
+        const lastSatPos = controls.userData.lastSatPosition;
         
-        // Request next frame
+        // Calculate the camera's relative position to the satellite
+        const relativePos = camera.position.clone().sub(controls.target);
+        const currentDistance = relativePos.length();
+        
+        // Update target to new satellite position
+        controls.target.copy(satPos);
+        
+        // Calculate new camera position that maintains exact relative position to satellite
+        const newCameraPos = satPos.clone().add(relativePos);
+        
+        // Update camera position immediately to stay with satellite
+        camera.position.copy(newCameraPos);
+        
+        // Store new positions
+        controls.userData.lastSatPosition = satPos.clone();
+        controls.userData.lastCameraPosition = camera.position.clone();
+        
+        // Continue the update loop
         window.satelliteViewUpdateInterval = requestAnimationFrame(updateSatelliteView);
       }
     }
     
-    // Start the animation frame loop
-    window.satelliteViewUpdateInterval = requestAnimationFrame(updateSatelliteView);
-  }, 1100); // Slight delay to let the camera transition complete
+    // Track manual rotation
+    const originalOnStart = controls.onStart || function() {};
+    controls.onStart = function() {
+      controls.userData.userHasManuallyRotated = true;
+      originalOnStart.call(this);
+    };
+    
+    // Start the tracking
+    updateSatelliteView();
+    
+    // Force controls update
+    controls.update();
+    
+    // Show instructions after camera is set up
+    import('./ui.js').then(ui => {
+      ui.showSatelliteViewInstructions();
+    });
+  }, 100);
 }
 
 // Helper function for smooth camera transition using GSAP-like approach
@@ -290,11 +322,24 @@ export function resetCameraToDefaultView() {
     satellitesModule.setFollowMode(false);
   });
   
+  // Cancel any existing satellite view update loop
+  if (window.satelliteViewUpdateInterval) {
+    cancelAnimationFrame(window.satelliteViewUpdateInterval);
+    window.satelliteViewUpdateInterval = null;
+  }
+  
   // Restore original control properties if we were in satellite view
   if (controls.userData && controls.userData.inSatelliteView) {
     controls.dampingFactor = controls.userData.originalDampingFactor || 0.1;
     controls.minDistance = controls.userData.originalMinDistance || 0.01;
     controls.maxDistance = controls.userData.originalMaxDistance || 100;
+    
+    // Important: Make sure zoom constraints are reset too
+    controls.minZoom = controls.userData.originalMinZoom || 0.01;
+    controls.maxZoom = controls.userData.originalMaxZoom || 10;
+    
+    // Reset follow satellite flag
+    controls.userData.followingSatellite = null;
     controls.userData.inSatelliteView = false;
   }
   
@@ -317,6 +362,9 @@ export function resetCameraToDefaultView() {
     defaultPosition.multiplyScalar(scaleFactor);
   }
   
+  // Reset target to Earth center
+  controls.target.set(0, 0, 0);
+  
   // Force the default position without transitions if camera is inside Earth
   const currentDist = camera.position.length();
   if (currentDist < EARTH_DISPLAY_RADIUS * 1.2) {
@@ -330,6 +378,9 @@ export function resetCameraToDefaultView() {
   
   // Ensure controls are enabled
   controls.enabled = true;
+  
+  // Force update of controls to apply all changes immediately
+  controls.update();
   
   logMessage('Camera reset to default view');
 }
@@ -584,6 +635,7 @@ function onKeyDown(event) {
 
 // Exit satellite view with option to reset or maintain camera position
 function exitSatelliteView(resetPosition = true) {
+  console.log('🔄 exitSatelliteView called - Resetting camera settings properly');
   const camera = getCamera();
   const controls = getControls();
   
@@ -600,26 +652,55 @@ function exitSatelliteView(resetPosition = true) {
     satellitesModule.setFollowMode(false);
   });
   
-  // Restore original control properties if we were in satellite view
-  if (controls.userData && controls.userData.inSatelliteView) {
-    controls.dampingFactor = controls.userData.originalDampingFactor || 0.1;
-    controls.minDistance = controls.userData.originalMinDistance || 0.01;
-    controls.maxDistance = controls.userData.originalMaxDistance || 100;
+  // Always ensure controls are enabled first
+  controls.enabled = true;
+  
+  // Properly restore original values from before entering satellite view
+  const originalDampingFactor = controls.userData?.originalDampingFactor || 0.1;
+  const originalMinDistance = controls.userData?.originalMinDistance || 1.0;
+  const originalMaxDistance = controls.userData?.originalMaxDistance || 100;
+  const originalMinZoom = controls.userData?.originalMinZoom || 0.01;
+  const originalMaxZoom = controls.userData?.originalMaxZoom || 10;
+  
+  // Reset all control properties to original values
+  controls.dampingFactor = originalDampingFactor;
+  controls.minDistance = originalMinDistance;
+  controls.maxDistance = originalMaxDistance;
+  controls.minZoom = originalMinZoom;
+  controls.maxZoom = originalMaxZoom;
+  
+  // Clear userHasManuallyRotated flag and any other view-specific flags
+  if (controls.userData) {
+    controls.userData.userHasManuallyRotated = false;
     controls.userData.followingSatellite = null;
     controls.userData.inSatelliteView = false;
-    
-    // If we're resetting position (R key), go back to initial view
-    if (resetPosition) {
-      resetCameraToDefaultView();
-    } else {
-      // Otherwise (ESC key or click elsewhere), just reset target to Earth center
-      // but maintain current camera position
-      controls.target.set(0, 0, 0);
-    }
   }
   
-  // Always ensure controls are enabled
-  controls.enabled = true;
+  // If we're resetting position (R key), go back to initial view
+  if (resetPosition) {
+    resetCameraToDefaultView();
+  } else {
+    // Otherwise (ESC key or click elsewhere), just reset target to Earth center
+    // but maintain current camera position
+    controls.target.set(0, 0, 0);
+    
+    // Ensure we're not too close to Earth's center which could cause zoom issues
+    const minSafeDistance = EARTH_DISPLAY_RADIUS * 1.5;
+    if (camera.position.length() < minSafeDistance) {
+      // Move camera outward along its current direction
+      const direction = camera.position.clone().normalize();
+      camera.position.copy(direction.multiplyScalar(minSafeDistance * 1.2));
+    }
+    
+    // Force controls update to apply changes immediately
+    controls.update();
+  }
+  
+  // Add notification that we've exited satellite view
+  logMessage('Camera controls reset to Earth view');
+  import('./ui.js').then(ui => {
+    ui.showTemporaryMessage('Returned to Earth view', 2000);
+  });
 }
 
 // Helper function to update mouse coordinates for raycaster

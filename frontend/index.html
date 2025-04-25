@@ -104,8 +104,15 @@
   <script src="js/vendor/OrbitControls.js"></script>
   <script src="js/vendor/GLTFLoader.js"></script>
   
-  <!-- Core application modules -->
-  <script type="module" src="js/main.js"></script>
+  <!-- Add cache-busting timestamp to ensure fresh JS files -->
+  <script>
+    // Add timestamp to break browser cache
+    const cacheBuster = Date.now();
+    const mainScript = document.createElement('script');
+    mainScript.type = 'module';
+    mainScript.src = `js/main.js?v=${cacheBuster}`;
+    document.body.appendChild(mainScript);
+  </script>
   
   <!-- Prevent pull-to-refresh on mobile devices -->
   <script>

@@ -223,29 +223,38 @@ function onCanvasClick(event) {
 
 // Prevent camera from going through Earth with improved handling
 function preventEarthCollision() {
-  // Only if we're targeting Earth (near origin), enforce minimum distance
-  if (controls.target.lengthSq() < EARTH_DISPLAY_RADIUS * 0.1) {
-    const distanceToCenter = camera.position.length();
+  // Skip this check if we're in satellite view
+  if (controls.userData && controls.userData.inSatelliteView) {
+    return; // Don't override camera settings in satellite view
+  }
+  
+  // Get current distance from camera to Earth center
+  const distanceToCenter = camera.position.length();
+  
+  // Define minimum safe distance from Earth's surface with some margin
+  const minSafeDistance = EARTH_DISPLAY_RADIUS * 1.2; // 20% margin
+  
+  // If camera is too close to Earth, move it outward
+  if (distanceToCenter < minSafeDistance) {
+    // Calculate direction from Earth center to camera (normalized)
+    const direction = camera.position.clone().normalize();
     
-    if (distanceToCenter < MIN_CAMERA_DISTANCE) {
-      // Calculate smooth transition to minimum distance
-      const direction = camera.position.clone().normalize();
-      const targetDistance = MIN_CAMERA_DISTANCE;
-      const currentDistance = distanceToCenter;
-      const lerpFactor = 0.3; // Smoothing factor
-      
-      // Use lerp for smoother transition
-      const newDistance = currentDistance * (1 - lerpFactor) + targetDistance * lerpFactor;
-      camera.position.copy(direction.multiplyScalar(newDistance));
-    }
+    // Move camera outward along this direction to minimum safe distance
+    const newPosition = direction.multiplyScalar(minSafeDistance);
+    
+    // Use smooth transition for better user experience
+    camera.position.lerp(newPosition, 0.3); // 30% step for smooth movement
+    
+    // Ensure controls knows the camera has moved
+    controls.update();
   }
   
   // Enforce maximum distance with smooth transition
-  const distanceToCenter = camera.position.length();
-  if (distanceToCenter > initialDistance) {
+  const maxSafeDistance = initialDistance;
+  if (distanceToCenter > maxSafeDistance) {
     const direction = camera.position.clone().normalize();
     const lerpFactor = 0.1; // Gentle pull back
-    const newDistance = distanceToCenter * (1 - lerpFactor) + initialDistance * lerpFactor;
+    const newDistance = distanceToCenter * (1 - lerpFactor) + maxSafeDistance * lerpFactor;
     camera.position.copy(direction.multiplyScalar(newDistance));
   }
 }
@@ -280,6 +289,11 @@ export function toggleCameraControls(enable) {
 // Add this export for the updateControlSensitivity function
 export function updateControlSensitivity() {
   if (!controls || !camera) return;
+  
+  // Skip sensitivity adjustments if we're in satellite view mode
+  if (controls.userData && controls.userData.inSatelliteView) {
+    return; // Don't override camera settings in satellite view
+  }
   
   // Get current distance from camera to target
   const distanceToTarget = camera.position.distanceTo(controls.target);
