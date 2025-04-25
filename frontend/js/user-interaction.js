@@ -636,69 +636,141 @@ function onKeyDown(event) {
 }
 
 // Ultra-reliable camera recovery function that will always work
-function forceEarthViewRecovery(resetPosition = true) {
-  console.log('🛟 Emergency camera recovery activated');
+export function forceEarthViewRecovery(resetPosition = true) {
+  console.log('🛟 Complete camera recovery overhaul activated');
   const camera = getCamera();
   const controls = getControls();
+  const renderer = getRenderer();
   
   if (!camera || !controls) return;
   
-  // Kill any existing update loops
+  // STEP 1: Kill any existing update loops
   if (window.satelliteViewUpdateInterval) {
     cancelAnimationFrame(window.satelliteViewUpdateInterval);
     window.satelliteViewUpdateInterval = null;
   }
   
-  // Force exit follow mode
+  // STEP 2: Force exit follow mode
   import('./satellites.js').then(satellitesModule => {
     satellitesModule.setFollowMode(false);
   });
   
-  // Reset all control flags immediately
-  controls.enabled = true;
-  if (controls.userData) {
-    controls.userData.inSatelliteView = false;
-    controls.userData.followingSatellite = null;
-    controls.userData.userHasManuallyRotated = false;
-  }
+  // STEP 3: Store original camera position before we make changes
+  const originalPosition = camera.position.clone();
   
-  // Restore default control settings
-  controls.minDistance = EARTH_DISPLAY_RADIUS * 1.2;
-  controls.maxDistance = EARTH_DISPLAY_RADIUS * 20;
-  controls.dampingFactor = 0.1;
-  controls.minZoom = 0.01;
-  controls.maxZoom = 10;
-  
-  // Always reset target to Earth center
-  controls.target.set(0, 0, 0);
-  
-  if (resetPosition) {
-    // For 'R' key - Set camera to a guaranteed safe position
-    const safePosition = new THREE.Vector3(
-      CAMERA_INITIAL_DISTANCE * 0.7,
+  try {
+    // First disable existing controls to prevent events during transition
+    controls.enabled = false;
+    
+    // Force Earth center as target
+    controls.target.set(0, 0, 0);
+    
+    // Define extremely safe camera position
+    const extremelySafePosition = new THREE.Vector3(
       CAMERA_INITIAL_DISTANCE * 0.8,
-      CAMERA_INITIAL_DISTANCE * 0.7
+      CAMERA_INITIAL_DISTANCE * 0.8,
+      CAMERA_INITIAL_DISTANCE * 0.8
     );
-    camera.position.copy(safePosition);
     
-    // Force immediate update
+    // STEP 5: Complete control parameters reset
+    controls.minDistance = EARTH_DISPLAY_RADIUS * 1.5;  // Increased minimum safe distance
+    controls.maxDistance = EARTH_DISPLAY_RADIUS * 25;
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.1;
+    controls.rotateSpeed = 0.8;
+    
+    // Store original zoom speed to restore later
+    const originalZoomSpeed = controls.zoomSpeed;
+    
+    // CRITICAL FIX: Completely disable zoom for a brief period after reset
+    controls.zoomSpeed = 0; // Disable zooming completely
+    controls.enableZoom = false; // Belt and suspenders approach - both disable
+    
+    controls.panSpeed = 0.8;
+    controls.minZoom = 0.01;
+    controls.maxZoom = 10;
+    controls.enablePan = true;
+    controls.screenSpacePanning = true;
+    
+    // Clear all user data that might interfere
+    controls.userData = {
+      inSatelliteView: false,
+      followingSatellite: null,
+      userHasManuallyRotated: false,
+      originalMinDistance: controls.minDistance,
+      originalMaxDistance: controls.maxDistance,
+      originalDampingFactor: controls.dampingFactor,
+      originalMinZoom: controls.minZoom,
+      originalMaxZoom: controls.maxZoom,
+      originalZoomSpeed: originalZoomSpeed
+    };
+    
+    // Now apply the appropriate camera position
+    if (resetPosition) {
+      // For 'R' key - Use our predefined safe position
+      camera.position.copy(extremelySafePosition);
+      
+      // Force update
+      controls.update();
+    } else {
+      // For 'ESC' key - Try to maintain direction but at safe distance
+      // Calculate direction from Earth center to current camera
+      const currentDirection = originalPosition.clone().normalize();
+      
+      // Apply a guaranteed safe distance, much larger than before
+      const safeDistance = Math.max(EARTH_DISPLAY_RADIUS * 5, CAMERA_INITIAL_DISTANCE * 0.8);
+      const safePosition = currentDirection.multiplyScalar(safeDistance);
+      
+      // Set camera position to this safe position
+      camera.position.copy(safePosition);
+      
+      // Force update
+      controls.update();
+    }
+    
+    // SAFETY CHECK - if we're somehow still too close to Earth, force position
+    if (camera.position.length() < EARTH_DISPLAY_RADIUS * 2) {
+      console.log('⚠️ EMERGENCY OVERRIDE: Camera too close after recovery, forcing to safe position');
+      camera.position.copy(extremelySafePosition);
+      controls.update();
+    }
+    
+    // Re-enable controls after everything is reset
+    controls.enabled = true;
+    
+    // Force render to update the scene immediately
+    if (renderer) renderer.render(getScene(), camera);
+    
+    // Final camera adjustments
+    camera.updateProjectionMatrix();
+    
+    // Set a timer to restore zoom behavior after the user has had time to start rotating
+    setTimeout(() => {
+      console.log('🔍 Re-enabling zoom functionality');
+      controls.zoomSpeed = originalZoomSpeed;
+      controls.enableZoom = true;
+    }, 1500); // Longer delay to ensure user has time to make initial rotation
+    
+  } catch (error) {
+    console.error('Error during camera recovery:', error);
+    // Last resort recovery - hard reset to initial values
+    controls.target.set(0, 0, 0);
+    camera.position.set(
+      CAMERA_INITIAL_DISTANCE * 0.8,
+      CAMERA_INITIAL_DISTANCE * 0.8, 
+      CAMERA_INITIAL_DISTANCE * 0.8
+    );
+    controls.enabled = true;
+    controls.enableZoom = true;
+    controls.zoomSpeed = 1.0;
     controls.update();
-    
-  } else {
-    // For 'ESC' key - Keep similar direction but at safe distance
-    const currentDirection = camera.position.clone().normalize();
-    const safeDistance = EARTH_DISPLAY_RADIUS * 3;
-    const safePosition = currentDirection.multiplyScalar(safeDistance);
-    
-    // Immediately move camera to safe position
-    camera.position.copy(safePosition);
-    
-    // Force immediate update
-    controls.update();
+    camera.updateProjectionMatrix();
+    if (renderer) renderer.render(getScene(), camera);
   }
   
-  // Extra safety measure - force update projection matrix
-  camera.updateProjectionMatrix();
+  // Log success message
+  const positionLength = camera.position.length();
+  logMessage(`Camera recovered to safe position at distance ${positionLength.toFixed(2)} from Earth center`);
 }
 
 // Exit satellite view with option to reset or maintain camera position

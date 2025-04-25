@@ -4,6 +4,7 @@
 import { getCamera, getRenderer, getControls } from './scene.js';
 import { logMessage, logError } from './utils.js';
 import { CAMERA_INITIAL_DISTANCE } from './config.js';
+import { getDeviceInfo } from './responsive.js';
 
 // UI Elements
 let satelliteInfoPanel;
@@ -275,7 +276,17 @@ export function clearSatelliteInfo() {
 export function showFollowingMessage(satelliteName) {
   if (!followingMessageElement) return;
   
-  followingMessageElement.textContent = `Following ${satelliteName} - Press ESC to exit`;
+  // Update message text with device-appropriate instructions
+  const deviceInfo = getDeviceInfo ? getDeviceInfo() : { type: 'desktop' };
+  
+  if (deviceInfo.type === 'mobile' || deviceInfo.type === 'tablet') {
+    followingMessageElement.textContent = `Following ${satelliteName}`;
+    // Create mobile control buttons if they don't exist yet
+    createMobileControlButtons();
+  } else {
+    followingMessageElement.textContent = `Following ${satelliteName} - Press ESC to exit`;
+  }
+  
   followingMessageElement.style.display = 'block';
 }
 
@@ -284,6 +295,9 @@ export function hideFollowingMessage() {
   if (!followingMessageElement) return;
   
   followingMessageElement.style.display = 'none';
+  
+  // Hide mobile control buttons if they exist
+  hideMobileControlButtons();
 }
 
 // Update satellite label with live data
@@ -385,6 +399,10 @@ export function showTemporaryMessage(message, duration = 3000) {
 
 // Show satellite view control instructions
 export function showSatelliteViewInstructions() {
+  // Detect device type for tailored instructions
+  const deviceInfo = getDeviceInfo ? getDeviceInfo() : { type: 'desktop' };
+  const isMobile = deviceInfo.type === 'mobile' || deviceInfo.type === 'tablet';
+  
   // Create satellite controls overlay if it doesn't exist
   let satControlsOverlay = document.getElementById('satellite-controls-overlay');
   
@@ -393,17 +411,45 @@ export function showSatelliteViewInstructions() {
     satControlsOverlay.id = 'satellite-controls-overlay';
     satControlsOverlay.className = 'satellite-controls-overlay';
     
-    // Create content with keyboard shortcuts and mouse controls
-    satControlsOverlay.innerHTML = `
+    // Create content with device-appropriate controls
+    let controlsContent = `
       <div class="controls-panel">
         <h3>Satellite View Controls</h3>
         <div class="control-group">
+    `;
+    
+    if (isMobile) {
+      // Mobile-specific instructions
+      controlsContent += `
+          <div class="control-item">
+            <span class="key-combo">Touch + Drag</span>
+            <span class="action">Orbit around satellite</span>
+          </div>
+          <div class="control-item">
+            <span class="key-combo">Pinch</span>
+            <span class="action">Zoom in/out</span>
+          </div>
+          <div class="control-item">
+            <span class="key-combo">Exit Button</span>
+            <span class="action">Exit satellite view</span>
+          </div>
+          <div class="control-item">
+            <span class="key-combo">Reset Button</span>
+            <span class="action">Reset to Earth view</span>
+          </div>
+          <div class="mobile-buttons-info">
+            <p>Use the blue buttons in the bottom-right corner</p>
+          </div>
+      `;
+    } else {
+      // Desktop instructions
+      controlsContent += `
           <div class="control-item">
             <span class="key-combo">Click + Drag</span>
             <span class="action">Orbit around satellite</span>
           </div>
           <div class="control-item">
-            <span class="key-combo">Scroll / Pinch</span>
+            <span class="key-combo">Scroll</span>
             <span class="action">Zoom in/out</span>
           </div>
           <div class="control-item">
@@ -414,11 +460,17 @@ export function showSatelliteViewInstructions() {
             <span class="key-combo">R</span>
             <span class="action">Reset to Earth view</span>
           </div>
+      `;
+    }
+    
+    // Complete the HTML structure
+    controlsContent += `
         </div>
         <button id="dismiss-sat-controls">Got it</button>
       </div>
     `;
     
+    satControlsOverlay.innerHTML = controlsContent;
     document.body.appendChild(satControlsOverlay);
     
     // Add event listener to dismiss button
@@ -430,9 +482,6 @@ export function showSatelliteViewInstructions() {
         sessionStorage.setItem('satControlsShown', 'true');
       });
     }
-    
-    // Add CSS for the controls overlay
-    addSatelliteControlsCSS();
   }
   
   // Only show instructions if they haven't been shown this session
@@ -445,8 +494,12 @@ export function showSatelliteViewInstructions() {
       hideSatelliteViewInstructions();
     }, 10000);
   } else {
-    // Just show a brief reminder message
-    showTemporaryMessage('Satellite View: ESC to exit, R to reset, drag to orbit', 3000);
+    // Show a brief reminder message based on device type
+    if (isMobile) {
+      showTemporaryMessage('Use the blue buttons to exit or reset view', 3000);
+    } else {
+      showTemporaryMessage('Satellite View: ESC to exit, R to reset, drag to orbit', 3000);
+    }
   }
 }
 
@@ -556,6 +609,89 @@ function addSatelliteControlsCSS() {
       }
     `;
     document.head.appendChild(style);
+  }
+}
+
+// Create mobile control buttons for satellite view
+function createMobileControlButtons() {
+  // Check if buttons already exist
+  if (document.getElementById('mobile-controls')) {
+    showMobileControlButtons();
+    return;
+  }
+  
+  // Create container for mobile control buttons
+  const mobileControls = document.createElement('div');
+  mobileControls.id = 'mobile-controls';
+  mobileControls.className = 'mobile-controls';
+  
+  // Create exit button (equivalent to ESC key)
+  const exitButton = document.createElement('button');
+  exitButton.id = 'mobile-exit-button';
+  exitButton.innerHTML = '<span>Exit</span>';
+  exitButton.title = 'Exit satellite view';
+  exitButton.addEventListener('click', () => {
+    import('./user-interaction.js').then(interaction => {
+      // Call the same function that ESC key triggers
+      interaction.exitSatelliteView ? 
+        interaction.exitSatelliteView(false) : 
+        interaction.forceEarthViewRecovery(false);
+      
+      // Clear selection and info
+      import('./satellites.js').then(sat => {
+        sat.setSelectedSatellite(null);
+      });
+      clearSatelliteInfo();
+      hideFollowingMessage();
+      showTemporaryMessage('Exited satellite view', 2000);
+    });
+  });
+  
+  // Create reset button (equivalent to R key)
+  const resetButton = document.createElement('button');
+  resetButton.id = 'mobile-reset-button';
+  resetButton.innerHTML = '<span>Reset</span>';
+  resetButton.title = 'Reset to Earth view';
+  resetButton.addEventListener('click', () => {
+    import('./user-interaction.js').then(interaction => {
+      // Call the same function that R key triggers
+      interaction.resetCameraToDefaultView ? 
+        interaction.resetCameraToDefaultView() : 
+        interaction.forceEarthViewRecovery(true);
+      
+      // Clear selection and info
+      import('./satellites.js').then(sat => {
+        sat.setSelectedSatellite(null);
+      });
+      clearSatelliteInfo();
+      hideFollowingMessage();
+      showTemporaryMessage('Reset to Earth view', 2000);
+    });
+  });
+  
+  // Add buttons to container
+  mobileControls.appendChild(exitButton);
+  mobileControls.appendChild(resetButton);
+  
+  // Add container to body
+  document.body.appendChild(mobileControls);
+}
+
+// Hide mobile control buttons
+function hideMobileControlButtons() {
+  const mobileControls = document.getElementById('mobile-controls');
+  if (mobileControls) {
+    mobileControls.style.display = 'none';
+  }
+}
+
+// Show mobile control buttons
+function showMobileControlButtons() {
+  const mobileControls = document.getElementById('mobile-controls');
+  if (mobileControls) {
+    mobileControls.style.display = 'flex';
+  } else {
+    createMobileControlButtons();
   }
 }
 
