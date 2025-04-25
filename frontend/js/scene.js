@@ -249,14 +249,8 @@ function preventEarthCollision() {
     controls.update();
   }
   
-  // Enforce maximum distance with smooth transition
-  const maxSafeDistance = initialDistance;
-  if (distanceToCenter > maxSafeDistance) {
-    const direction = camera.position.clone().normalize();
-    const lerpFactor = 0.1; // Gentle pull back
-    const newDistance = distanceToCenter * (1 - lerpFactor) + maxSafeDistance * lerpFactor;
-    camera.position.copy(direction.multiplyScalar(newDistance));
-  }
+  // REMOVED: The maximum distance constraint that was causing the camera to snap back
+  // This allows users to freely move around after zooming in without being pulled back
 }
 
 // Update starfield position to follow camera

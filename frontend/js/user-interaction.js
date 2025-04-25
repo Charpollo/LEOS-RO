@@ -644,6 +644,9 @@ export function forceEarthViewRecovery(resetPosition = true) {
   
   if (!camera || !controls) return;
   
+  // Store the current camera distance from Earth center before making changes
+  const originalCameraDistance = camera.position.length();
+  
   // STEP 1: Kill any existing update loops
   if (window.satelliteViewUpdateInterval) {
     cancelAnimationFrame(window.satelliteViewUpdateInterval);
@@ -657,6 +660,7 @@ export function forceEarthViewRecovery(resetPosition = true) {
   
   // STEP 3: Store original camera position before we make changes
   const originalPosition = camera.position.clone();
+  const originalDirection = originalPosition.clone().normalize();
   
   try {
     // First disable existing controls to prevent events during transition
@@ -705,21 +709,31 @@ export function forceEarthViewRecovery(resetPosition = true) {
       originalZoomSpeed: originalZoomSpeed
     };
     
-    // Now apply the appropriate camera position
+    // IMPROVEMENT: For both ESC and R, we'll try to preserve the user's preferred distance
+    // Calculate a safe minimum distance
+    const minSafeDistance = EARTH_DISPLAY_RADIUS * 2;
+    
+    // Check if the original camera distance is sensible (not inside Earth)
+    // and use it if possible, otherwise use a default safe distance
+    const targetDistance = (originalCameraDistance > minSafeDistance) ? 
+      originalCameraDistance : minSafeDistance;
+    
     if (resetPosition) {
-      // For 'R' key - Use our predefined safe position
-      camera.position.copy(extremelySafePosition);
+      // For 'R' key - Use our predefined safe position but maintain distance if possible
+      const newPosition = new THREE.Vector3(
+        CAMERA_INITIAL_DISTANCE * 0.5,
+        CAMERA_INITIAL_DISTANCE * 0.8,
+        CAMERA_INITIAL_DISTANCE * 0.7
+      ).normalize().multiplyScalar(targetDistance);
+      
+      camera.position.copy(newPosition);
       
       // Force update
       controls.update();
     } else {
-      // For 'ESC' key - Try to maintain direction but at safe distance
-      // Calculate direction from Earth center to current camera
-      const currentDirection = originalPosition.clone().normalize();
-      
-      // Apply a guaranteed safe distance, much larger than before
-      const safeDistance = Math.max(EARTH_DISPLAY_RADIUS * 5, CAMERA_INITIAL_DISTANCE * 0.8);
-      const safePosition = currentDirection.multiplyScalar(safeDistance);
+      // For 'ESC' key - Try to maintain both direction AND distance
+      // Calculate new position using original direction but safe distance
+      const safePosition = originalDirection.clone().multiplyScalar(targetDistance);
       
       // Set camera position to this safe position
       camera.position.copy(safePosition);
@@ -891,6 +905,8 @@ function getIntersectedObject() {
     if (satellite.model) clickableObjects.push(satellite.model);
     if (satellite.indicator) clickableObjects.push(satellite.indicator);
     if (satellite.devMarker) clickableObjects.push(satellite.devMarker);
+    // IMPROVEMENT: Make labels clickable too
+    if (satellite.label) clickableObjects.push(satellite.label);
   }
   
   // Add Earth to clickable objects for reset view on double-click
@@ -925,6 +941,11 @@ function getSatelliteFromObject(object) {
     
     // Check if the object is the satellite dev marker or a child of it
     if (satellite.devMarker === object || (satellite.devMarker && satellite.devMarker.getObjectById(object.id))) {
+      return satellite;
+    }
+    
+    // IMPROVEMENT: Check if the object is the satellite label
+    if (satellite.label === object) {
       return satellite;
     }
   }

@@ -137,12 +137,14 @@ export function createSatellite(name, color, trajectoryData) {
   const orbitTrail = createOrbitTrail(color);
   scene.add(orbitTrail);
   
-  // Create visual indicator for the satellite position
+  // Create visual indicator for the satellite - but make it invisible
   const indicator = createSatelliteIndicator(name, color);
+  indicator.visible = false; // Hide the indicator
   satelliteGroup.add(indicator);
   
-  // Create a development marker to make satellites visible
+  // Create a development marker to make satellites visible - but make it invisible
   const devMarker = createDevMarker(color);
+  devMarker.visible = false; // Hide the dev marker
   satelliteGroup.add(devMarker);
   
   // Load 3D model with appropriate scale based on satellite type
@@ -168,10 +170,18 @@ export function createSatellite(name, color, trajectoryData) {
     logMessage(`Satellite ${name} model loaded successfully`);
   });
   
-  // Create a simple text label
+  // Create a simple text label - keep this visible
   const textLabel = createSimpleLabel(name, color);
-  // Move the label position upward to avoid covering the satellite
-  textLabel.position.set(0, EARTH_DISPLAY_RADIUS * 0.15, 0); // Increased Y position
+  textLabel.visible = true; // Make sure labels are visible for telemetry
+  
+  // Position the label closer to the satellite with proper scaling based on satellite type
+  const labelScale = name === "CRTS1" ? 0.9 : 1.1; // Slightly smaller for CRTS1, larger for Bulldog
+  textLabel.position.set(0, EARTH_DISPLAY_RADIUS * 0.05 * labelScale, 0); // Reduced Y position to be closer to satellite
+  textLabel.scale.set(
+    EARTH_DISPLAY_RADIUS * 0.1 * labelScale,
+    EARTH_DISPLAY_RADIUS * 0.05 * labelScale,
+    1
+  );
   satelliteGroup.add(textLabel);
   
   // Store satellite data
@@ -188,6 +198,9 @@ export function createSatellite(name, color, trajectoryData) {
     color: color,
     currentIndex: 0,
     interpolationFactor: 0,
+    position: new THREE.Vector3(),
+    altitude: 0,
+    velocity: 0,
     previousPositions: [], // Store previous positions for trail
     totalTrailPoints: Math.floor(validTrajectory.length * TRAIL_MAX_PERCENTAGE), // Limit trail length to percentage of total
     firstUpdate: true // Flag for first update
@@ -639,6 +652,25 @@ function updateSatellitePosition(satellite, time) {
   // Update satellite position
   satellite.group.position.copy(position);
   
+  // IMPROVEMENT 1: Make satellites face Earth
+  // Calculate the direction from satellite to Earth center (since Earth is at origin)
+  if (satellite.model) {
+    // We want satellites to face Earth but also maintain their orientation relative to their orbital path
+    const toEarth = position.clone().negate().normalize();
+    const orbitNormal = new THREE.Vector3(0, 1, 0); // Simplified - assumes orbit is roughly around Earth's equator
+    
+    // Create a rotation matrix that makes the satellite face Earth while maintaining proper orbital alignment
+    const satelliteMatrix = new THREE.Matrix4();
+    satelliteMatrix.lookAt(
+      new THREE.Vector3(0, 0, 0), // Satellite origin (local)
+      toEarth,                    // Look toward Earth
+      orbitNormal                 // Use orbit normal as up direction
+    );
+    
+    // Apply the rotation to the satellite model
+    satellite.model.setRotationFromMatrix(satelliteMatrix);
+  }
+  
   // Store for orbit trail
   if (satellite.previousPositions.length === 0 || 
       position.distanceTo(satellite.previousPositions[satellite.previousPositions.length-1]) > 0.01) {
@@ -650,6 +682,42 @@ function updateSatellitePosition(satellite, time) {
     if (satellite.previousPositions.length > satellite.totalTrailPoints) {
       satellite.previousPositions.shift();
     }
+  }
+  
+  // IMPROVEMENT 2: Make label zoom with satellite
+  // Get the camera to adjust label scale based on distance
+  const camera = getCamera();
+  if (camera && satellite.label) {
+    // Calculate distance from camera to satellite
+    const cameraToSatDistance = camera.position.distanceTo(position);
+    
+    // Base scale factors - these define the default size at standard distance
+    const baseScale = satellite.name === "CRTS1" ? 0.9 : 1.1;
+    
+    // Much closer label position - reduce the height significantly
+    const baseHeight = EARTH_DISPLAY_RADIUS * 0.05 * baseScale;
+    
+    // Optimal viewing distance - labels are normal size at this distance
+    const optimalDistance = EARTH_DISPLAY_RADIUS * 4;
+    
+    // Calculate scale factor based on camera distance
+    // Labels should get bigger when camera is very close, but not too huge
+    const distanceFactor = Math.min(
+      optimalDistance / Math.max(cameraToSatDistance, EARTH_DISPLAY_RADIUS * 0.5),
+      2.0  // Cap the maximum scale to prevent labels from getting too huge
+    );
+    
+    // Position the label just above the satellite model
+    satellite.label.position.set(0, baseHeight * distanceFactor, 0);
+    
+    // Scale the label dynamically based on distance
+    const scaleX = EARTH_DISPLAY_RADIUS * 0.1 * baseScale;
+    const scaleY = EARTH_DISPLAY_RADIUS * 0.05 * baseScale;
+    satellite.label.scale.set(
+      scaleX * distanceFactor,
+      scaleY * distanceFactor,
+      1
+    );
   }
   
   // Update object visibility based on position (hide when behind Earth)

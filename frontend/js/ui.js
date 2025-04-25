@@ -304,69 +304,65 @@ export function hideFollowingMessage() {
 export function updateSatelliteLabel(satellite) {
   if (!satellite || !satellite.label || !satellite.label.material || !satellite.label.material.map) return;
   
-  // Only update if this is the selected satellite or a specified update interval has passed
-  const shouldUpdateLabel = currentlyDisplayedSatellite === satellite;
+  // Always update labels - removed the conditional check to only update selected satellites
+  // Get the canvas context from the sprite's texture
+  const texture = satellite.label.material.map;
+  const canvas = texture.image;
+  const context = canvas.getContext('2d');
   
-  if (shouldUpdateLabel) {
-    // Get the canvas context from the sprite's texture
-    const texture = satellite.label.material.map;
-    const canvas = texture.image;
-    const context = canvas.getContext('2d');
+  if (!context) return;
+  
+  // Clear the canvas
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  
+  // Set background
+  context.fillStyle = 'rgba(0, 0, 0, 0.8)';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  
+  // Add border - convert color to string format if needed
+  const colorStr = typeof satellite.color === 'string' 
+    ? satellite.color 
+    : `#${satellite.color.toString(16).padStart(6, '0')}`;
     
-    if (!context) return;
-    
-    // Clear the canvas
-    context.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // Set background
-    context.fillStyle = 'rgba(0, 0, 0, 0.8)';
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    
-    // Add border - convert color to string format if needed
-    const colorStr = typeof satellite.color === 'string' 
-      ? satellite.color 
-      : `#${satellite.color.toString(16).padStart(6, '0')}`;
-      
-    context.strokeStyle = colorStr;
-    context.lineWidth = 8;
-    context.strokeRect(4, 4, canvas.width - 8, canvas.height - 8);
-    
-    // Set text style for title
-    context.font = 'bold 64px Arial';
-    context.fillStyle = 'white';
-    context.textAlign = 'center';
-    context.textBaseline = 'top';
-    
-    // Draw title
-    context.fillText(satellite.name, canvas.width / 2, 20);
-    
-    // Set text style for info
-    context.font = '32px Arial';
-    context.textAlign = 'left';
-    context.fillStyle = '#03cafc'; // Light blue for data
-    
-    // Draw dynamic satellite information
-    if (satellite.altitude) {
-      context.fillText(`Alt: ${satellite.altitude.toFixed(1)} km`, 20, 100);
-    }
-    
-    if (satellite.velocity) {
-      context.fillText(`Vel: ${satellite.velocity.toFixed(1)} km/s`, 20, 140);
-    }
-    
-    // Replace position coordinates with subsystem telemetry
-    // Use different timing functions to make the values vary independently
-    const batteryLevel = Math.floor(75 + 15 * Math.sin(Date.now() / 10000)); // 60-90% range
-    const solarPanelOutput = Math.floor(28 + 7 * Math.sin(Date.now() / 12000)); // 21-35W range
-    const tempC = Math.floor(20 + 5 * Math.sin(Date.now() / 15000)); // 15-25°C range
-    
-    context.fillText(`Batt: ${batteryLevel}%`, 20, 180);
-    context.fillText(`Solar: ${solarPanelOutput}W`, 20, 220);
-    context.fillText(`Temp: ${tempC}°C`, 20, 260);
-    
-    // Update the texture
-    texture.needsUpdate = true;
+  context.strokeStyle = colorStr;
+  context.lineWidth = 8;
+  context.strokeRect(4, 4, canvas.width - 8, canvas.height - 8);
+  
+  // Set text style for title
+  context.font = 'bold 64px Arial';
+  context.fillStyle = 'white';
+  context.textAlign = 'center';
+  context.textBaseline = 'top';
+  
+  // Draw title
+  context.fillText(satellite.name, canvas.width / 2, 20);
+  
+  // Set text style for info
+  context.font = '32px Arial';
+  context.textAlign = 'left';
+  context.fillStyle = '#03cafc'; // Light blue for data
+  
+  // Draw dynamic satellite information
+  if (satellite.altitude) {
+    context.fillText(`Alt: ${satellite.altitude.toFixed(1)} km`, 20, 100);
   }
+  
+  if (satellite.velocity) {
+    context.fillText(`Vel: ${satellite.velocity.toFixed(1)} km/s`, 20, 140);
+  }
+  
+  // Replace position coordinates with subsystem telemetry
+  // Use different timing functions to make the values vary independently
+  const batteryLevel = Math.floor(75 + 15 * Math.sin(Date.now() / 10000)); // 60-90% range
+  const solarPanelOutput = Math.floor(28 + 7 * Math.sin(Date.now() / 12000)); // 21-35W range
+  const tempC = Math.floor(20 + 5 * Math.sin(Date.now() / 15000)); // 15-25°C range
+  
+  context.fillText(`Batt: ${batteryLevel}%`, 20, 180);
+  context.fillText(`Solar: ${solarPanelOutput}W`, 20, 220);
+  context.fillText(`Temp: ${tempC}°C`, 20, 260);
+  
+  // Update the texture
+  texture.needsUpdate = true;
 }
 
 // Show temporary message overlay
