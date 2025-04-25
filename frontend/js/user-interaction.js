@@ -103,12 +103,13 @@ function onMouseClick(event) {
       
       logMessage(`Following satellite: ${satellite.name}`);
     } else {
-      // Clicked on something else, clear selection and exit satellite view
-      // but keep the camera position (ESC-like behavior)
+      // Clicked on something else (like Earth), clear selection and exit satellite view
       setSelectedSatellite(null);
       clearSatelliteInfo();
       hideFollowingMessage();
-      exitSatelliteView(false); // false = don't reset position
+      
+      // When clicking on Earth or other objects, use a safety check to ensure we don't end up inside Earth
+      exitSatelliteViewSafely();
     }
   } else {
     // Clicked on empty space, clear selection and exit satellite view
@@ -683,12 +684,12 @@ export function forceEarthViewRecovery(resetPosition = true) {
     controls.dampingFactor = 0.1;
     controls.rotateSpeed = 0.8;
     
-    // Store original zoom speed to restore later
-    const originalZoomSpeed = controls.zoomSpeed;
+    // Store original zoom speed 
+    const originalZoomSpeed = 1.2; // Use a fixed standard value instead of relying on previous value
     
-    // CRITICAL FIX: Completely disable zoom for a brief period after reset
-    controls.zoomSpeed = 0; // Disable zooming completely
-    controls.enableZoom = false; // Belt and suspenders approach - both disable
+    // FIX: Always enable zoom immediately - no delay that might cause bugs
+    controls.zoomSpeed = originalZoomSpeed;
+    controls.enableZoom = true;
     
     controls.panSpeed = 0.8;
     controls.minZoom = 0.01;
@@ -757,13 +758,6 @@ export function forceEarthViewRecovery(resetPosition = true) {
     
     // Final camera adjustments
     camera.updateProjectionMatrix();
-    
-    // Set a timer to restore zoom behavior after the user has had time to start rotating
-    setTimeout(() => {
-      console.log('🔍 Re-enabling zoom functionality');
-      controls.zoomSpeed = originalZoomSpeed;
-      controls.enableZoom = true;
-    }, 1500); // Longer delay to ensure user has time to make initial rotation
     
   } catch (error) {
     console.error('Error during camera recovery:', error);
@@ -858,6 +852,81 @@ function exitSatelliteView(resetPosition = true) {
       ui.showTemporaryMessage('View reset to safe position', 2000);
     });
   }
+}
+
+// Safely exit satellite view with extra protection against going inside Earth
+function exitSatelliteViewSafely() {
+  console.log('🔄 Safely exiting satellite view with Earth collision protection');
+  const camera = getCamera();
+  const controls = getControls();
+  
+  if (!camera || !controls) return;
+  
+  // Cancel any existing satellite view update loop
+  if (window.satelliteViewUpdateInterval) {
+    cancelAnimationFrame(window.satelliteViewUpdateInterval);
+    window.satelliteViewUpdateInterval = null;
+  }
+  
+  // Exit follow mode
+  import('./satellites.js').then(satellitesModule => {
+    satellitesModule.setFollowMode(false);
+  });
+  
+  // Get current camera position and distance from Earth center
+  const currentPosition = camera.position.clone();
+  const distanceFromEarth = currentPosition.length();
+  
+  // Define minimum safe distance from Earth's surface with margin
+  const minSafeDistance = EARTH_DISPLAY_RADIUS * 1.5; // 50% margin for safety
+  
+  // Always ensure controls are enabled first
+  controls.enabled = true;
+  
+  // Properly restore original values from before entering satellite view
+  const originalDampingFactor = controls.userData?.originalDampingFactor || 0.1;
+  const originalMinDistance = controls.userData?.originalMinDistance || 1.0;
+  const originalMaxDistance = controls.userData?.originalMaxDistance || 100;
+  const originalMinZoom = controls.userData?.originalMinZoom || 0.01;
+  const originalMaxZoom = controls.userData?.originalMaxZoom || 10;
+  
+  // Reset all control properties to original values
+  controls.dampingFactor = originalDampingFactor;
+  controls.minDistance = originalMinDistance;
+  controls.maxDistance = originalMaxDistance;
+  controls.minZoom = originalMinZoom;
+  controls.maxZoom = originalMaxZoom;
+  
+  // Clear userHasManuallyRotated flag and any other view-specific flags
+  if (controls.userData) {
+    controls.userData.userHasManuallyRotated = false;
+    controls.userData.followingSatellite = null;
+    controls.userData.inSatelliteView = false;
+  }
+  
+  // Reset target to Earth center (this is key to fixing orbit issues)
+  controls.target.set(0, 0, 0);
+  
+  // Check if camera would be too close to Earth
+  if (distanceFromEarth < minSafeDistance) {
+    // We need to move the camera outward along its current direction from Earth center
+    const direction = currentPosition.clone().normalize();
+    
+    // Calculate new position at safe distance
+    const safePosition = direction.multiplyScalar(minSafeDistance);
+    
+    // Set camera position to safe distance
+    camera.position.copy(safePosition);
+    
+    // Add notification
+    logMessage('Camera moved to safe distance from Earth');
+    import('./ui.js').then(ui => {
+      ui.showTemporaryMessage('View adjusted to safe position', 2000);
+    });
+  }
+  
+  // Force controls update to apply changes immediately
+  controls.update();
 }
 
 // Helper function to update mouse coordinates for raycaster

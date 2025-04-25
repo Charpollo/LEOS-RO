@@ -82,6 +82,13 @@ async function init() {
     // but don't display it to users in production
     trackFrameTime();
     
+    // Import preventEarthCollision function from scene.js and call it
+    import('./scene.js').then(sceneModule => {
+      if (sceneModule.preventEarthCollision) {
+        sceneModule.preventEarthCollision();
+      }
+    });
+    
     if (controls) controls.update();
     if (renderer && scene && camera) {
       renderer.render(scene, camera);

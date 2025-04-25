@@ -222,7 +222,7 @@ function onCanvasClick(event) {
 }
 
 // Prevent camera from going through Earth with improved handling
-function preventEarthCollision() {
+export function preventEarthCollision() {
   // Skip this check if we're in satellite view
   if (controls.userData && controls.userData.inSatelliteView) {
     return; // Don't override camera settings in satellite view
@@ -248,9 +248,6 @@ function preventEarthCollision() {
     // Ensure controls knows the camera has moved
     controls.update();
   }
-  
-  // REMOVED: The maximum distance constraint that was causing the camera to snap back
-  // This allows users to freely move around after zooming in without being pulled back
 }
 
 // Update starfield position to follow camera
