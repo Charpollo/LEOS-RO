@@ -616,7 +616,8 @@ function handleLongPress(event) {
 function onKeyDown(event) {
   // ESC key to exit satellite view but maintain camera position
   if (event.key === 'Escape') {
-    exitSatelliteView(false); // false = don't reset position
+    // Direct recovery - no complex logic
+    forceEarthViewRecovery(false);
     setSelectedSatellite(null);
     clearSatelliteInfo();
     hideFollowingMessage();
@@ -625,12 +626,79 @@ function onKeyDown(event) {
   
   // 'R' key resets camera to default view
   if (event.key === 'r' || event.key === 'R') {
-    exitSatelliteView(true); // true = reset position
+    // Direct recovery with reset
+    forceEarthViewRecovery(true);
     setSelectedSatellite(null);
     clearSatelliteInfo();
     hideFollowingMessage();
     logMessage('Reset camera to default view (R key)');
   }
+}
+
+// Ultra-reliable camera recovery function that will always work
+function forceEarthViewRecovery(resetPosition = true) {
+  console.log('🛟 Emergency camera recovery activated');
+  const camera = getCamera();
+  const controls = getControls();
+  
+  if (!camera || !controls) return;
+  
+  // Kill any existing update loops
+  if (window.satelliteViewUpdateInterval) {
+    cancelAnimationFrame(window.satelliteViewUpdateInterval);
+    window.satelliteViewUpdateInterval = null;
+  }
+  
+  // Force exit follow mode
+  import('./satellites.js').then(satellitesModule => {
+    satellitesModule.setFollowMode(false);
+  });
+  
+  // Reset all control flags immediately
+  controls.enabled = true;
+  if (controls.userData) {
+    controls.userData.inSatelliteView = false;
+    controls.userData.followingSatellite = null;
+    controls.userData.userHasManuallyRotated = false;
+  }
+  
+  // Restore default control settings
+  controls.minDistance = EARTH_DISPLAY_RADIUS * 1.2;
+  controls.maxDistance = EARTH_DISPLAY_RADIUS * 20;
+  controls.dampingFactor = 0.1;
+  controls.minZoom = 0.01;
+  controls.maxZoom = 10;
+  
+  // Always reset target to Earth center
+  controls.target.set(0, 0, 0);
+  
+  if (resetPosition) {
+    // For 'R' key - Set camera to a guaranteed safe position
+    const safePosition = new THREE.Vector3(
+      CAMERA_INITIAL_DISTANCE * 0.7,
+      CAMERA_INITIAL_DISTANCE * 0.8,
+      CAMERA_INITIAL_DISTANCE * 0.7
+    );
+    camera.position.copy(safePosition);
+    
+    // Force immediate update
+    controls.update();
+    
+  } else {
+    // For 'ESC' key - Keep similar direction but at safe distance
+    const currentDirection = camera.position.clone().normalize();
+    const safeDistance = EARTH_DISPLAY_RADIUS * 3;
+    const safePosition = currentDirection.multiplyScalar(safeDistance);
+    
+    // Immediately move camera to safe position
+    camera.position.copy(safePosition);
+    
+    // Force immediate update
+    controls.update();
+  }
+  
+  // Extra safety measure - force update projection matrix
+  camera.updateProjectionMatrix();
 }
 
 // Exit satellite view with option to reset or maintain camera position
@@ -676,31 +744,34 @@ function exitSatelliteView(resetPosition = true) {
     controls.userData.inSatelliteView = false;
   }
   
-  // If we're resetting position (R key), go back to initial view
+  // GUARANTEED RECOVERY: Always ensure we're outside Earth regardless of current position
+  const safeDistance = EARTH_DISPLAY_RADIUS * 3;
+  
   if (resetPosition) {
+    // For R key - Just use the reset view function which has its own safety checks
     resetCameraToDefaultView();
   } else {
-    // Otherwise (ESC key or click elsewhere), just reset target to Earth center
-    // but maintain current camera position
-    controls.target.set(0, 0, 0);
+    // For ESC key - Force camera to safe position while keeping viewing direction
     
-    // Ensure we're not too close to Earth's center which could cause zoom issues
-    const minSafeDistance = EARTH_DISPLAY_RADIUS * 1.5;
-    if (camera.position.length() < minSafeDistance) {
-      // Move camera outward along its current direction
-      const direction = camera.position.clone().normalize();
-      camera.position.copy(direction.multiplyScalar(minSafeDistance * 1.2));
-    }
+    // Calculate normalized direction from Earth center to current camera
+    const earthToCamera = camera.position.clone().normalize();
+    
+    // Force camera to safe distance along this direction
+    const safePosition = earthToCamera.multiplyScalar(safeDistance);
+    camera.position.copy(safePosition);
+    
+    // Reset target to Earth center (this is key to fixing orbit issues)
+    controls.target.set(0, 0, 0);
     
     // Force controls update to apply changes immediately
     controls.update();
+    
+    // Add notification
+    logMessage('Camera position adjusted to safe distance');
+    import('./ui.js').then(ui => {
+      ui.showTemporaryMessage('View reset to safe position', 2000);
+    });
   }
-  
-  // Add notification that we've exited satellite view
-  logMessage('Camera controls reset to Earth view');
-  import('./ui.js').then(ui => {
-    ui.showTemporaryMessage('Returned to Earth view', 2000);
-  });
 }
 
 // Helper function to update mouse coordinates for raycaster
