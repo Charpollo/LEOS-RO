@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>LEOS: FIRST ORBIT</title>
-  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/styles.css?v=<?php echo time(); ?>">
   <link rel="icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAABmJLR0QA/wD/AP+gvaeTAAAA30lEQVRYhe2XMQ7CMAxFXyPEDRi5Qo/AFbgBO1dgYWRhYWJm5AhI3IIDwIxQJSoVOY5DHKfi/yVy5Lz4J5ItQgghhHhSAzMwAFsHvRbogeS8L6fpHPU7oAuuOxCAfZFapZiAnYNuBdS/CFQxYPHX/A+owsxhXwvUrtGANQytQO0azedIGmoB04qs21/FI+ouASuGdj8JQ5mcD3Q5KpWQ46Ng9ffxQdiBZxVMxKvnJxZ7HB8TtGizxcMYrRqtwcjVbLaGU0/T1Q5n68DJ3XwODa9GacNj0GpZCSGEENfhDggYUhFMnEzGAAAAAElFTkSuQmCC">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="description" content="LEOS: FIRST ORBIT - Interactive satellite orbit visualization">
@@ -62,11 +62,11 @@
     <div class="instruction-panel">
       <div class="instruction-title">Welcome to LEOS: FIRST ORBIT</div>
       <ul class="instruction-list">
-        <li><span class="instruction-icon">🖱️</span> <strong>Rotate View:</strong> Click and drag</li>
-        <li><span class="instruction-icon">⚙️</span> <strong>Zoom:</strong> Scroll wheel or pinch</li>
-        <li><span class="instruction-icon">🛰️</span> <strong>Satellite Info:</strong> Click on satellite</li>
-        <li><span class="instruction-icon">🌍</span> <strong>Reset View:</strong> Press 'R' key</li>
-        <li><span class="instruction-icon">↩️</span> <strong>Exit Satellite View:</strong> Click empty space or press ESC</li>
+        <li><span class="instruction-icon">🖱️</span> <strong>Rotate View: Click and drag</li>
+        <li><span class="instruction-icon">⚙️</span> <strong>Zoom: Scroll wheel or pinch</li>
+        <li><span class="instruction-icon">🛰️</span> <strong>Satellite Info: Click on satellite</li>
+        <li><span class="instruction-icon">🌍</span> <strong>Reset View: Press 'R' key</li>
+        <li><span class="instruction-icon">↩️</span> <strong>Exit Satellite View: Click empty space or press ESC</li>
       </ul>
       <button id="dismiss-instructions">Got it!</button>
     </div>
@@ -125,6 +125,20 @@
     // Prevent context menu on right-click or long press
     document.addEventListener('contextmenu', function(e) {
       e.preventDefault();
+    });
+    
+    // Force display instructions once on page load to show the fixed spacing
+    document.addEventListener('DOMContentLoaded', function() {
+      // Clear instructions shown flag to force them to display
+      sessionStorage.removeItem('instructionsShown');
+      
+      // Show instructions overlay after a slight delay
+      setTimeout(function() {
+        const instructionsOverlay = document.getElementById('instructions-overlay');
+        if (instructionsOverlay) {
+          instructionsOverlay.style.display = 'flex';
+        }
+      }, 1000);
     });
   </script>
 </body>
