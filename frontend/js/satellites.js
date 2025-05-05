@@ -137,15 +137,14 @@ export function createSatellite(name, color, trajectoryData) {
   const orbitTrail = createOrbitTrail(color);
   scene.add(orbitTrail);
   
-  // Create visual indicator for the satellite - but make it invisible
-  const indicator = createSatelliteIndicator(name, color);
-  indicator.visible = false; // Hide the indicator
-  satelliteGroup.add(indicator);
+  // Create a simple text label with just the satellite name
+  const textLabel = createSimpleLabel(name, color);
+  textLabel.visible = true; // Always visible
   
-  // Create a development marker to make satellites visible - but make it invisible
-  const devMarker = createDevMarker(color);
-  devMarker.visible = false; // Hide the dev marker
-  satelliteGroup.add(devMarker);
+  // Position the label above the satellite
+  const labelScale = name === "CRTS1" ? 0.9 : 1.1; // Slightly smaller for CRTS1, larger for Bulldog
+  textLabel.position.set(0, EARTH_DISPLAY_RADIUS * 0.05 * labelScale, 0);
+  satelliteGroup.add(textLabel);
   
   // Load 3D model with appropriate scale based on satellite type
   const modelPath = name === "CRTS1" ? ASSET_PATHS.CRTS_SATELLITE : ASSET_PATHS.BULLDOG_SATELLITE;
@@ -170,20 +169,6 @@ export function createSatellite(name, color, trajectoryData) {
     logMessage(`Satellite ${name} model loaded successfully`);
   });
   
-  // Create a simple text label - keep this visible
-  const textLabel = createSimpleLabel(name, color);
-  textLabel.visible = true; // Make sure labels are visible for telemetry
-  
-  // Position the label closer to the satellite with proper scaling based on satellite type
-  const labelScale = name === "CRTS1" ? 0.9 : 1.1; // Slightly smaller for CRTS1, larger for Bulldog
-  textLabel.position.set(0, EARTH_DISPLAY_RADIUS * 0.05 * labelScale, 0); // Reduced Y position to be closer to satellite
-  textLabel.scale.set(
-    EARTH_DISPLAY_RADIUS * 0.1 * labelScale,
-    EARTH_DISPLAY_RADIUS * 0.05 * labelScale,
-    1
-  );
-  satelliteGroup.add(textLabel);
-  
   // Store satellite data
   const satellite = {
     name: name,
@@ -191,9 +176,9 @@ export function createSatellite(name, color, trajectoryData) {
     model: null,  // Will be set when model loads
     orbitTrail: orbitTrail,
     trailPoints: [], // Array to store trail positions
-    indicator: indicator,
-    devMarker: devMarker,
-    label: textLabel,
+    indicator: null, // No indicator
+    devMarker: null, // No dev marker
+    label: textLabel, // Add label reference
     trajectory: validTrajectory,
     color: color,
     currentIndex: 0,
@@ -375,45 +360,58 @@ function createSatelliteIndicator(name, color) {
   return indicator;
 }
 
-// Create a simple text label for development
+// Create a futuristic text label for satellites - no borders, just clean text
 function createSimpleLabel(name, color) {
-  // Create canvas for text
+  // Create canvas for text with higher resolution
   const canvas = document.createElement('canvas');
   const context = canvas.getContext('2d');
-  canvas.width = 512;
-  canvas.height = 256;
+  canvas.width = 512; // Increased from 300 for higher resolution
+  canvas.height = 128; // Increased from 64 for higher resolution
   
-  // Set background
-  context.fillStyle = 'rgba(0, 0, 0, 0.8)';
-  context.fillRect(0, 0, canvas.width, canvas.height);
+  // Convert color to string format if needed
+  const colorStr = typeof color === 'string' 
+    ? color 
+    : `#${color.toString(16).padStart(6, '0')}`;
   
-  // Add border
-  context.strokeStyle = `#${color.toString(16).padStart(6, '0')}`;
-  context.lineWidth = 8;
-  context.strokeRect(4, 4, canvas.width - 8, canvas.height - 8);
+  // Clear canvas - completely transparent background
+  context.clearRect(0, 0, canvas.width, canvas.height);
   
-  // Set text style
-  context.font = 'bold 64px Arial';
-  context.fillStyle = 'white';
+  // Use a larger, bolder font for better visibility
+  context.font = 'bold 54px Arial, sans-serif'; // Increased from 38px
   context.textAlign = 'center';
   context.textBaseline = 'middle';
   
-  // Draw text
-  context.fillText(name, canvas.width / 2, 80);
-  context.font = '48px Arial';
+  // Add slight dark outline for better contrast against any background
+  context.strokeStyle = 'rgba(0, 0, 0, 0.8)';
+  context.lineWidth = 4;
+  context.strokeText(name, canvas.width / 2, canvas.height / 2);
   
-  // Create texture
+  // Add minimal glow effect - reduced blur for sharper text
+  context.shadowColor = colorStr;
+  context.shadowBlur = 5; // Reduced from 12 to make text less blurry
+  context.shadowOffsetX = 0;
+  context.shadowOffsetY = 0;
+  
+  // Fill text with higher opacity
+  context.fillStyle = 'rgba(255, 255, 255, 1.0)'; // Full opacity
+  context.fillText(name, canvas.width / 2, canvas.height / 2);
+  
+  // Create texture with higher quality settings
   const texture = new THREE.CanvasTexture(canvas);
+  texture.minFilter = THREE.LinearFilter; // Better filtering for text sharpness
+  texture.magFilter = THREE.LinearFilter;
+  texture.generateMipmaps = false; // Disable mipmaps for text to stay sharp
   
   // Create material
   const material = new THREE.SpriteMaterial({
     map: texture,
-    transparent: true
+    transparent: true,
+    depthWrite: false // Ensures name appears on top of other objects
   });
   
   // Create sprite
   const sprite = new THREE.Sprite(material);
-  sprite.scale.set(EARTH_DISPLAY_RADIUS * 0.15, EARTH_DISPLAY_RADIUS * 0.075, 1);
+  sprite.scale.set(EARTH_DISPLAY_RADIUS * 0.2, EARTH_DISPLAY_RADIUS * 0.07, 1);
   
   return sprite;
 }
@@ -499,6 +497,14 @@ export function updateSatellites(time) {
   for (const satellite of satellites) {
     updateSatellitePosition(satellite, time);
     updateOrbitTrail(satellite);
+    
+    // Explicitly ensure that satellite components are properly set/visible
+    if (satellite.indicator) {
+      satellite.indicator.visible = false; // Always hide indicators
+    }
+    if (satellite.devMarker) {
+      satellite.devMarker.visible = false; // Always hide dev markers
+    }
   }
   
   // Update camera position if in follow mode
@@ -819,6 +825,16 @@ function updateObjectVisibility(satellite, position) {
   // the closest approach is less than Earth radius, satellite is occluded
   const isOccluded = isBehind && closestApproachSq < EARTH_DISPLAY_RADIUS * EARTH_DISPLAY_RADIUS;
   
-  // Apply visibility to all satellite components
-  satellite.group.visible = !isOccluded;
+  // Apply visibility to satellite model and indicators, but keep label visible
+  if (satellite.model) satellite.model.visible = !isOccluded;
+  if (satellite.indicator) satellite.indicator.visible = !isOccluded;
+  if (satellite.devMarker) satellite.devMarker.visible = !isOccluded;
+  
+  // The group itself should always be visible
+  satellite.group.visible = true;
+  
+  // The label should always be visible regardless of occlusion
+  if (satellite.label) {
+    satellite.label.visible = true;
+  }
 }

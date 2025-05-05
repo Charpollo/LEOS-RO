@@ -304,7 +304,6 @@ export function hideFollowingMessage() {
 export function updateSatelliteLabel(satellite) {
   if (!satellite || !satellite.label || !satellite.label.material || !satellite.label.material.map) return;
   
-  // Always update labels - removed the conditional check to only update selected satellites
   // Get the canvas context from the sprite's texture
   const texture = satellite.label.material.map;
   const canvas = texture.image;
@@ -312,57 +311,45 @@ export function updateSatelliteLabel(satellite) {
   
   if (!context) return;
   
-  // Clear the canvas
+  // Clear the canvas completely - transparent background
   context.clearRect(0, 0, canvas.width, canvas.height);
   
-  // Set background
-  context.fillStyle = 'rgba(0, 0, 0, 0.8)';
-  context.fillRect(0, 0, canvas.width, canvas.height);
-  
-  // Add border - convert color to string format if needed
+  // Convert color to string format if needed
   const colorStr = typeof satellite.color === 'string' 
     ? satellite.color 
     : `#${satellite.color.toString(16).padStart(6, '0')}`;
-    
-  context.strokeStyle = colorStr;
-  context.lineWidth = 8;
-  context.strokeRect(4, 4, canvas.width - 8, canvas.height - 8);
   
-  // Set text style for title
-  context.font = 'bold 64px Arial';
-  context.fillStyle = 'white';
+  // Create clearer text with better visibility
+  // Use a larger, bolder font
+  context.font = 'bold 54px Arial, sans-serif'; 
   context.textAlign = 'center';
-  context.textBaseline = 'top';
+  context.textBaseline = 'middle';
   
-  // Draw title
-  context.fillText(satellite.name, canvas.width / 2, 20);
+  // Add dark outline for better contrast
+  context.strokeStyle = 'rgba(0, 0, 0, 0.8)';
+  context.lineWidth = 4;
+  context.strokeText(satellite.name, canvas.width / 2, canvas.height / 2);
   
-  // Set text style for info
-  context.font = '32px Arial';
-  context.textAlign = 'left';
-  context.fillStyle = '#03cafc'; // Light blue for data
+  // Add minimal glow effect - reduced blur for sharper text
+  context.shadowColor = colorStr;
+  context.shadowBlur = 5; // Reduced blur for sharper text
+  context.shadowOffsetX = 0;
+  context.shadowOffsetY = 0;
   
-  // Draw dynamic satellite information
-  if (satellite.altitude) {
-    context.fillText(`Alt: ${satellite.altitude.toFixed(1)} km`, 20, 100);
-  }
+  // Fill text with full opacity white
+  context.fillStyle = 'rgba(255, 255, 255, 1.0)';
+  context.fillText(satellite.name, canvas.width / 2, canvas.height / 2);
   
-  if (satellite.velocity) {
-    context.fillText(`Vel: ${satellite.velocity.toFixed(1)} km/s`, 20, 140);
-  }
-  
-  // Replace position coordinates with subsystem telemetry
-  // Use different timing functions to make the values vary independently
-  const batteryLevel = Math.floor(75 + 15 * Math.sin(Date.now() / 10000)); // 60-90% range
-  const solarPanelOutput = Math.floor(28 + 7 * Math.sin(Date.now() / 12000)); // 21-35W range
-  const tempC = Math.floor(20 + 5 * Math.sin(Date.now() / 15000)); // 15-25°C range
-  
-  context.fillText(`Batt: ${batteryLevel}%`, 20, 180);
-  context.fillText(`Solar: ${solarPanelOutput}W`, 20, 220);
-  context.fillText(`Temp: ${tempC}°C`, 20, 260);
-  
-  // Update the texture
+  // Make sure texture updates
   texture.needsUpdate = true;
+  
+  // Disable mipmapping for text sharpness if not already set
+  if (texture.generateMipmaps) {
+    texture.generateMipmaps = false;
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.needsUpdate = true;
+  }
 }
 
 // Show temporary message overlay

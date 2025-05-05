@@ -38,7 +38,7 @@ export const LABEL_SIZE = 0.1;
 export const CAMERA_FOLLOW_OFFSET = 4.0; // Distance behind satellite when following
 
 // Debugging options
-export const DEBUG_MODE = true;
+export const DEBUG_MODE = false;
 export const DEBUG_API_REQUESTS = false;
 
 // Orbit distance multiplier
