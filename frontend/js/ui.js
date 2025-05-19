@@ -213,6 +213,22 @@ export function showSatelliteInfo(satellite) {
     // Initial update of the satellite info
     updateSatelliteInfoDisplay(satellite);
     
+    // Set the border color to match the satellite color
+    if (satellite && satelliteInfoPanel) {
+      // Convert color to string format if needed
+      const colorStr = typeof satellite.color === 'string' 
+        ? satellite.color 
+        : `#${satellite.color.toString(16).padStart(6, '0')}`;
+      
+      // Apply the satellite color to the left border
+      satelliteInfoPanel.style.borderLeftColor = colorStr;
+      
+      // Also update the satellite name color to match
+      if (satelliteNameElement) {
+        satelliteNameElement.style.color = colorStr;
+      }
+    }
+    
     // Show the panel
     satelliteInfoPanel.style.display = 'block';
   } catch (error) {
