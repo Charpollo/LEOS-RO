@@ -365,53 +365,74 @@ function createSimpleLabel(name, color) {
   // Create canvas for text with higher resolution
   const canvas = document.createElement('canvas');
   const context = canvas.getContext('2d');
-  canvas.width = 512; // Increased from 300 for higher resolution
-  canvas.height = 128; // Increased from 64 for higher resolution
-  
-  // Convert color to string format if needed
+  canvas.width = 512; 
+  canvas.height = 128;
+
   const colorStr = typeof color === 'string' 
     ? color 
     : `#${color.toString(16).padStart(6, '0')}`;
-  
-  // Clear canvas - completely transparent background
+
   context.clearRect(0, 0, canvas.width, canvas.height);
-  
-  // Use a larger, bolder font for better visibility
-  context.font = 'bold 54px Arial, sans-serif'; // Increased from 38px
+
+  // Use an even larger, bolder font for better visibility
+  const fontSize = 80; // Further increased font size
+  context.font = `bold ${fontSize}px 'Roboto', Arial, sans-serif`;
   context.textAlign = 'center';
   context.textBaseline = 'middle';
-  
-  // Add slight dark outline for better contrast against any background
-  context.strokeStyle = 'rgba(0, 0, 0, 0.8)';
-  context.lineWidth = 4;
-  context.strokeText(name, canvas.width / 2, canvas.height / 2);
-  
-  // Add minimal glow effect - reduced blur for sharper text
+
+  // 1. First, create an extra-large colored glow for maximum visibility at distance
   context.shadowColor = colorStr;
-  context.shadowBlur = 5; // Reduced from 12 to make text less blurry
+  context.shadowBlur = 35; // Much larger blur for a broader glow that's visible from far away
   context.shadowOffsetX = 0;
   context.shadowOffsetY = 0;
-  
-  // Fill text with higher opacity
-  context.fillStyle = 'rgba(255, 255, 255, 1.0)'; // Full opacity
+
+  // Fill with satellite color at high opacity
+  context.fillStyle = colorStr;
   context.fillText(name, canvas.width / 2, canvas.height / 2);
-  
-  // Create texture with higher quality settings
+
+  // 2. Reset shadow for subsequent drawing
+  context.shadowColor = 'transparent';
+  context.shadowBlur = 0;
+
+  // 3. Draw white text with strong opacity
+  context.fillStyle = 'rgba(255, 255, 255, 1.0)';
+  context.fillText(name, canvas.width / 2, canvas.height / 2);
+
+  // 4. Draw a thick black outline for contrast against any background
+  context.strokeStyle = 'rgba(0, 0, 0, 1.0)'; // Fully opaque black outline
+  context.lineWidth = 12; // Even thicker outline for definition at distance
+  context.strokeText(name, canvas.width / 2, canvas.height / 2);
+
+  // Create texture with optimal settings for text
   const texture = new THREE.CanvasTexture(canvas);
-  texture.minFilter = THREE.LinearFilter; // Better filtering for text sharpness
+  texture.minFilter = THREE.LinearFilter; 
   texture.magFilter = THREE.LinearFilter;
-  texture.generateMipmaps = false; // Disable mipmaps for text to stay sharp
+  texture.generateMipmaps = false; // Disable mipmaps for text clarity
   
-  // Create material
+  // Create material with improved visibility settings
   const material = new THREE.SpriteMaterial({
     map: texture,
     transparent: true,
-    depthWrite: false // Ensures name appears on top of other objects
+    opacity: 1.0, // Full opacity
+    depthTest: false, // Crucial: ensures labels appear on top
+    depthWrite: false, // Don't write to depth buffer
+    sizeAttenuation: true // Scale based on distance
   });
   
   // Create sprite
   const sprite = new THREE.Sprite(material);
-  sprite.scale.set(EARTH_DISPLAY_RADIUS * 0.2, EARTH_DISPLAY_RADIUS * 0.07, 1);
+  sprite.renderOrder = 9999; // Extremely high render order to ensure it's drawn last
+  
+  // Store aspect ratio and dimension info for scaling
+  sprite.userData.aspectRatio = canvas.height / canvas.width; 
+  sprite.userData.initialWidth = EARTH_DISPLAY_RADIUS * 0.25; // Larger initial size
+  
+  // Set initial scale - will be updated dynamically
+  sprite.scale.set(
+    sprite.userData.initialWidth, 
+    sprite.userData.initialWidth * sprite.userData.aspectRatio, 
+    1
+  );
   
   return sprite;
 }
@@ -690,40 +711,55 @@ function updateSatellitePosition(satellite, time) {
     }
   }
   
-  // IMPROVEMENT 2: Make label zoom with satellite
-  // Get the camera to adjust label scale based on distance
+  // IMPROVEMENT 2: Make label zoom with satellite and stay close
   const camera = getCamera();
   if (camera && satellite.label) {
-    // Calculate distance from camera to satellite
+    const labelAspectRatio = satellite.label.userData.aspectRatio || (128 / 512); 
+
     const cameraToSatDistance = camera.position.distanceTo(position);
+
+    // --- Label Positioning ---
+    // Use a fixed position slightly above the satellite
+    const baseHeightFactor = 0.015; 
+    const yOffset = EARTH_DISPLAY_RADIUS * baseHeightFactor * (satellite.name === "CRTS1" ? 0.9 : 1.1);
+    satellite.label.position.set(0, yOffset, 0);
+
+    // --- Extremely Enhanced Label Scaling for Maximum Visibility ---
+    // Base reference size - larger base size
+    const baseScaleWidth = satellite.name === "CRTS1" ? 0.12 : 0.15; // Increased from 0.10/0.13
     
-    // Base scale factors - these define the default size at standard distance
-    const baseScale = satellite.name === "CRTS1" ? 0.9 : 1.1;
+    // Scaling parameters - extremely aggressive to ensure visibility at maximum distances
+    const optimalDistance = EARTH_DISPLAY_RADIUS * 6.0;
+    const nearDistanceThreshold = EARTH_DISPLAY_RADIUS * 1.0;
     
-    // Much closer label position - reduce the height significantly
-    const baseHeight = EARTH_DISPLAY_RADIUS * 0.05 * baseScale;
+    // Dramatically increased scaling factors for extreme distances
+    const minScaleFactor = 6.0; // Further increased from 4.5
+    const maxScaleFactor = 6.5; // Further increased from 5.0
     
-    // Optimal viewing distance - labels are normal size at this distance
-    const optimalDistance = EARTH_DISPLAY_RADIUS * 4;
+    let calculatedDistanceFactor;
+    if (cameraToSatDistance <= nearDistanceThreshold) {
+      // At near distances, use maximum scale
+      calculatedDistanceFactor = maxScaleFactor;
+    } else if (cameraToSatDistance <= optimalDistance) {
+      // Between near and optimal, smoothly interpolate
+      const t = (cameraToSatDistance - nearDistanceThreshold) / (optimalDistance - nearDistanceThreshold);
+      calculatedDistanceFactor = maxScaleFactor * (1 - t) + minScaleFactor * t;
+    } else {
+      // Beyond optimal distance - implement AGGRESSIVE scaling for extreme distances:
+      // The further away we get, the LARGER the labels become
+      const distanceMultiplier = cameraToSatDistance / (EARTH_DISPLAY_RADIUS * 10.0);
+      const extremeDistanceFactor = Math.min(2.5, 1.0 + distanceMultiplier); // Can increase up to 2.5x at extreme distances
+      calculatedDistanceFactor = minScaleFactor * extremeDistanceFactor;
+    }
     
-    // Calculate scale factor based on camera distance
-    // Labels should get bigger when camera is very close, but not too huge
-    const distanceFactor = Math.min(
-      optimalDistance / Math.max(cameraToSatDistance, EARTH_DISPLAY_RADIUS * 0.5),
-      2.0  // Cap the maximum scale to prevent labels from getting too huge
-    );
+    // Set absolute minimum size to ensure visibility even at extreme distances
+    const absoluteMinimumScale = 6.0; // Further increased from 4.0
+    calculatedDistanceFactor = Math.max(absoluteMinimumScale, calculatedDistanceFactor);
     
-    // Position the label just above the satellite model
-    satellite.label.position.set(0, baseHeight * distanceFactor, 0);
-    
-    // Scale the label dynamically based on distance
-    const scaleX = EARTH_DISPLAY_RADIUS * 0.1 * baseScale;
-    const scaleY = EARTH_DISPLAY_RADIUS * 0.05 * baseScale;
-    satellite.label.scale.set(
-      scaleX * distanceFactor,
-      scaleY * distanceFactor,
-      1
-    );
+    // Apply final scale with correct aspect ratio
+    const finalScaleX = baseScaleWidth * calculatedDistanceFactor;
+    const finalScaleY = baseScaleWidth * calculatedDistanceFactor * labelAspectRatio;
+    satellite.label.scale.set(finalScaleX, finalScaleY, 1);
   }
   
   // Update object visibility based on position (hide when behind Earth)
