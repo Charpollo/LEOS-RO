@@ -3,8 +3,25 @@
   "version": "1.0.0",
   "description": "LEOS First Orbit Project",
   "private": true,
+  "scripts": {
+    "build": "webpack --config webpack.config.js",
+    "watch": "webpack --config webpack.config.js --watch",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@babylonjs/core": "^6.27.1",
+    "@babylonjs/gui": "^6.27.1",
+    "@babylonjs/loaders": "^6.27.1",
+    "@babylonjs/materials": "^6.27.1"
+  },
   "devDependencies": {
+    "copy-webpack-plugin": "^11.0.0",
+    "css-loader": "^6.7.3",
+    "html-webpack-plugin": "^5.5.0",
     "javascript-obfuscator": "^4.1.1",
-    "terser": "^5.39.0"
+    "style-loader": "^3.3.2",
+    "terser": "^5.39.0",
+    "webpack": "^5.80.0",
+    "webpack-cli": "^5.0.2"
   }
 }

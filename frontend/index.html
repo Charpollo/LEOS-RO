@@ -1,145 +1,122 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>LEOS: FIRST ORBIT</title>
-  <link rel="stylesheet" href="css/styles.css?v=<?php echo time(); ?>">
-  <link rel="icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAABmJLR0QA/wD/AP+gvaeTAAAA30lEQVRYhe2XMQ7CMAxFXyPEDRi5Qo/AFbgBO1dgYWRhYWJm5AhI3IIDwIxQJSoVOY5DHKfi/yVy5Lz4J5ItQgghhHhSAzMwAFsHvRbogeS8L6fpHPU7oAuuOxCAfZFapZiAnYNuBdS/CFQxYPHX/A+owsxhXwvUrtGANQytQO0azedIGmoB04qs21/FI+ouASuGdj8JQ5mcD3Q5KpWQ46Ng9ffxQdiBZxVMxKvnJxZ7HB8TtGizxcMYrRqtwcjVbLaGU0/T1Q5n68DJ3XwODa9GacNj0GpZCSGEENfhDggYUhFMnEzGAAAAAElFTkSuQmCC">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="description" content="LEOS: FIRST ORBIT - Interactive satellite orbit visualization">
-  <meta name="theme-color" content="#000000">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <!-- Preconnect to improve loading performance -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-</head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LEOS First Orbit - Satellite Visualization</title>
+    <link rel="stylesheet" href="css/styles.css">
+<script defer src="bundle.js"></script></head>
 <body>
-  <!-- Main 3D container -->
-  <div id="threeContainer"></div>
-  
-  <!-- LEOS Logo with link -->
-  <a href="https://www.cyberrts.com" id="logo-container" target="_blank" rel="noopener noreferrer">
-    <img src="assets/leos_logo.png" alt="LEOS Logo" id="leos-logo">
-  </a>
-  
-  <!-- First Orbit Information Panel -->
-  <div id="orbit-info-panel">
-    <button id="toggle-info-panel">×</button>
-    <div id="orbit-info-title">About LEOS: First Orbit</div>
-    <div id="orbit-info-content">
-      <div class="info-section">
-        <div class="info-header">The LEOS Engine</div>
-        <p>You're witnessing a real-time orbital simulation powered by the LEOS (Low Earth Orbit Simulation) engine. This advanced physics-based simulation calculates precise satellite trajectories using actual orbital mechanics principles and Keplerian motion equations.</p>
-        <p>The engine models gravitational effects, atmospheric drag, and real-world orbital parameters to create authentic satellite behavior in Low Earth Orbit (LEO).</p>
-      </div>
-      
-      <div class="info-section">
-        <div class="info-header">About the Satellites</div>
-        <p><strong>CRTS1</strong> - Earth Observation Satellite equipped with advanced optical sensors and high-resolution imaging payload. Designed to monitor environmental conditions, weather patterns, and surface features with multi-spectral imaging capabilities.</p>
-        <p><strong>BULLDOG</strong> - Experimental support satellite with cutting-edge propulsion systems and communication relay capabilities. Serves as a technology demonstrator for next-generation satellite networking and autonomous orbital maneuvers.</p>
-      </div>
-      
-      <div class="info-section">
-        <div class="info-header">Orbital Mechanics</div>
-        <p>The satellites follow realistic orbital paths calculated using Kepler's laws of planetary motion. Their velocity and altitude change throughout their orbit as they respond to Earth's gravitational field.</p>
-        <p>LEO satellites orbit between 160-2,000 km above Earth's surface and complete an orbit approximately every 90-120 minutes at speeds exceeding 7.8 km/s (28,000 km/h) For simulation purposes we have increased the visual speed..</p>
-      </div>
-      
-      <div class="info-section">
-        <div class="info-header">Interaction</div>
-        <p>Try clicking on the satellites to view detailed information and follow them in orbit. You can rotate around satellites and zoom in close to examine them.</p>
-        <p>Press ESC to exit satellite view while maintaining your current position, or press 'R' to reset to the default view.</p>
-      </div>
+    <div class="container">
+        <header>
+            <div class="logo-container">
+                <img src="assets/leos_logo.png" alt="LEOS Logo" class="logo">
+                <h1>LEOS: First Orbit</h1>
+            </div>
+            <div class="controls">
+                <button id="init-simulation" class="tooltip">
+                    Initialize
+                    <span class="tooltip-text">Start the satellite simulation</span>
+                </button>
+                <button id="toggle-telemetry" class="tooltip">
+                    Telemetry
+                    <span class="tooltip-text">Show/hide satellite telemetry data</span>
+                </button>
+                <button id="toggle-paths" class="tooltip">
+                    Orbits
+                    <span class="tooltip-text">Show/hide orbital paths</span>
+                </button>
+                <button id="toggle-camera" class="tooltip">
+                    Camera
+                    <span class="tooltip-text">Switch between free and target-locked camera</span>
+                </button>
+                <button id="show-instructions" class="tooltip">
+                    Help
+                    <span class="tooltip-text">Show keyboard shortcuts and instructions</span>
+                </button>
+            </div>
+        </header>
+        
+        <main>
+            <div id="renderCanvas-container">
+                <canvas id="renderCanvas" touch-action="none"></canvas>
+                <div id="loading-screen">
+                    <div class="loader"></div>
+                    <div class="loading-text">Loading Simulation...</div>
+                </div>
+                
+                <!-- Earth rotation controls -->
+                <div class="earth-controls">
+                    <button id="rotate-left" class="tooltip">
+                        ↶
+                        <span class="tooltip-text">Rotate Earth left</span>
+                    </button>
+                    <button id="rotate-right" class="tooltip">
+                        ↷
+                        <span class="tooltip-text">Rotate Earth right</span>
+                    </button>
+                </div>
+                
+                <!-- Instructions overlay -->
+                <div id="instructions-overlay" style="display: none;">
+                    <h3>Controls & Instructions</h3>
+                    <ul>
+                        <li><strong>Click on a satellite</strong> to see its telemetry data</li>
+                        <li><strong>Mouse wheel</strong> to zoom in/out</li>
+                        <li><strong>Left-click + drag</strong> to rotate view</li>
+                        <li><strong>Right-click + drag</strong> to pan</li>
+                        <li><strong>R key</strong> to reset camera position</li>
+                        <li><strong>Space</strong> to pause/resume simulation</li>
+                    </ul>
+                    <button id="close-instructions">Got it!</button>
+                </div>
+                
+                <!-- Advanced telemetry dashboard -->
+                <div class="telemetry-dashboard" id="advanced-telemetry">
+                    <div class="dashboard-header">
+                        <h3 id="dashboard-title">Satellite Telemetry</h3>
+                        <button class="close-dashboard">&times;</button>
+                    </div>
+                    <div class="telemetry-grid" id="dashboard-content">
+                        <!-- Telemetry cards will be inserted here dynamically -->
+                    </div>
+                </div>
+            </div>
+            
+            <div id="telemetry-panel" class="panel hidden">
+                <h2>
+                    Satellite Telemetry
+                    <span class="close-btn" id="close-telemetry">&times;</span>
+                </h2>
+                <div id="satellite-selector"></div>
+                <div id="telemetry-data"></div>
+                <button id="show-advanced-telemetry" style="width: 100%; margin-top: 15px;">
+                    Advanced Dashboard
+                </button>
+            </div>
+        </main>
+        
+        <footer>
+            <div class="time-controls">
+                <div id="simulation-time">Simulation Time: <span id="current-time">--:--:--</span></div>
+                <div class="time-buttons">
+                    <button id="time-speed-down" class="tooltip">
+                        -
+                        <span class="tooltip-text">Slow down simulation</span>
+                    </button>
+                    <span id="time-speed">1x</span>
+                    <button id="time-speed-up" class="tooltip">
+                        +
+                        <span class="tooltip-text">Speed up simulation</span>
+                    </button>
+                </div>
+            </div>
+            <div class="status">
+                <div id="status-message">Ready</div>
+            </div>
+        </footer>
     </div>
-  </div>
-  <!-- Expand button (visible when panel is collapsed) -->
-  <button id="expand-info-panel">
-    <span class="info-icon">➡</span>
-  </button>
-  
-  <!-- Instructions overlay -->
-  <div id="instructions-overlay">
-    <div class="instruction-panel">
-      <div class="instruction-title">Welcome to LEOS: FIRST ORBIT</div>
-      <ul class="instruction-list">
-        <li><span class="instruction-icon">🖱️</span> <strong>Rotate View: Click and drag</li>
-        <li><span class="instruction-icon">⚙️</span> <strong>Zoom: Scroll wheel or pinch</li>
-        <li><span class="instruction-icon">🛰️</span> <strong>Satellite Info: Click on satellite</li>
-        <li><span class="instruction-icon">🌍</span> <strong>Reset View: Press 'R' key</li>
-        <li><span class="instruction-icon">↩️</span> <strong>Exit Satellite View: Click empty space or press ESC</li>
-      </ul>
-      <button id="dismiss-instructions">Got it!</button>
-    </div>
-  </div>
-  
-  <!-- Satellite info panel -->
-  <div id="satellite-info" style="display: none;">
-    <div id="satellite-name"></div>
-    <div id="satellite-altitude"></div>
-    <div id="satellite-velocity"></div>
-    <div id="satellite-position"></div>
-  </div>
-  
-  <!-- Loading indicator with progress information -->
-  <div id="loadingOverlay">
-    <div class="loader"></div>
-    <div class="loadingText">LAUNCHING LEOS: FIRST ORBIT</div>
-    <div id="loadingMessage" class="loading-status">Initializing application...</div>
-    <div id="loadingProgress" class="loading-progress">
-      <div class="progress-bar">
-        <div class="progress-bar-fill"></div>
-      </div>
-    </div>
-    <div id="spaceFactContainer">
-      <div id="spaceFact" class="space-fact"></div>
-      <div class="fact-label">SPACE FACT</div>
-    </div>
-  </div>
-  
-  <!-- Error message container -->
-  <div id="errorContainer"></div>
-  
-  <!-- Update library paths -->
-  <script src="js/vendor/three.min.js"></script>
-  <script src="js/vendor/OrbitControls.js"></script>
-  <script src="js/vendor/GLTFLoader.js"></script>
-  
-  <!-- Add cache-busting timestamp to ensure fresh JS files -->
-  <script>
-    // Add timestamp to break browser cache
-    const cacheBuster = Date.now();
-    const mainScript = document.createElement('script');
-    mainScript.type = 'module';
-    mainScript.src = `js/main.js?v=${cacheBuster}`;
-    document.body.appendChild(mainScript);
-  </script>
-  
-  <!-- Prevent pull-to-refresh on mobile devices -->
-  <script>
-    document.addEventListener('touchmove', function(e) {
-      if (e.touches.length > 1) {
-        e.preventDefault();
-      }
-    }, { passive: false });
-    
-    // Prevent context menu on right-click or long press
-    document.addEventListener('contextmenu', function(e) {
-      e.preventDefault();
-    });
-    
-    // Force display instructions once on page load to show the fixed spacing
-    document.addEventListener('DOMContentLoaded', function() {
-      // Clear instructions shown flag to force them to display
-      sessionStorage.removeItem('instructionsShown');
-      
-      // Show instructions overlay after a slight delay
-      setTimeout(function() {
-        const instructionsOverlay = document.getElementById('instructions-overlay');
-        if (instructionsOverlay) {
-          instructionsOverlay.style.display = 'flex';
-        }
-      }, 1000);
-    });
-  </script>
+
+    <!-- Scripts will be injected by webpack -->
 </body>
 </html>

@@ -102,16 +102,36 @@ def minify_and_obfuscate_js():
     if not os.path.exists(frontend_dist):
         os.makedirs(frontend_dist)
     
-    js_dist = f"{frontend_dist}/js"
-    if not os.path.exists(js_dist):
-        os.makedirs(js_dist)
-    
-    # Create vendor directory
-    vendor_dist = f"{js_dist}/vendor"
-    if not os.path.exists(vendor_dist):
-        os.makedirs(vendor_dist)
+    # First build the frontend with webpack
+    logger.info("Building frontend with webpack...")
+    try:
+        # Make the script executable
+        subprocess.run(["chmod", "+x", "./build_frontend.sh"], check=True)
+        subprocess.run(["./build_frontend.sh"], check=True)
+        logger.info("Frontend built successfully with webpack.")
+    except Exception as e:
+        logger.error(f"Failed to build frontend: {e}")
+        # If webpack build fails, fall back to copying files
+        logger.warning("Falling back to direct file copying for frontend...")
+        js_dist = f"{frontend_dist}/js"
+        if not os.path.exists(js_dist):
+            os.makedirs(js_dist)
+        
+        # Copy existing JS files if any
+        if os.path.exists(JS_DIR):
+            for js_file in glob.glob(f"{JS_DIR}/*.js"):
+                shutil.copy(js_file, js_dist)
+        return
     
     try:
+        # Copy the built frontend to dist
+        if os.path.exists(FRONTEND_DIR):
+            if os.path.exists(frontend_dist):
+                shutil.rmtree(frontend_dist)
+            shutil.copytree(FRONTEND_DIR, frontend_dist, 
+                           ignore=shutil.ignore_patterns(*EXCLUDED_DIRS))
+        logger.info("Frontend files copied successfully.")
+        
         # Check npm version
         try:
             result = subprocess.run(["npm", "--version"], capture_output=True, text=True)
@@ -119,17 +139,6 @@ def minify_and_obfuscate_js():
         except Exception as e:
             logger.error(f"Error checking npm: {e}")
             raise Exception("npm is not installed or not in PATH")
-        
-        # Create a valid package.json
-        logger.info("Creating package.json...")
-        with open('package.json', 'w') as f:
-            json.dump({
-                "name": "leos-first-orbit",
-                "version": "1.0.0",
-                "description": "LEOS First Orbit Project",
-                "private": True,
-                "devDependencies": {}
-            }, f, indent=2)
         
         # Install required npm packages
         logger.info("Installing required npm packages locally...")
@@ -140,79 +149,122 @@ def minify_and_obfuscate_js():
             logger.error(f"Failed to install npm packages: {e}")
             raise
         
-        # Process each JS file except vendor files
-        js_files = glob.glob(f"{JS_DIR}/*.js")
-        
-        # Create a temporary directory for obfuscation config
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Create obfuscation config file
-            config_file = os.path.join(temp_dir, "obfuscator-config.json")
-            with open(config_file, 'w') as f:
-                json.dump({
-                    "compact": True,
-                    "controlFlowFlattening": False,      # Disabled - major performance impact
-                    "deadCodeInjection": False,          # Disabled - major performance impact
-                    "debugProtection": False,            # Disabled - moderate performance impact
-                    "debugProtectionInterval": 0,
-                    "disableConsoleOutput": True,
-                    "identifierNamesGenerator": "hexadecimal",
-                    "log": False,
-                    "renameGlobals": True,
-                    "rotateStringArray": True,
-                    "selfDefending": False,              # Disabled - performance impact
-                    "stringArray": True,
-                    "stringArrayEncoding": [],           # Removed encoding - significant performance impact
-                    "stringArrayThreshold": 0.75,
-                    "transformObjectKeys": False,        # Disabled - performance impact
-                    "unicodeEscapeSequence": False
-                }, f, indent=2)
+        # Obfuscate bundle.js if it exists
+        bundle_path = f"{frontend_dist}/bundle.js"
+        if os.path.exists(bundle_path):
+            logger.info("Obfuscating bundle.js...")
             
-            for js_file in js_files:
-                filename = os.path.basename(js_file)
+            # Create a temporary directory for obfuscation config
+            with tempfile.TemporaryDirectory() as temp_dir:
+                # Create obfuscation config file
+                config_file = os.path.join(temp_dir, "obfuscator-config.json")
+                with open(config_file, 'w') as f:
+                    json.dump({
+                        "compact": True,
+                        "controlFlowFlattening": False,      # Disabled - major performance impact
+                        "deadCodeInjection": False,          # Disabled - major performance impact
+                        "debugProtection": False,            # Disabled - moderate performance impact
+                        "debugProtectionInterval": 0,
+                        "disableConsoleOutput": True,
+                        "identifierNamesGenerator": "hexadecimal",
+                        "log": False,
+                        "renameGlobals": True,
+                        "rotateStringArray": True,
+                        "selfDefending": False,              # Disabled - performance impact
+                        "stringArray": True,
+                        "stringArrayEncoding": [],           # Removed encoding - significant performance impact
+                        "stringArrayThreshold": 0.75,
+                        "transformObjectKeys": False,        # Disabled - performance impact
+                        "unicodeEscapeSequence": False
+                    }, f, indent=2)
+                
                 try:
-                    logger.info(f"Processing {filename}...")
-                    
                     # First minify with terser
-                    # Use proper .js extension for temporary files
-                    minified_file = os.path.join(temp_dir, f"{filename}.min.js")
-                    
-                    # Use local terser
+                    minified_file = os.path.join(temp_dir, "bundle.min.js")
                     subprocess.run([
-                        "npx", "terser", js_file, 
+                        "npx", "terser", bundle_path, 
                         "--compress", "--mangle",
                         "--output", minified_file
                     ], check=True)
                     
                     # Then obfuscate with javascript-obfuscator
-                    final_file = f"{js_dist}/{filename}"
-                    
-                    # Use local javascript-obfuscator with config file
                     subprocess.run([
                         "npx", "javascript-obfuscator", minified_file,
-                        "--output", final_file,
+                        "--output", bundle_path,
                         "--config", config_file
                     ], check=True)
                     
-                    logger.info(f"Successfully processed {filename}")
+                    logger.info("Successfully obfuscated bundle.js")
                     
                 except Exception as e:
-                    logger.error(f"Error processing {filename}: {e}")
-                    # If minification/obfuscation fails, copy the original file
-                    shutil.copy(js_file, f"{js_dist}/{filename}")
-        
-        # Simply copy vendor files as-is
-        vendor_files = glob.glob(f"{JS_DIR}/vendor/*.js")
-        for vendor_file in vendor_files:
-            vendor_filename = os.path.basename(vendor_file)
-            shutil.copy(vendor_file, f"{vendor_dist}/{vendor_filename}")
+                    logger.error(f"Error obfuscating bundle.js: {e}")
+        else:
+            logger.warning("No bundle.js found to obfuscate, looking for individual JS files...")
+            
+            # Process each JS file in the js directory if it exists
+            js_dist = f"{frontend_dist}/js"
+            if os.path.exists(js_dist):
+                js_files = glob.glob(f"{js_dist}/*.js")
+                
+                # Create a temporary directory for obfuscation config
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    # Create obfuscation config file
+                    config_file = os.path.join(temp_dir, "obfuscator-config.json")
+                    with open(config_file, 'w') as f:
+                        json.dump({
+                            "compact": True,
+                            "controlFlowFlattening": False,
+                            "deadCodeInjection": False,
+                            "debugProtection": False,
+                            "debugProtectionInterval": 0,
+                            "disableConsoleOutput": True,
+                            "identifierNamesGenerator": "hexadecimal",
+                            "log": False,
+                            "renameGlobals": True,
+                            "rotateStringArray": True,
+                            "selfDefending": False,
+                            "stringArray": True,
+                            "stringArrayEncoding": [],
+                            "stringArrayThreshold": 0.75,
+                            "transformObjectKeys": False,
+                            "unicodeEscapeSequence": False
+                        }, f, indent=2)
+                    
+                    for js_file in js_files:
+                        filename = os.path.basename(js_file)
+                        try:
+                            logger.info(f"Processing {filename}...")
+                            
+                            # First minify with terser
+                            minified_file = os.path.join(temp_dir, f"{filename}.min.js")
+                            
+                            # Use local terser
+                            subprocess.run([
+                                "npx", "terser", js_file, 
+                                "--compress", "--mangle",
+                                "--output", minified_file
+                            ], check=True)
+                            
+                            # Then obfuscate with javascript-obfuscator
+                            subprocess.run([
+                                "npx", "javascript-obfuscator", minified_file,
+                                "--output", js_file,
+                                "--config", config_file
+                            ], check=True)
+                            
+                            logger.info(f"Successfully processed {filename}")
+                            
+                        except Exception as e:
+                            logger.error(f"Error processing {filename}: {e}")
             
     except Exception as e:
         logger.error(f"Error processing JavaScript files: {e}")
         # If JS processing fails completely, fall back to copying all files
-        logger.warning("Falling back to direct file copying for JavaScript...")
-        if os.path.exists(js_dist):
-            shutil.rmtree(js_dist)
-        shutil.copytree(JS_DIR, js_dist)
+        logger.warning("Falling back to direct file copying for frontend...")
+        if os.path.exists(frontend_dist):
+            shutil.rmtree(frontend_dist)
+        shutil.copytree(FRONTEND_DIR, frontend_dist, 
+                       ignore=shutil.ignore_patterns(*EXCLUDED_DIRS))
 
 def copy_remaining_frontend():
     """Copy remaining frontend files."""
@@ -240,6 +292,16 @@ def copy_remaining_frontend():
         if os.path.exists(assets_dist):
             shutil.rmtree(assets_dist)
         shutil.copytree(assets_dir, assets_dist)
+    
+    # Copy bundle.js if it exists
+    bundle_file = f"{FRONTEND_DIR}/bundle.js"
+    if os.path.exists(bundle_file):
+        shutil.copy(bundle_file, frontend_dist)
+    
+    # Copy bundle.js.map if it exists
+    map_file = f"{FRONTEND_DIR}/bundle.js.map"
+    if os.path.exists(map_file):
+        shutil.copy(map_file, frontend_dist)
     
     logger.info("Frontend files copied successfully.")
 

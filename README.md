@@ -5,7 +5,7 @@ LEOS: First Orbit is a 3D web-based satellite visualization application that dis
 ## Project Overview
 
 This application features:
-- Real-time 3D visualization of Earth and satellites using Three.js
+- Real-time 3D visualization of Earth and satellites using Babylon.js
 - Realistic orbital path calculations using Skyfield
 - Satellite telemetry simulation including battery, temperature, and anomalies
 - RESTful API for accessing orbital and telemetry data
@@ -27,6 +27,8 @@ The LEOS First Orbit codebase is organized into a modern, modular structure:
 │   └── js/                # JavaScript modules
 ├── cache/                 # Orbit data cache
 ├── server.py              # Main application entry point
+├── webpack.config.js      # Webpack configuration
+├── build_frontend.sh      # Frontend build script
 ├── Dockerfile             # Development Docker configuration
 ├── Dockerfile.prod        # Production Docker configuration
 ├── deploy.sh              # Deployment script for Google Cloud Run
@@ -43,10 +45,11 @@ The LEOS First Orbit codebase is organized into a modern, modular structure:
 | `backend/satellite/tle_generator.py` | Two-Line Element generator for realistic orbits |
 | `backend/satellite/orbit.py` | Orbit calculation and position functions |
 | `backend/api/routes.py` | RESTful API endpoints for accessing orbital data |
-| `frontend/js/main.js` | Frontend entry point that bootstraps the 3D visualization |
-| `frontend/js/satellites.js` | Satellite visualization and position updates |
-| `frontend/js/earth.js` | Earth rendering with cloud layers and rotation |
+| `frontend/js/app.js` | Frontend entry point for Babylon.js visualization |
+| `frontend/index.html` | Main HTML template for the application |
+| `frontend/css/styles.css` | Styling for the user interface |
 | `server.py` | Main entry point that runs the Flask application |
+| `webpack.config.js` | Webpack configuration for bundling frontend assets |
 | `obfuscate.py` | Python utility for code obfuscation before deployment |
 
 ## Prerequisites
@@ -214,6 +217,43 @@ The frontend is built using vanilla JavaScript modules and Three.js:
    - Interactive controls for manipulating the view
    - Telemetry display panels
    - Responsive design for various screen sizes
+
+## Babylon.js Visualization
+
+The frontend uses Babylon.js to create a realistic 3D visualization of:
+
+- Earth with realistic textures, including cloud layers and night lights
+- The Moon in proper orbit around Earth
+- LEO satellites with their orbital paths
+- Realistic lighting and space environment
+
+### Features
+
+- Interactive camera controls for exploring the 3D environment
+- Real-time telemetry display for each satellite
+- Orbital path visualization
+- Time controls to adjust simulation speed
+- Satellite tracking camera mode
+
+### Development
+
+To build the frontend:
+
+```bash
+# Install dependencies
+npm install
+
+# Build the frontend with webpack
+./build_frontend.sh
+```
+
+To run the application locally:
+
+```bash
+python3 server.py
+```
+
+The application will be available at [http://localhost:8080](http://localhost:8080).
 
 ## API Documentation
 

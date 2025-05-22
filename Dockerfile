@@ -1,4 +1,21 @@
-# Use a smaller base image for faster builds
+# Use Node.js for frontend build
+FROM node:18-slim AS build-frontend
+
+# Set working directory
+WORKDIR /build
+
+# Copy package files and install dependencies
+COPY package.json package-lock.json ./
+RUN npm ci
+
+# Copy frontend source and webpack config
+COPY frontend/ ./frontend/
+COPY webpack.config.js ./
+
+# Build frontend
+RUN npx webpack --config webpack.config.js
+
+# Use Python for backend
 FROM python:3.9-slim
 
 # Set working directory
@@ -11,10 +28,12 @@ RUN useradd -m appuser
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code (not using obfuscated code for now)
+# Copy application code
 COPY backend/ /app/backend/
-COPY frontend/ /app/frontend/
 COPY server.py /app/
+
+# Copy built frontend from the build stage
+COPY --from=build-frontend /build/frontend/ /app/frontend/
 
 # Set ownership to non-root user
 RUN chown -R appuser:appuser /app
