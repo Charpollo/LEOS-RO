@@ -22,6 +22,10 @@ body {
     background-color: var(--background-color);
     color: var(--text-color);
     overflow: hidden;
+    background: none !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
 }
 
 .container {
@@ -29,6 +33,10 @@ body {
     flex-direction: column;
     height: 100vh;
     width: 100vw;
+    background: none !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
 }
 
 header {
@@ -41,26 +49,51 @@ header {
     z-index: 10;
     backdrop-filter: blur(8px);
     border-bottom: 1px solid var(--panel-border);
+    background: none !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    display: none !important;
 }
 
 .logo-container {
     display: flex;
     align-items: center;
     gap: 1rem;
+    background: none !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    display: none !important;
 }
 
 .logo {
     height: 40px;
+    background: none !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    display: none !important;
 }
 
 h1 {
     font-size: 1.2rem;
     font-weight: 600;
+    background: none !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    display: none !important;
 }
 
 .controls {
     display: flex;
     gap: 0.5rem;
+    background: none !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    display: none !important;
 }
 
 button {
@@ -73,6 +106,10 @@ button {
     cursor: pointer;
     transition: all 0.2s ease;
     backdrop-filter: blur(4px);
+    background: none !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
 }
 
 button:hover {
@@ -88,6 +125,14 @@ main {
 #renderCanvas-container {
     flex: 1;
     position: relative;
+    width: 100vw !important;
+    height: 100vh !important;
+    position: fixed !important;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 1;
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
 }
 
 #renderCanvas {
@@ -95,6 +140,14 @@ main {
     height: 100%;
     outline: none;
     touch-action: none;
+    width: 100vw !important;
+    height: 100vh !important;
+    position: fixed !important;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 1;
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
 }
 
 #loading-screen {
@@ -109,6 +162,8 @@ main {
     justify-content: center;
     align-items: center;
     z-index: 5;
+    background: rgba(0,0,0,0.7);
+    z-index: 10;
 }
 
 .loader {
@@ -134,23 +189,30 @@ main {
     width: 350px;
     background-color: var(--panel-bg);
     backdrop-filter: blur(10px);
-    /* border-left: 1px solid var(--panel-border); */
     padding: 1rem;
     overflow-y: auto;
     transition: transform 0.3s ease;
     box-shadow: 0 4px 32px rgba(14, 165, 233, 0.10);
+    background: none !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    display: none !important;
 }
 
 .panel h2 {
     margin-bottom: 1rem;
     font-size: 1.2rem;
-    /* border-bottom: 1px solid var(--panel-border); */
     padding-bottom: 0.5rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
     font-weight: 400;
     letter-spacing: 0.01em;
+    background: none !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
 }
 
 .panel h2 .close-btn {
@@ -158,6 +220,10 @@ main {
     cursor: pointer;
     opacity: 0.7;
     transition: opacity 0.2s ease;
+    background: none !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
 }
 
 .panel h2 .close-btn:hover {
@@ -170,6 +236,7 @@ main {
 
 #satellite-selector {
     margin-bottom: 1rem;
+    display: none !important;
 }
 
 .sat-button {
@@ -183,6 +250,11 @@ main {
     box-shadow: 0 2px 8px rgba(14, 165, 233, 0.08);
     border: 1px solid transparent;
     transition: background 0.2s, box-shadow 0.2s, border 0.2s;
+    background: none !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    display: none !important;
 }
 
 .sat-button:hover {
@@ -201,6 +273,7 @@ main {
 
 .telemetry-group {
     margin-bottom: 1rem;
+    display: none !important;
 }
 
 .telemetry-group h3 {
@@ -214,10 +287,12 @@ main {
     justify-content: space-between;
     margin-bottom: 0.3rem;
     font-size: 0.9rem;
+    display: none !important;
 }
 
 .telemetry-label {
     color: var(--accent-color);
+    display: none !important;
 }
 
 footer {
@@ -230,18 +305,33 @@ footer {
     backdrop-filter: blur(8px);
     border-top: 1px solid var(--panel-border);
     z-index: 5;
+    background: none !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    display: none !important;
 }
 
 .time-controls {
     display: flex;
     align-items: center;
     gap: 1.5rem;
+    background: none !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    display: none !important;
 }
 
 .time-buttons {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    background: none !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    display: none !important;
 }
 
 .time-buttons button {
@@ -262,12 +352,18 @@ footer {
 
 .status {
     font-size: 0.9rem;
+    background: none !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    display: none !important;
 }
 
 /* Tooltips for better UX */
 .tooltip {
     position: relative;
     display: inline-block;
+    display: none !important;
 }
 
 .tooltip .tooltip-text {
@@ -304,12 +400,20 @@ footer {
     background-color: var(--panel-bg);
     padding: 20px;
     border-radius: 8px;
-    /* border: 1px solid var(--panel-border); */
     max-width: 400px;
     z-index: 15;
     backdrop-filter: blur(10px);
     box-shadow: 0 8px 32px rgba(14, 165, 233, 0.18);
     animation: fadeIn 0.3s;
+    display: none;
+    background: rgba(15,23,42,0.85);
+    border-radius: 8px;
+    color: #f8fafc;
+    padding: 24px 32px;
+    box-shadow: 0 8px 32px rgba(14, 165, 233, 0.18);
+    max-width: 90vw;
+    max-height: 90vh;
+    overflow-y: auto;
 }
 
 @keyframes fadeIn {
@@ -346,6 +450,11 @@ footer {
     flex-direction: column;
     gap: 10px;
     z-index: 5;
+    background: none !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    display: none !important;
 }
 
 .earth-controls button {
@@ -358,7 +467,6 @@ footer {
     font-size: 1.2rem;
 }
 
-/* Advanced telemetry dashboard */
 .telemetry-dashboard {
     position: absolute;
     top: 50%;
@@ -376,6 +484,14 @@ footer {
     display: none;
     backdrop-filter: blur(10px);
     box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
+    background: rgba(15,23,42,0.85);
+    border-radius: 8px;
+    color: #f8fafc;
+    padding: 24px 32px;
+    box-shadow: 0 8px 32px rgba(14, 165, 233, 0.18);
+    max-width: 90vw;
+    max-height: 90vh;
+    overflow-y: auto;
 }
 
 .telemetry-dashboard.visible {
@@ -389,6 +505,11 @@ footer {
     margin-bottom: 20px;
     border-bottom: 1px solid var(--panel-border);
     padding-bottom: 10px;
+    background: none !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    display: none !important;
 }
 
 .close-dashboard {
@@ -409,6 +530,7 @@ footer {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
     gap: 15px;
+    display: none !important;
 }
 
 .telemetry-card {
@@ -418,6 +540,11 @@ footer {
     border: none;
     box-shadow: 0 2px 12px rgba(14, 165, 233, 0.10);
     transition: box-shadow 0.2s, background 0.2s;
+    background: none !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    display: none !important;
 }
 
 .telemetry-card:hover {
@@ -428,7 +555,6 @@ footer {
 .telemetry-card h4 {
     margin-bottom: 10px;
     color: var(--secondary-color);
-    font-size: 1rem;
 }
 
 /* Satellite highlight effect when hovering */
