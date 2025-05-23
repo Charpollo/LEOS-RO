@@ -69,13 +69,47 @@ The LEOS First Orbit codebase is organized into a modern, modular structure:
 pip install -r requirements.txt
 ```
 
-2. **Run the application**
+2. **Install required JavaScript packages**
 
 ```bash
-python server.py
+npm install
 ```
 
-This will start the application at http://localhost:8080.
+3. **Run the application in development mode**
+
+```bash
+# Using npm script with webpack watch mode and auto-rebuild
+npm run dev
+
+# OR run manually with options
+python3 server.py --watch --debug
+```
+
+This will start the application at http://localhost:8080 with automatic frontend rebuilding when files change.
+
+### Development Tools
+
+For an easier development experience, use the included development helper script:
+
+```bash
+# Show available commands
+./dev.sh help
+
+# Start in development mode (auto-rebuilding + debug)
+./dev.sh dev
+
+# Clean, build, and start the server
+./dev.sh clean build start
+
+# Start on a custom port
+./dev.sh port 8081 start
+
+# Just build the frontend
+./dev.sh build
+
+# Start webpack in watch mode only
+./dev.sh watch
+```
 
 ### Option 2: Running with Docker
 

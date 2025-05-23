@@ -5,8 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LEOS First Orbit - Satellite Visualization</title>
     <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/minimal-ui.css">
     <script defer src="bundle.js"></script>
-</head>
+<script defer src="bundle.js"></script></head>
 <body>
     <div id="renderCanvas-container">
         <canvas id="renderCanvas" touch-action="none"></canvas>
@@ -14,7 +15,13 @@
             <div class="loader"></div>
             <div class="loading-text">Loading Simulation...</div>
         </div>
-        <!-- Overlays only -->
+        
+        <!-- Minimalist floating clock in corner -->
+        <div id="time-display" class="floating-display">
+            <div id="current-time">00:00:00 UTC</div>
+        </div>
+        
+        <!-- Minimalist instructions overlay -->
         <div id="instructions-overlay" style="display: none;">
             <h3>Controls & Instructions</h3>
             <ul>
@@ -27,6 +34,8 @@
             </ul>
             <button id="close-instructions">Got it!</button>
         </div>
+        
+        <!-- Telemetry display (appears when satellite is clicked) -->
         <div class="telemetry-dashboard" id="advanced-telemetry">
             <div class="dashboard-header">
                 <h3 id="dashboard-title">Satellite Telemetry</h3>

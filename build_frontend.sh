@@ -23,5 +23,3 @@ echo "Building frontend..."
 npx webpack --config webpack.config.js
 
 echo "Frontend build complete!"
-
-echo "Frontend build complete!"

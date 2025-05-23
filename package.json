@@ -6,7 +6,9 @@
   "scripts": {
     "build": "webpack --config webpack.config.js",
     "watch": "webpack --config webpack.config.js --watch",
-    "start": "node server.js"
+    "start": "python3 server.py",
+    "dev": "python3 server.py --watch --debug",
+    "deploy": "bash deploy.sh"
   },
   "dependencies": {
     "@babylonjs/core": "^6.27.1",
