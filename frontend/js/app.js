@@ -60,14 +60,20 @@ async function createScene() {
     
     // Create sunlight as directional light for proper terminator line
     const sunLight = new BABYLON.DirectionalLight("sunLight", new BABYLON.Vector3(1, 0, 0), scene);
-    sunLight.intensity = 1.0;
-    sunLight.diffuse = new BABYLON.Color3(1, 1, 0.9);
-    
+    sunLight.intensity = 1.2; // Slightly brighter
+    sunLight.diffuse = new BABYLON.Color3(1, 1, 0.95);
+    sunLight.specular = new BABYLON.Color3(1, 1, 0.9);
+    sunLight.shadowMinZ = 0.1;
+    sunLight.shadowMaxZ = 100000;
+    // Store for animation
+    scene.sunLight = sunLight;
+
     // Add ambient light to ensure the dark side isn't completely black
     const ambientLight = new BABYLON.HemisphericLight("ambientLight", new BABYLON.Vector3(0, 1, 0), scene);
-    ambientLight.intensity = 0.1;
-    ambientLight.diffuse = new BABYLON.Color3(0.2, 0.2, 0.4);
-    ambientLight.groundColor = new BABYLON.Color3(0.1, 0.1, 0.2);
+    ambientLight.intensity = 0.07; // Slightly reduced for more contrast
+    ambientLight.diffuse = new BABYLON.Color3(0.18, 0.18, 0.35);
+    ambientLight.groundColor = new BABYLON.Color3(0.08, 0.08, 0.18);
+    scene.ambientLight = ambientLight;
     
     // Initialize the advanced texture for satellite labels
     advancedTexture = AdvancedDynamicTexture.CreateFullscreenUI("UI", true, scene);
@@ -134,23 +140,17 @@ async function createEarth() {
     
     // Create a PBR material for more realistic Earth rendering
     const earthMaterial = new BABYLON.PBRMaterial('earthPBRMaterial', scene);
-    
-    // Base albedo (day texture)
     earthMaterial.albedoTexture = new BABYLON.Texture('assets/earth_diffuse.jpg', scene);
-    
-    // Metallic-roughness properties
     earthMaterial.metallic = 0.0;
-    earthMaterial.roughness = 0.8;
-    
-    // Emissive for night lights
+    earthMaterial.roughness = 0.7; // Slightly less rough for more pop
     earthMaterial.emissiveTexture = new BABYLON.Texture('assets/earth_night.jpg', scene);
-    earthMaterial.emissiveColor = new BABYLON.Color3(1, 1, 1);
+    earthMaterial.emissiveColor = new BABYLON.Color3(1.2, 1.2, 1.2); // Brighter night lights
     
-    // Add Fresnel effect to enhance day-night transition
+    // Fresnel for rim/terminator pop
     earthMaterial.emissiveFresnelParameters = new BABYLON.FresnelParameters();
-    earthMaterial.emissiveFresnelParameters.bias = 0.2;
-    earthMaterial.emissiveFresnelParameters.power = 1;
-    earthMaterial.emissiveFresnelParameters.leftColor = BABYLON.Color3.White();
+    earthMaterial.emissiveFresnelParameters.bias = 0.25;
+    earthMaterial.emissiveFresnelParameters.power = 2.2;
+    earthMaterial.emissiveFresnelParameters.leftColor = new BABYLON.Color3(1.2, 1.1, 0.9); // Warm rim
     earthMaterial.emissiveFresnelParameters.rightColor = BABYLON.Color3.Black();
     
     // Create a subsurface layer for atmosphere effect
@@ -193,6 +193,21 @@ async function createEarth() {
         const rotationSpeed = (0.05 * Math.PI / 180) * timeMultiplier * (scene.getAnimationRatio() || 1);
         earthMesh.rotation.y += rotationSpeed;
         cloudsMesh.rotation.y += rotationSpeed * 1.05; // Clouds rotate slightly faster
+    });
+    
+    // Animate sun direction for realistic terminator
+    let earthRotation = 0;
+    scene.registerBeforeRender(() => {
+        const rotationSpeed = (0.05 * Math.PI / 180) * timeMultiplier * (scene.getAnimationRatio() || 1);
+        earthMesh.rotation.y += rotationSpeed;
+        cloudsMesh.rotation.y += rotationSpeed * 1.05;
+        earthRotation += rotationSpeed;
+        // Animate sun direction
+        if (scene.sunLight) {
+            // Sun orbits Earth in XZ plane
+            const sunDir = new BABYLON.Vector3(Math.cos(earthRotation), 0, Math.sin(earthRotation));
+            scene.sunLight.direction = sunDir.negate(); // DirectionalLight points FROM sun to Earth
+        }
     });
 }
 
