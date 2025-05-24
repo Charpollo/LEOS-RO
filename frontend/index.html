@@ -3,39 +3,114 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LEOS First Orbit - Satellite Visualization</title>
-    <link rel="stylesheet" href="css/styles.css">
-    <link rel="stylesheet" href="css/minimal-ui.css">
+    <title>LEOS: First Orbit - Satellite Visualization</title>
+    <link rel="stylesheet" href="css/brand-ui.css">
     <script defer src="bundle.js"></script>
 <script defer src="bundle.js"></script></head>
 <body>
     <div id="renderCanvas-container">
         <canvas id="renderCanvas" touch-action="none"></canvas>
+        
+        <!-- Loading Screen with Space Facts -->
         <div id="loading-screen">
-            <div class="loader"></div>
-            <div class="loading-text">Loading Simulation...</div>
+            <div class="loading-content">
+                <div class="leos-logo">LEOS</div>
+                <h1 class="loading-title">Launching LEOS: First Orbit</h1>
+                <p class="loading-subtitle">Preparing simulation data</p>
+                <div class="loader">
+                    <div class="loader-ring"></div>
+                    <div class="loader-ring"></div>
+                    <div class="loader-ring"></div>
+                </div>
+                <div class="space-fact" id="space-fact">
+                    <p>Did you know? There are over 34,000 objects larger than 10cm currently orbiting Earth.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Welcome Modal (Tutorial) -->
+        <div id="welcome-modal" class="modal-overlay" style="display: none;">
+            <div class="modal-content">
+                <h2 class="modal-title">Welcome to LEOS: First Orbit</h2>
+                <div class="tutorial-section">
+                    <h3>Controls & Navigation</h3>
+                    <div class="control-item">
+                        <span class="control-key">Mouse Drag</span>
+                        <span class="control-desc">Rotate Earth view</span>
+                    </div>
+                    <div class="control-item">
+                        <span class="control-key">Mouse Wheel</span>
+                        <span class="control-desc">Zoom in/out</span>
+                    </div>
+                    <div class="control-item">
+                        <span class="control-key">Click Satellite</span>
+                        <span class="control-desc">View satellite info</span>
+                    </div>
+                    <div class="control-item">
+                        <span class="control-key">R Key</span>
+                        <span class="control-desc">Reset view</span>
+                    </div>
+                    <div class="control-item">
+                        <span class="control-key">Space Key</span>
+                        <span class="control-desc">Pause/Resume</span>
+                    </div>
+                </div>
+                <button id="got-it-btn" class="primary-button">Got it!</button>
+            </div>
+        </div>
+
+        <!-- Left Info Panel (Mission Briefing) -->
+        <div id="info-panel" class="info-panel">
+            <div class="panel-header">
+                <h1 class="panel-title">LEOS: First Orbit</h1>
+                <button id="close-panel" class="close-button">&times;</button>
+            </div>
+            
+            <div class="panel-section">
+                <h2 class="section-title">The LEOS Engine</h2>
+                <p class="section-content">
+                    The Low Earth Orbit Simulation (LEOS) engine provides real-time orbital mechanics 
+                    visualization using advanced 3D rendering and physics calculations. Experience 
+                    satellite behavior in a scientifically accurate environment.
+                </p>
+            </div>
+            
+            <div class="panel-section">
+                <h2 class="section-title">About the Satellites</h2>
+                <p class="section-content">
+                    Our simulation features active satellites with real telemetry data, including 
+                    position, velocity, altitude, and orbital parameters. Each satellite follows 
+                    precise Keplerian orbital mechanics.
+                </p>
+            </div>
+            
+            <div class="panel-section">
+                <h2 class="section-title">Orbital Mechanics</h2>
+                <p class="section-content">
+                    Watch as satellites follow elliptical orbits, experience orbital decay, and 
+                    maintain their trajectories around Earth. The simulation accounts for 
+                    gravitational forces and orbital perturbations.
+                </p>
+            </div>
+
+            <div class="panel-controls">
+                <button id="show-tutorial" class="secondary-button">Show Tutorial</button>
+            </div>
         </div>
         
-        <!-- Minimalist floating clock in corner -->
+        <!-- Floating Time Display -->
         <div id="time-display" class="floating-display">
             <div id="current-time">00:00:00 UTC</div>
         </div>
         
-        <!-- Minimalist instructions overlay -->
-        <div id="instructions-overlay" style="display: none;">
-            <h3>Controls & Instructions</h3>
-            <ul>
-                <li><strong>Click on a satellite</strong> to see its telemetry data</li>
-                <li><strong>Mouse wheel</strong> to zoom in/out</li>
-                <li><strong>Left-click + drag</strong> to rotate view</li>
-                <li><strong>Right-click + drag</strong> to pan</li>
-                <li><strong>R key</strong> to reset camera position</li>
-                <li><strong>Space</strong> to pause/resume simulation</li>
-            </ul>
-            <button id="close-instructions">Got it!</button>
-        </div>
+        <!-- Panel Toggle Button -->
+        <button id="panel-toggle" class="panel-toggle">
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+        </button>
         
-        <!-- Telemetry display (appears when satellite is clicked) -->
+        <!-- Telemetry Dashboard -->
         <div class="telemetry-dashboard" id="advanced-telemetry">
             <div class="dashboard-header">
                 <h3 id="dashboard-title">Satellite Telemetry</h3>

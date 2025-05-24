@@ -1,0 +1,607 @@
+/* 
+ * LEOS: First Orbit - Brand UI Styles
+ * Aligned with brand_ui.md specifications
+ * Theme: Space exploration, futuristic UI
+ * Highlight Color: Neon blue (#00cfff)
+ */
+
+/* =========================================== */
+/* IMPORTS AND VARIABLES                       */
+/* =========================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Segoe+UI:wght@300;400;500;600&display=swap');
+
+:root {
+    /* Brand Colors */
+    --neon-blue: #00cfff;
+    --neon-blue-dark: #0099cc;
+    --neon-blue-light: #66d9ff;
+    --neon-blue-glow: rgba(0, 207, 255, 0.3);
+    
+    /* Core Palette */
+    --background-black: #000000;
+    --background-dark: #0a0a0a;
+    --background-panel: rgba(0, 0, 0, 0.85);
+    --text-primary: #ffffff;
+    --text-secondary: #cccccc;
+    --text-muted: #888888;
+    
+    /* UI Elements */
+    --border-glow: rgba(0, 207, 255, 0.5);
+    --border-subtle: rgba(255, 255, 255, 0.1);
+    --button-bg: rgba(0, 207, 255, 0.2);
+    --button-hover: rgba(0, 207, 255, 0.4);
+    
+    /* Fonts */
+    --font-primary: 'Segoe UI', 'Roboto', sans-serif;
+    --font-mono: 'Consolas', 'Monaco', monospace;
+    
+    /* Spacing */
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+}
+
+/* =========================================== */
+/* BASE STYLES                                 */
+/* =========================================== */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--font-primary);
+    background-color: var(--background-black);
+    color: var(--text-primary);
+    overflow: hidden;
+    font-weight: 400;
+}
+
+#renderCanvas-container {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+}
+
+#renderCanvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    outline: none;
+}
+
+/* =========================================== */
+/* LOADING SCREEN                              */
+/* =========================================== */
+
+#loading-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: linear-gradient(135deg, #000000 0%, #0a0a0a 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(5px);
+}
+
+.loading-content {
+    text-align: center;
+    animation: fadeInUp 1s ease-out;
+}
+
+.leos-logo {
+    font-size: 4rem;
+    font-weight: 700;
+    color: var(--neon-blue);
+    text-shadow: 0 0 20px var(--neon-blue-glow);
+    margin-bottom: var(--spacing-md);
+    letter-spacing: 0.2em;
+}
+
+.loading-title {
+    font-size: 2rem;
+    font-weight: 500;
+    margin-bottom: var(--spacing-sm);
+    color: var(--text-primary);
+}
+
+.loading-subtitle {
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-xl);
+}
+
+.loader {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    margin: var(--spacing-xl) auto;
+}
+
+.loader-ring {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border: 2px solid transparent;
+    border-top: 2px solid var(--neon-blue);
+    border-radius: 50%;
+    animation: spin 1.5s linear infinite;
+}
+
+.loader-ring:nth-child(2) {
+    animation-delay: 0.5s;
+    transform: scale(0.8);
+}
+
+.loader-ring:nth-child(3) {
+    animation-delay: 1s;
+    transform: scale(0.6);
+}
+
+.space-fact {
+    margin-top: var(--spacing-xl);
+    padding: var(--spacing-md);
+    background: rgba(0, 207, 255, 0.1);
+    border: 1px solid var(--border-glow);
+    border-radius: 8px;
+    max-width: 500px;
+    backdrop-filter: blur(10px);
+}
+
+.space-fact p {
+    color: var(--text-secondary);
+    font-style: italic;
+    line-height: 1.5;
+}
+
+/* =========================================== */
+/* WELCOME MODAL (TUTORIAL)                   */
+/* =========================================== */
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 900;
+    backdrop-filter: blur(5px);
+}
+
+.modal-content {
+    background: var(--background-panel);
+    border: 2px solid var(--border-glow);
+    border-radius: 12px;
+    padding: var(--spacing-xl);
+    max-width: 500px;
+    width: 90%;
+    backdrop-filter: blur(15px);
+    box-shadow: 0 0 30px var(--neon-blue-glow);
+    animation: modalSlideIn 0.5s ease-out;
+}
+
+.modal-title {
+    font-size: 1.8rem;
+    font-weight: 600;
+    color: var(--neon-blue);
+    text-align: center;
+    margin-bottom: var(--spacing-lg);
+    text-shadow: 0 0 10px var(--neon-blue-glow);
+}
+
+.tutorial-section h3 {
+    color: var(--text-primary);
+    font-size: 1.2rem;
+    margin-bottom: var(--spacing-md);
+    border-bottom: 1px solid var(--border-subtle);
+    padding-bottom: var(--spacing-sm);
+}
+
+.control-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-sm) 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.control-item:last-child {
+    border-bottom: none;
+}
+
+.control-key {
+    font-weight: 500;
+    color: var(--neon-blue);
+    font-family: var(--font-mono);
+    background: rgba(0, 207, 255, 0.1);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+.control-desc {
+    color: var(--text-secondary);
+    flex: 1;
+    text-align: right;
+}
+
+/* =========================================== */
+/* LEFT INFO PANEL                             */
+/* =========================================== */
+
+.info-panel {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 350px;
+    background: var(--background-panel);
+    backdrop-filter: blur(15px);
+    border-right: 2px solid var(--border-glow);
+    box-shadow: 0 0 30px var(--neon-blue-glow);
+    padding: var(--spacing-lg);
+    overflow-y: auto;
+    z-index: 100;
+    transform: translateX(-100%);
+    transition: transform 0.4s ease-out;
+}
+
+.info-panel.visible {
+    transform: translateX(0);
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-xl);
+    padding-bottom: var(--spacing-md);
+    border-bottom: 2px solid var(--border-glow);
+}
+
+.panel-title {
+    font-size: 1.6rem;
+    font-weight: 600;
+    color: var(--neon-blue);
+    text-shadow: 0 0 10px var(--neon-blue-glow);
+}
+
+.close-button {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: var(--spacing-xs);
+    transition: color 0.3s ease;
+}
+
+.close-button:hover {
+    color: var(--neon-blue);
+}
+
+.panel-section {
+    margin-bottom: var(--spacing-lg);
+}
+
+.section-title {
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: var(--neon-blue);
+    margin-bottom: var(--spacing-sm);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.section-content {
+    color: var(--text-secondary);
+    line-height: 1.6;
+    font-size: 0.95rem;
+}
+
+.panel-controls {
+    padding-top: var(--spacing-lg);
+    border-top: 1px solid var(--border-subtle);
+}
+
+/* =========================================== */
+/* BUTTONS                                     */
+/* =========================================== */
+
+.primary-button {
+    background: linear-gradient(135deg, var(--neon-blue) 0%, var(--neon-blue-dark) 100%);
+    color: var(--text-primary);
+    border: none;
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-radius: 6px;
+    font-family: var(--font-primary);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 15px var(--neon-blue-glow);
+    width: 100%;
+    margin-top: var(--spacing-lg);
+}
+
+.primary-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 25px var(--neon-blue-glow);
+}
+
+.secondary-button {
+    background: var(--button-bg);
+    color: var(--neon-blue);
+    border: 1px solid var(--neon-blue);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: 6px;
+    font-family: var(--font-primary);
+    font-weight: 400;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    width: 100%;
+}
+
+.secondary-button:hover {
+    background: var(--button-hover);
+    box-shadow: 0 0 10px var(--neon-blue-glow);
+}
+
+/* =========================================== */
+/* PANEL TOGGLE BUTTON                        */
+/* =========================================== */
+
+.panel-toggle {
+    position: fixed;
+    top: var(--spacing-lg);
+    left: var(--spacing-lg);
+    width: 50px;
+    height: 50px;
+    background: var(--background-panel);
+    border: 2px solid var(--border-glow);
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 200;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 0 15px var(--neon-blue-glow);
+}
+
+.panel-toggle:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 25px var(--neon-blue-glow);
+}
+
+.hamburger-line {
+    width: 20px;
+    height: 2px;
+    background: var(--neon-blue);
+    margin: 2px 0;
+    transition: 0.3s;
+    border-radius: 1px;
+}
+
+.panel-toggle.active .hamburger-line:nth-child(1) {
+    transform: rotate(-45deg) translate(-5px, 6px);
+}
+
+.panel-toggle.active .hamburger-line:nth-child(2) {
+    opacity: 0;
+}
+
+.panel-toggle.active .hamburger-line:nth-child(3) {
+    transform: rotate(45deg) translate(-5px, -6px);
+}
+
+/* =========================================== */
+/* FLOATING DISPLAYS                           */
+/* =========================================== */
+
+.floating-display {
+    position: fixed;
+    bottom: var(--spacing-lg);
+    right: var(--spacing-lg);
+    background: var(--background-panel);
+    backdrop-filter: blur(15px);
+    border: 1px solid var(--border-glow);
+    border-radius: 8px;
+    padding: var(--spacing-md);
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    z-index: 100;
+    box-shadow: 0 0 15px var(--neon-blue-glow);
+    transition: all 0.3s ease;
+}
+
+.floating-display:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 25px var(--neon-blue-glow);
+}
+
+#current-time {
+    font-weight: 400;
+    letter-spacing: 0.05em;
+    color: var(--neon-blue);
+}
+
+/* =========================================== */
+/* TELEMETRY DASHBOARD                         */
+/* =========================================== */
+
+.telemetry-dashboard {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--background-panel);
+    backdrop-filter: blur(15px);
+    border: 2px solid var(--border-glow);
+    border-radius: 12px;
+    padding: var(--spacing-lg);
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    z-index: 800;
+    box-shadow: 0 0 30px var(--neon-blue-glow);
+    display: none;
+}
+
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+    padding-bottom: var(--spacing-md);
+    border-bottom: 2px solid var(--border-glow);
+}
+
+.dashboard-header h3 {
+    color: var(--neon-blue);
+    font-size: 1.4rem;
+    font-weight: 500;
+}
+
+.close-dashboard {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: var(--spacing-xs);
+    transition: color 0.3s ease;
+}
+
+.close-dashboard:hover {
+    color: var(--neon-blue);
+}
+
+.telemetry-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: var(--spacing-md);
+}
+
+/* =========================================== */
+/* ANIMATIONS                                  */
+/* =========================================== */
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* =========================================== */
+/* RESPONSIVE DESIGN                           */
+/* =========================================== */
+
+@media (max-width: 768px) {
+    .info-panel {
+        width: 100%;
+    }
+    
+    .modal-content {
+        width: 95%;
+        padding: var(--spacing-lg);
+    }
+    
+    .control-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-xs);
+    }
+    
+    .control-desc {
+        text-align: left;
+    }
+    
+    .floating-display {
+        bottom: var(--spacing-md);
+        right: var(--spacing-md);
+        font-size: 0.8rem;
+    }
+    
+    .panel-toggle {
+        top: var(--spacing-md);
+        left: var(--spacing-md);
+        width: 45px;
+        height: 45px;
+    }
+}
+
+/* =========================================== */
+/* UTILITY CLASSES                             */
+/* =========================================== */
+
+.hidden {
+    display: none !important;
+}
+
+.visible {
+    display: block !important;
+}
+
+.glow {
+    box-shadow: 0 0 20px var(--neon-blue-glow);
+}
+
+.text-glow {
+    text-shadow: 0 0 10px var(--neon-blue-glow);
+}
+
+/* Scrollbar styling for webkit browsers */
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--neon-blue);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--neon-blue-light);
+}
