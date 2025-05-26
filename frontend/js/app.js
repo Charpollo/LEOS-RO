@@ -123,19 +123,19 @@ async function createScene() {
         EARTH_RADIUS * EARTH_SCALE * 3
     ));
     
-    // Create proper lighting system
-    // Main directional light (sun)
+    // Create proper lighting system - Realistic directional sunlight
+    // Main directional light (sun) - single light source as in real life
     const sunLight = new BABYLON.DirectionalLight("sunLight", new BABYLON.Vector3(1, 0, 0), scene);
-    sunLight.intensity = 2.0; // Strong sunlight for a hard terminator
-    sunLight.diffuse = new BABYLON.Color3(1.0, 0.98, 0.92); // Warm sunlight
-    sunLight.specular = new BABYLON.Color3(1.0, 1.0, 1.0); // Strong specular for highlights
+    sunLight.intensity = 1.4; // Moderate intensity to prevent overexposure
+    sunLight.diffuse = new BABYLON.Color3(1.0, 0.98, 0.92); // Warm sunlight color
+    sunLight.specular = new BABYLON.Color3(0.3, 0.3, 0.3); // Very low specular to avoid unrealistic shiny appearance
     scene.sunLight = sunLight;
 
-    // Remove or minimize ambient light for a hard terminator
+    // Almost entirely eliminate ambient light for a realistic hard terminator
     const ambientLight = new BABYLON.HemisphericLight("ambientLight", new BABYLON.Vector3(0, 1, 0), scene);
-    ambientLight.intensity = 0.03; // Very low, just enough to see a hint of the night side
-    ambientLight.diffuse = new BABYLON.Color3(1.0, 1.0, 1.0);
-    ambientLight.groundColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+    ambientLight.intensity = 0.01; // Extremely low - just enough to avoid complete black
+    ambientLight.diffuse = new BABYLON.Color3(0.2, 0.2, 0.4); // Slight blue tint for space-scattered light
+    ambientLight.groundColor = new BABYLON.Color3(0.05, 0.05, 0.05);
     scene.ambientLight = ambientLight;
     
     // Disable glow layer to prevent unwanted shadow effects
@@ -231,7 +231,7 @@ async function createEarth() {
         diameter: EARTH_RADIUS * 2 * EARTH_SCALE 
     }, scene);
     
-    // Apply Earth's axial tilt (23.5 degrees)
+    // Earth's proper axial tilt (23.5 degrees)
     const EARTH_TILT = 23.5 * Math.PI / 180;
     earthMesh.rotation.x = EARTH_TILT;
     
@@ -251,22 +251,44 @@ async function createEarth() {
     
     // Configure diffuse texture properly
     earthMaterial.albedoTexture = diffuseTexture;
+    
+    // Fix texture orientation and alignment for all Earth textures
+    // These values ensure perfect alignment and correct orientation for standard equirectangular maps
+    const earthTextureUOffset = 0.5;
+    const earthTextureVOffset = 0.0;
+    const earthTextureUScale = -1;
+    const earthTextureVScale = 1; // Day and clouds: vScale=1
+    const nightTextureVScale = -1; // Night: vScale=-1 to flip vertically
+
+    earthMaterial.albedoTexture.uOffset = earthTextureUOffset;
+    earthMaterial.albedoTexture.vOffset = earthTextureVOffset;
+    earthMaterial.albedoTexture.uScale = earthTextureUScale;
+    earthMaterial.albedoTexture.vScale = earthTextureVScale;
     earthMaterial.albedoTexture.level = 1.0; // Normal intensity
     earthMaterial.albedoTexture.hasAlpha = false;
     
-    // Configure proper metal/rough maps for PBR workflow
-    earthMaterial.metallic = 0.0; // Earth isn't metallic
-    earthMaterial.roughness = 0.8; // High roughness for natural appearance
+    // Configure proper metal/rough maps for PBR workflow - Earth needs to be very non-reflective
+    earthMaterial.metallic = 0.0; // Earth isn't metallic at all
+    earthMaterial.roughness = 0.98; // Maximum roughness to completely eliminate unrealistic reflections
     earthMaterial.useRoughnessFromMetallicTextureAlpha = false;
+    
+    // Reduce specular to absolute minimum - Earth doesn't have mirror-like reflections
+    earthMaterial.specularIntensity = 0.05;
     
     // Enable ambient occlusion but keep it subtle
     earthMaterial.useAmbientOcclusionFromMetallicTextureRed = false;
     earthMaterial.ambientTextureStrength = 0.3;
     
-    // Configure night side texture with proper intensity
+    // Configure night side texture with proper intensity - city lights should be visible
     const nightTexture = new BABYLON.Texture('assets/earth_night.jpg', scene);
+    // Apply the same transformation as the day texture, but flip vertically to match orientation
+    nightTexture.uOffset = earthTextureUOffset;
+    nightTexture.vOffset = earthTextureVOffset;
+    nightTexture.uScale = earthTextureUScale;
+    nightTexture.vScale = nightTextureVScale; // Flip vertically
     earthMaterial.emissiveTexture = nightTexture;
-    earthMaterial.emissiveColor = new BABYLON.Color3(0.1, 0.1, 0.15); // Very subtle emissive for night side
+    earthMaterial.emissiveTexture.level = 1.2; // Higher boost for night texture intensity
+    earthMaterial.emissiveColor = new BABYLON.Color3(0.35, 0.35, 0.45); // Enhanced blue-white city lights
     
     // Remove fresnel effect that might cause dark rim
     earthMaterial.emissiveFresnelParameters = null;
@@ -298,6 +320,11 @@ async function createEarth() {
     // Configure cloud texture with proper alpha
     const cloudsTexture = new BABYLON.Texture('assets/earth_clouds.jpg', scene);
     cloudsMaterial.diffuseTexture = cloudsTexture;
+    // Apply the same texture transformation as the Earth to keep clouds aligned
+    cloudsMaterial.diffuseTexture.uOffset = earthTextureUOffset;
+    cloudsMaterial.diffuseTexture.vOffset = earthTextureVOffset;
+    cloudsMaterial.diffuseTexture.uScale = earthTextureUScale;
+    cloudsMaterial.diffuseTexture.vScale = earthTextureVScale;
     cloudsMaterial.diffuseTexture.level = 1.5; // Brighter clouds
     
     // Make clouds appear white by setting proper diffuse color
@@ -306,13 +333,14 @@ async function createEarth() {
     
     // Set up alpha for proper transparency
     cloudsMaterial.opacityTexture = cloudsTexture;
+    // The opacityTexture inherits the same transformations as diffuseTexture since it's the same texture object
     cloudsMaterial.opacityTexture.getAlphaFromRGB = true; // Use RGB as alpha
     cloudsMaterial.useAlphaFromDiffuseTexture = false; // Don't use alpha from diffuse
     
     // Configure specular to make clouds look fluffy and bright
     cloudsMaterial.specularColor = new BABYLON.Color3(0.3, 0.3, 0.3);
     cloudsMaterial.specularPower = 8;
-    cloudsMaterial.alpha = 0.7; // Better transparency for clouds
+    cloudsMaterial.alpha = 0.55; // Reduced cloud density for better Earth visibility
     
     // Set blending mode for proper transparency
     cloudsMaterial.backFaceCulling = false;
@@ -325,22 +353,22 @@ async function createEarth() {
     // Create atmospheric scattering effect with proper appearance
     const atmosphereMesh = BABYLON.MeshBuilder.CreateSphere('atmosphere', {
         segments: 24, // Fewer segments for better performance
-        diameter: EARTH_RADIUS * 2.08 * EARTH_SCALE // Atmosphere is 8% larger than Earth
+        diameter: EARTH_RADIUS * 2.02 * EARTH_SCALE // Atmosphere is 2% larger than Earth (reduced from 3%)
     }, scene);
     
-    // Create atmosphere material with subtle, realistic glow
+    // Create atmosphere material with enhanced, realistic glow
     const atmosphereMaterial = new BABYLON.StandardMaterial('atmosphereMaterial', scene);
     atmosphereMaterial.diffuseColor = new BABYLON.Color3(0, 0, 0); // No diffuse
-    atmosphereMaterial.emissiveColor = new BABYLON.Color3(0.18, 0.38, 0.85); // Very subtle blue glow
-    atmosphereMaterial.alpha = 0.16; // Very transparent
+    atmosphereMaterial.emissiveColor = new BABYLON.Color3(0.2, 0.4, 0.9); // Enhanced blue glow
+    atmosphereMaterial.alpha = 0.18; // Slightly more visible
     atmosphereMaterial.alphaMode = BABYLON.Engine.ALPHA_COMBINE;
     atmosphereMaterial.backFaceCulling = false; // Show both sides
     
-    // Add subtle Fresnel effect for atmospheric rim glow
+    // Add enhanced Fresnel effect for more realistic atmospheric rim glow
     atmosphereMaterial.emissiveFresnelParameters = new BABYLON.FresnelParameters();
-    atmosphereMaterial.emissiveFresnelParameters.bias = 0.7;
-    atmosphereMaterial.emissiveFresnelParameters.power = 2.5;
-    atmosphereMaterial.emissiveFresnelParameters.leftColor = new BABYLON.Color3(0.25, 0.5, 1.0);
+    atmosphereMaterial.emissiveFresnelParameters.bias = 0.6; // Lower bias for wider glow
+    atmosphereMaterial.emissiveFresnelParameters.power = 2.0; // Lower power for softer transition
+    atmosphereMaterial.emissiveFresnelParameters.leftColor = new BABYLON.Color3(0.35, 0.6, 1.0); // Brighter, more intense blue
     atmosphereMaterial.emissiveFresnelParameters.rightColor = BABYLON.Color3.Black();
     
     // Apply atmosphere material
@@ -361,51 +389,87 @@ async function createEarth() {
         // Only update every 2 frames for better performance
         if (frameCount++ % 2 !== 0) return;
         
-        const rotationSpeed = (0.05 * Math.PI / 180) * timeMultiplier * (scene.getAnimationRatio() || 1);
+        // Use negative rotation speed for counterclockwise rotation (west to east, correct Earth rotation)
+        const rotationSpeed = (-0.05 * Math.PI / 180) * timeMultiplier * (scene.getAnimationRatio() || 1);
         earthMesh.rotation.y += rotationSpeed;
         earthRotation += rotationSpeed;
         
-        // Update clouds at slightly different rate
+        // Update clouds at slightly different rate, maintaining counterclockwise direction
         cloudsMesh.rotation.y = earthMesh.rotation.y * 1.1;
 
         // Update atmosphere appearance based on sun position (every 10 frames)
         if (scene.sunLight && frameCount % 10 === 0) {
-            // Calculate sun position based on simulation time
+            // Calculate sun position based on simulation time with improved accuracy
             solarTime += timeMultiplier * 0.001;
             // Earth's orbit around the sun (annual cycle)
             const earthOrbitAngle = solarTime * 2 * Math.PI / 365.25;
             // Earth's axial tilt
             const tilt = 23.5 * Math.PI / 180;
-            // Sun direction in ECI (Earth-Centered Inertial) frame
+            
+            // Calculate proper seasons based on Earth's orbit
+            const dayOfYear = (solarTime % 365.25) / 365.25;
+            const seasonAngle = (dayOfYear * 2 * Math.PI) - Math.PI/2; // Start at winter solstice
+            
+            // Sun direction in ECI (Earth-Centered Inertial) frame with proper seasonal variation
             const sunDir = new BABYLON.Vector3(
                 Math.cos(earthOrbitAngle),
-                Math.sin(tilt) * Math.sin(earthOrbitAngle),
+                Math.sin(tilt) * Math.sin(seasonAngle), // Apply tilt effect based on season
                 Math.sin(earthOrbitAngle + Math.PI/2) * Math.cos(tilt)
             ).normalize();
             // Update light direction
             scene.sunLight.direction = sunDir.negate();
             sunDirection = sunDir; // Store for satellite eclipse calculations
             
-            // Calculate day/night transition parameters
-            const nightIntensity = Math.max(0, -BABYLON.Vector3.Dot(sunDir, new BABYLON.Vector3(1, 0, 0)));
-            const dawnDuskIntensity = Math.pow(Math.max(0, 1 - Math.abs(BABYLON.Vector3.Dot(sunDir, new BABYLON.Vector3(1, 0, 0)))), 2);
+            // Calculate day/night transition parameters with more realistic sunrise/sunset
+            // Get dot product of surface normal and sun direction to determine day/night
+            const surfaceToSunDot = BABYLON.Vector3.Dot(sunDir, new BABYLON.Vector3(1, 0, 0));
+            const isNightSide = surfaceToSunDot < 0;
             
-            // Update Earth's night side visibility
-            scene.earthMaterial.emissiveColor = new BABYLON.Color3(
-                nightIntensity * 0.15 + dawnDuskIntensity * 0.07,
-                nightIntensity * 0.1 + dawnDuskIntensity * 0.05,
-                nightIntensity * 0.2 + dawnDuskIntensity * 0.03
+            // Night intensity - stronger on full night side with sharper cutoff
+            const nightIntensity = Math.max(0, Math.pow(-surfaceToSunDot, 1.2));
+            
+            // Dawn/dusk factor - peaks right at the terminator with extremely sharp transition
+            const terminatorFactor = Math.pow(1.0 - Math.abs(surfaceToSunDot), 16); // Higher power = even sharper terminator
+            
+            // Sunset colors are orange/red - more intense for defined terminator
+            const sunsetColor = new BABYLON.Color3(
+                1.0 * terminatorFactor, // Maximum red
+                0.5 * terminatorFactor, // Medium green (makes orange with red)
+                0.15 * terminatorFactor // Very low blue for warmer orange
             );
             
-            // Update atmosphere visibility based on sun angle
-            const atmFactor = 0.12 + dawnDuskIntensity * 0.08;
-            atmosphereMaterial.alpha = atmFactor;
+            // Dawn colors are blueish/purple - more intense for defined terminator
+            const dawnColor = new BABYLON.Color3(
+                0.4 * terminatorFactor,  // Low red
+                0.5 * terminatorFactor,  // Medium green
+                0.9 * terminatorFactor   // Very strong blue
+            );
             
-            // Update sunlight color based on orbit position
-            scene.sunLight.intensity = 0.8 + 0.1 * Math.sin(earthOrbitAngle);
+            // Night lights color (city lights - only visible on night side)
+            const nightLightsColor = new BABYLON.Color3(
+                1.0 * nightIntensity, // Brighter warm yellow-white city lights
+                0.85 * nightIntensity,
+                0.6 * nightIntensity  // Slightly higher blue for more visible night lights
+            );
+            
+            // Combine for final emissive - enhanced night glow with complete contrast between day and night
+            scene.earthMaterial.emissiveColor = isNightSide 
+                ? nightLightsColor.add(dawnColor.scale(0.6)) // Night side gets brighter city lights + enhanced dawn colors
+                : new BABYLON.Color3(0, 0, 0).add(sunsetColor.scale(0.8)); // Day side has zero emission except at enhanced terminator
+            
+            // Update atmosphere visibility and color based on sun angle
+            const atmFactor = 0.12 + terminatorFactor * 0.35; // Atmosphere more visible at terminator, less overall
+            atmosphereMaterial.alpha = atmFactor;
+            // Atmosphere color shifts with sunset/sunrise - more dramatic at terminator
+            atmosphereMaterial.emissiveColor = isNightSide
+                ? new BABYLON.Color3(0.08, 0.12, 0.4) // Night: darker deeper blue
+                : new BABYLON.Color3(0.15, 0.35, 0.8).scale(1 + terminatorFactor * 2.0); // Day: enhanced sunset contribution
+            
+            // Update sunlight parameters based on orbit position - seasonal effects
+            scene.sunLight.intensity = 1.4 + 0.1 * Math.sin(earthOrbitAngle); // Slight seasonal variation
             scene.sunLight.diffuse = new BABYLON.Color3(
                 1.0,
-                0.97 + 0.03 * Math.sin(earthOrbitAngle * 2),
+                0.97 + 0.03 * Math.sin(earthOrbitAngle * 2), // Subtle color temperature shifts
                 0.92 + 0.05 * Math.cos(earthOrbitAngle)
             );
         }
