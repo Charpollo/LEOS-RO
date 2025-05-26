@@ -20,7 +20,8 @@ module.exports = {
   plugins: [
     new HtmlWebpackPlugin({
       template: './frontend/index.html',
-      filename: 'index.html'
+      filename: 'index.html',
+      inject: false  // Prevent automatic injection of bundle.js to rely on manual include
     }),
   ],
   devtool: 'source-map',

@@ -1,6 +1,9 @@
 import * as BABYLON from '@babylonjs/core';
 import '@babylonjs/loaders';
 import { AdvancedDynamicTexture, TextBlock, Rectangle } from '@babylonjs/gui';
+import { calculateSatellitePosition, generateRealTimeTelemetry, toBabylonPosition, isInEclipse } from './orbital-mechanics.js';
+// Import the updateSatellitePosition function for reference but we're using inline version for better integration
+// import { updateSatellitePosition as updateSatellitePositionExternal } from './updateSatellitePosition.js';
 
 // Globals
 let engine;
@@ -20,114 +23,254 @@ let isInitialized = false;
 let sceneLoaded = false;
 let advancedTexture; // Define globally to fix the error
 
+// Orbital elements and real-time calculation data
+let orbitalElements = {};
+let simulationStartTime = new Date();
+let sunDirection = new BABYLON.Vector3(1, 0, 0);
+
 const EARTH_RADIUS = 6371; // km
 const EARTH_SCALE = 0.001;
+const MIN_LEO_ALTITUDE_KM = 160; // Minimum altitude above Earth surface for LEO
 const MOON_DISTANCE = 384400 * EARTH_SCALE;
 const MOON_SCALE = 0.27;
 
 async function initApp() {
-    // Initialize UI first
-    initBrandUI();
+    // Delay UI initialization until after scene is created for better startup performance
+    setTimeout(() => {
+        initBrandUI();
+    }, 100);
     
+    // Create scene with performance optimizations
     createScene();
+    
+    // Use a throttled render loop for better performance
+    let lastRender = performance.now();
+    const targetFPS = 30; // Limit to 30 FPS for better performance
+    const frameTime = 1000 / targetFPS;
+    
     engine.runRenderLoop(() => {
-        scene.render();
-        if (scene.isReady() && !sceneLoaded) {
-            hideLoadingScreen();
-            sceneLoaded = true;
+        const now = performance.now();
+        const delta = now - lastRender;
+        
+        // Throttle rendering to target FPS
+        if (delta > frameTime) {
+            scene.render();
+            lastRender = now - (delta % frameTime);
             
-            // Initialize keyboard controls once the scene is loaded
-            setupKeyboardControls();
-            
-            // Show welcome modal for first-time users
-            showWelcomeModal();
+            if (scene.isReady() && !sceneLoaded) {
+                hideLoadingScreen();
+                sceneLoaded = true;
+                
+                // Initialize keyboard controls once the scene is loaded
+                setupKeyboardControls();
+                
+                // Show welcome modal after a slight delay
+                setTimeout(() => {
+                    showWelcomeModal();
+                }, 500);
+            }
         }
     });
-    window.addEventListener('resize', () => engine.resize());
+    
+    // Throttle resize events for better performance
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+            engine.resize();
+        }, 100);
+    });
 }
 
 async function createScene() {
     const canvas = document.getElementById('renderCanvas');
-    engine = new BABYLON.Engine(canvas, true, { stencil: true });
+    
+    // Configure engine for better performance and visual quality
+    engine = new BABYLON.Engine(canvas, true, { 
+        stencil: true,
+        deterministicLockstep: false,
+        lockstepMaxSteps: 4,
+        adaptToDeviceRatio: true, // Enable for proper scaling with device DPI
+        antialias: true // Enable antialiasing for better visual quality
+    });
+    
+    // Keep canvas at native resolution for proper texture rendering
+    canvas.width = canvas.clientWidth;
+    canvas.height = canvas.clientHeight;
+    
+    // Create scene with optimized parameters
     scene = new BABYLON.Scene(engine);
-    scene.clearColor = new BABYLON.Color4(0, 0, 0, 1);
+    scene.clearColor = new BABYLON.Color4(0, 0, 0, 1); // Pure black background
+    scene.skipPointerMovePicking = true; // Skip pointer move picking for better performance
+    scene.autoClear = true; // Enable auto clear to prevent dark artifacts
+    scene.autoClearDepthAndStencil = true;
+    
+    // Create camera with optimized settings first (before any rendering pipelines)
     camera = new BABYLON.ArcRotateCamera('camera', -Math.PI / 2, Math.PI / 2, 20, BABYLON.Vector3.Zero(), scene);
     camera.attachControl(canvas, true);
-    camera.minZ = 0.1;
-    camera.maxZ = 100000;
-    camera.lowerRadiusLimit = EARTH_RADIUS * EARTH_SCALE * 1.5;
+    camera.minZ = 0.5;
+    camera.maxZ = 10000;
+    camera.lowerRadiusLimit = EARTH_RADIUS * EARTH_SCALE * 1.2;
     camera.upperRadiusLimit = EARTH_RADIUS * EARTH_SCALE * 50;
+    camera.useAutoRotationBehavior = false;
+    camera.inertia = 0.7; // Slightly higher for smoother movement
+    camera.wheelDeltaPercentage = 0.04; // Smoother zoom
     
-    // Create sunlight as directional light for proper terminator line
+    // Set initial camera position for better Earth view
+    camera.setPosition(new BABYLON.Vector3(
+        EARTH_RADIUS * EARTH_SCALE * 3,
+        EARTH_RADIUS * EARTH_SCALE * 2,
+        EARTH_RADIUS * EARTH_SCALE * 3
+    ));
+    
+    // Create proper lighting system
+    // Main directional light (sun)
     const sunLight = new BABYLON.DirectionalLight("sunLight", new BABYLON.Vector3(1, 0, 0), scene);
-    sunLight.intensity = 1.2; // Slightly brighter
-    sunLight.diffuse = new BABYLON.Color3(1, 1, 0.95);
-    sunLight.specular = new BABYLON.Color3(1, 1, 0.9);
-    sunLight.shadowMinZ = 0.1;
-    sunLight.shadowMaxZ = 100000;
-    // Store for animation
+    sunLight.intensity = 0.7; // Lower intensity to prevent texture washout
+    sunLight.diffuse = new BABYLON.Color3(1.0, 0.98, 0.92); // Warm sunlight
+    sunLight.specular = new BABYLON.Color3(0.2, 0.2, 0.2); // Reduced specular intensity
     scene.sunLight = sunLight;
 
-    // Add ambient light to ensure the dark side isn't completely black
+    // Add neutral ambient light
     const ambientLight = new BABYLON.HemisphericLight("ambientLight", new BABYLON.Vector3(0, 1, 0), scene);
-    ambientLight.intensity = 0.07; // Slightly reduced for more contrast
-    ambientLight.diffuse = new BABYLON.Color3(0.18, 0.18, 0.35);
-    ambientLight.groundColor = new BABYLON.Color3(0.08, 0.08, 0.18);
+    ambientLight.intensity = 0.2;
+    ambientLight.diffuse = new BABYLON.Color3(1.0, 1.0, 1.0); // Pure white ambient light
+    ambientLight.groundColor = new BABYLON.Color3(0.1, 0.1, 0.1); // Neutral gray ground color
     scene.ambientLight = ambientLight;
+    
+    // Disable glow layer to prevent unwanted shadow effects
+    // const glowLayer = new BABYLON.GlowLayer('atmosphericGlow', scene);
+    
+    // Only now create the rendering pipeline to ensure camera is properly initialized
+    const renderingPipeline = new BABYLON.DefaultRenderingPipeline(
+        "renderingPipeline", 
+        true,  // HDR not needed for our visualization
+        scene,
+        [camera] // Pass initialized camera
+    );
+    
+    // Disable bloom and tone mapping to prevent color shifts and blur
+    renderingPipeline.bloomEnabled = false;
+    
+    // Disable image processing to prevent tone mapping artifacts
+    renderingPipeline.imageProcessingEnabled = false;
+    
+    // Disable chroma shift to prevent edge artifacts
+    renderingPipeline.chromaticAberrationEnabled = false;
+    
+    // Disable grain for cleaner image
+    renderingPipeline.grainEnabled = false;
+
+    // Disable depth of field to prevent blur
+    renderingPipeline.depthOfFieldEnabled = false;
     
     // Initialize the advanced texture for satellite labels
     advancedTexture = AdvancedDynamicTexture.CreateFullscreenUI("UI", true, scene);
     
+    // Create the skybox first (background)
     createSkybox();
+    
+    // Then create Earth and Moon
     await createEarth();
     await createMoon();
+    
+    // Finally load satellite data
     await loadSatelliteData();
 }
 
 function createSkybox() {
-    // Create a large skybox to contain the stars
-    const skybox = BABYLON.MeshBuilder.CreateBox("skyBox", {size:1000.0}, scene);
+    // Create a proper skybox for a realistic star field background
+    const skyboxSize = 5000.0; // Large size to ensure it's always in the background
+    const skybox = BABYLON.MeshBuilder.CreateBox("skyBox", {size: skyboxSize}, scene);
+    
+    // Use specialized material for proper space background
     const skyboxMaterial = new BABYLON.StandardMaterial("skyBoxMaterial", scene);
     skyboxMaterial.backFaceCulling = false;
+    skyboxMaterial.disableLighting = true; // We don't want the skybox affected by scene lights
     
-    // Remove diffuse and specular to prevent shiny surfaces
-    skyboxMaterial.diffuseTexture = null;
-    skyboxMaterial.specularTexture = null;
+    // Set pure black background with no textures to start
+    skyboxMaterial.diffuseColor = new BABYLON.Color3(0, 0, 0); // Pure black
+    skyboxMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
+    skyboxMaterial.emissiveColor = new BABYLON.Color3(0, 0, 0); // No emission
     
-    // Create a CubeTexture for better starfield rendering
-    // This provides a more realistic wrap-around skybox effect with stars
-    skyboxMaterial.reflectionTexture = new BABYLON.CubeTexture("assets/starfield/stars", scene);
-    skyboxMaterial.reflectionTexture.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
-    
-    // Ensure maximum brightness of stars by disabling lighting effects
-    skyboxMaterial.disableLighting = true;
+    // Try to load star texture, fallback to pure black if not available
+    try {
+        const starTexture = new BABYLON.Texture("assets/stars.jpg", scene, false, false,
+            BABYLON.Texture.BILINEAR_SAMPLINGMODE,
+            () => {
+                console.log("Star texture loaded successfully");
+                starTexture.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
+                skyboxMaterial.reflectionTexture = starTexture;
+                starTexture.level = 0.8; // Dim the star texture
+            },
+            () => {
+                console.log("Star texture failed to load, using pure black space");
+                // Keep the black material as fallback
+            }
+        );
+    } catch (error) {
+        console.log("Using pure black space background");
+    }
     
     skybox.material = skyboxMaterial;
+    skybox.infiniteDistance = true; // Keep the skybox stationary relative to camera
     
-    // Add particle system for closer stars that move with parallax effect
-    const starsParticles = new BABYLON.ParticleSystem("stars", 2000, scene);
-    starsParticles.particleTexture = new BABYLON.Texture("assets/particle_star.png", scene);
+    // Create sharp, realistic star particles for a proper starfield
+    const starsParticles = new BABYLON.ParticleSystem("stars", 4000, scene);
     
-    // Set particles properties
-    starsParticles.minSize = 0.1;
-    starsParticles.maxSize = 0.5;
+    // Create a simple white dot texture procedurally if no texture is available
+    const particleTexture = new BABYLON.DynamicTexture("starParticle", {width: 16, height: 16}, scene, false);
+    const context = particleTexture.getContext();
+    context.fillStyle = "black";
+    context.fillRect(0, 0, 16, 16);
+    context.fillStyle = "white";
+    context.beginPath();
+    context.arc(8, 8, 6, 0, 2 * Math.PI);
+    context.fill();
+    particleTexture.update();
+    
+    starsParticles.particleTexture = particleTexture;
+    
+    // Configure particle appearance for sharp, realistic stars
+    starsParticles.minSize = 0.05;
+    starsParticles.maxSize = 0.3;
     starsParticles.minLifeTime = Number.MAX_SAFE_INTEGER;
     starsParticles.maxLifeTime = Number.MAX_SAFE_INTEGER;
-    starsParticles.emitRate = 2000;
-    starsParticles.color1 = new BABYLON.Color4(0.9, 0.9, 1.0, 1.0);
-    starsParticles.color2 = new BABYLON.Color4(0.8, 0.8, 1.0, 1.0);
+    starsParticles.emitRate = 4000; // Emit all particles at once
     
-    // Set emission box - stars will appear in a 500x500x500 box
-    starsParticles.minEmitBox = new BABYLON.Vector3(-250, -250, -250);
-    starsParticles.maxEmitBox = new BABYLON.Vector3(250, 250, 250);
+    // Configure realistic star colors - predominantly white
+    starsParticles.addColorGradient(0, new BABYLON.Color4(1.0, 1.0, 1.0, 0.9)); // Bright white
+    starsParticles.addColorGradient(0.3, new BABYLON.Color4(1.0, 1.0, 1.0, 0.8)); // White
+    starsParticles.addColorGradient(0.6, new BABYLON.Color4(0.9, 0.9, 1.0, 0.7)); // Slight blue tint
+    starsParticles.addColorGradient(0.8, new BABYLON.Color4(1.0, 0.95, 0.8, 0.6)); // Slight yellow tint
+    starsParticles.addColorGradient(1.0, new BABYLON.Color4(1.0, 1.0, 1.0, 0.5)); // Dimmer white
     
-    // Start the particle system
+    // Configure emission box (3D space where particles appear)
+    const emitBoxSize = skyboxSize * 0.9; // Keep particles within skybox
+    starsParticles.minEmitBox = new BABYLON.Vector3(-emitBoxSize, -emitBoxSize, -emitBoxSize);
+    starsParticles.maxEmitBox = new BABYLON.Vector3(emitBoxSize, emitBoxSize, emitBoxSize);
+    
+    // Configure particle behavior for sharp, bright rendering
+    starsParticles.blendMode = BABYLON.ParticleSystem.BLENDMODE_ADD; // Additive blending for bright stars
+    
+    // Add realistic size variation
+    starsParticles.addSizeGradient(0, 0.8);
+    starsParticles.addSizeGradient(0.2, 1.0);
+    starsParticles.addSizeGradient(0.5, 0.6);
+    starsParticles.addSizeGradient(0.8, 1.2);
+    starsParticles.addSizeGradient(1.0, 0.4);
+    
+    // Start particle system
     starsParticles.start();
+    starsParticles.targetStopDuration = 0.1; // Stop emitting quickly, keeping existing particles
 }
 
 async function createEarth() {
+    // Create Earth with properly separated layers and optimized materials
+    
+    // Create base Earth mesh with optimized polygon count
     earthMesh = BABYLON.MeshBuilder.CreateSphere('earth', { 
-        segments: 64, 
+        segments: 32, // Balanced for performance vs quality
         diameter: EARTH_RADIUS * 2 * EARTH_SCALE 
     }, scene);
     
@@ -135,108 +278,266 @@ async function createEarth() {
     const EARTH_TILT = 23.5 * Math.PI / 180;
     earthMesh.rotation.x = EARTH_TILT;
     
-    // Flip Earth vertically (rotate 180 degrees around Z-axis)
-    earthMesh.rotation.z = Math.PI;
+    // Create PBR material for better realism without overexposure
+    const earthMaterial = new BABYLON.PBRMaterial('earthMaterial', scene);
     
-    // Create a PBR material for more realistic Earth rendering
-    const earthMaterial = new BABYLON.PBRMaterial('earthPBRMaterial', scene);
-    earthMaterial.albedoTexture = new BABYLON.Texture('assets/earth_diffuse.jpg', scene);
-    earthMaterial.metallic = 0.0;
-    earthMaterial.roughness = 0.7; // Slightly less rough for more pop
-    earthMaterial.emissiveTexture = new BABYLON.Texture('assets/earth_night.jpg', scene);
-    earthMaterial.emissiveColor = new BABYLON.Color3(1.2, 1.2, 1.2); // Brighter night lights
+    // Load diffuse texture - ensure it's loaded correctly with error handling
+    // Try to load PNG first, fall back to JPG if needed
+    const diffuseTexture = new BABYLON.Texture('assets/earth_diffuse.png', scene, false, false, 
+        BABYLON.Texture.BILINEAR_SAMPLINGMODE, 
+        () => console.log("Earth diffuse texture loaded successfully"),
+        () => {
+            console.log("PNG not found, falling back to JPG");
+            return new BABYLON.Texture('assets/earth_diffuse.jpg', scene);
+        }
+    );
     
-    // Fresnel for rim/terminator pop
-    earthMaterial.emissiveFresnelParameters = new BABYLON.FresnelParameters();
-    earthMaterial.emissiveFresnelParameters.bias = 0.25;
-    earthMaterial.emissiveFresnelParameters.power = 2.2;
-    earthMaterial.emissiveFresnelParameters.leftColor = new BABYLON.Color3(1.2, 1.1, 0.9); // Warm rim
-    earthMaterial.emissiveFresnelParameters.rightColor = BABYLON.Color3.Black();
+    // Configure diffuse texture properly
+    earthMaterial.albedoTexture = diffuseTexture;
+    earthMaterial.albedoTexture.level = 1.0; // Normal intensity
+    earthMaterial.albedoTexture.hasAlpha = false;
     
-    // Create a subsurface layer for atmosphere effect
-    const atmosphereMaterial = new BABYLON.StandardMaterial('atmosphereMaterial', scene);
-    atmosphereMaterial.emissiveColor = new BABYLON.Color3(0.3, 0.5, 1.0);
-    atmosphereMaterial.alpha = 0.15;
+    // Configure proper metal/rough maps for PBR workflow
+    earthMaterial.metallic = 0.0; // Earth isn't metallic
+    earthMaterial.roughness = 0.8; // High roughness for natural appearance
+    earthMaterial.useRoughnessFromMetallicTextureAlpha = false;
     
-    const atmosphereMesh = BABYLON.MeshBuilder.CreateSphere('atmosphere', { 
-        segments: 64, 
-        diameter: EARTH_RADIUS * 2.05 * EARTH_SCALE  
+    // Enable ambient occlusion but keep it subtle
+    earthMaterial.useAmbientOcclusionFromMetallicTextureRed = false;
+    earthMaterial.ambientTextureStrength = 0.3;
+    
+    // Configure night side texture with proper intensity
+    const nightTexture = new BABYLON.Texture('assets/earth_night.jpg', scene);
+    earthMaterial.emissiveTexture = nightTexture;
+    earthMaterial.emissiveColor = new BABYLON.Color3(0.1, 0.1, 0.15); // Very subtle emissive for night side
+    
+    // Remove fresnel effect that might cause dark rim
+    earthMaterial.emissiveFresnelParameters = null;
+    
+    // Configure for physically-based rendering with better lighting response
+    earthMaterial.lightFalloff = true;
+    earthMaterial.usePhysicalLightFalloff = false; // Disable for more forgiving lighting
+    
+    // Apply material to Earth mesh
+    earthMesh.material = earthMaterial;
+    earthMesh.receiveShadows = true;
+    
+    // Create properly layered and separated clouds
+    const cloudsMesh = BABYLON.MeshBuilder.CreateSphere('clouds', {
+        segments: 24, // Fewer segments for clouds is fine
+        diameter: EARTH_RADIUS * 2.015 * EARTH_SCALE // Slightly larger than Earth
     }, scene);
+    
+    // Create standard material for clouds with proper white appearance
+    const cloudsMaterial = new BABYLON.StandardMaterial('cloudsMaterial', scene);
+    
+    // Configure cloud texture with proper alpha
+    const cloudsTexture = new BABYLON.Texture('assets/earth_clouds.jpg', scene);
+    cloudsMaterial.diffuseTexture = cloudsTexture;
+    cloudsMaterial.diffuseTexture.level = 1.2; // Brighter clouds
+    
+    // Make clouds appear white by setting proper diffuse color
+    cloudsMaterial.diffuseColor = new BABYLON.Color3(1.0, 1.0, 1.0); // Pure white
+    cloudsMaterial.emissiveColor = new BABYLON.Color3(0.2, 0.2, 0.2); // Slight self-illumination
+    
+    // Set up alpha for proper transparency
+    cloudsMaterial.opacityTexture = cloudsTexture;
+    cloudsMaterial.opacityTexture.getAlphaFromRGB = true; // Use RGB as alpha
+    cloudsMaterial.useAlphaFromDiffuseTexture = false; // Don't use alpha from diffuse
+    
+    // Configure specular to make clouds look fluffy and bright
+    cloudsMaterial.specularColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+    cloudsMaterial.specularPower = 8;
+    cloudsMaterial.alpha = 0.7; // Better transparency for clouds
+    
+    // Set blending mode for proper transparency
+    cloudsMaterial.backFaceCulling = false;
+    cloudsMaterial.alphaMode = BABYLON.Engine.ALPHA_COMBINE;
+    
+    // Apply material to clouds mesh
+    cloudsMesh.material = cloudsMaterial;
+    cloudsMesh.parent = earthMesh;
+    
+    // Create atmospheric scattering effect with proper appearance
+    const atmosphereMesh = BABYLON.MeshBuilder.CreateSphere('atmosphere', {
+        segments: 24, // Fewer segments for better performance
+        diameter: EARTH_RADIUS * 2.08 * EARTH_SCALE // Atmosphere is 8% larger than Earth
+    }, scene);
+    
+    // Create atmosphere material with subtle, realistic glow
+    const atmosphereMaterial = new BABYLON.StandardMaterial('atmosphereMaterial', scene);
+    atmosphereMaterial.diffuseColor = new BABYLON.Color3(0, 0, 0); // No diffuse
+    atmosphereMaterial.emissiveColor = new BABYLON.Color3(0.05, 0.15, 0.3); // Very subtle blue glow
+    atmosphereMaterial.alpha = 0.08; // Very transparent
+    atmosphereMaterial.alphaMode = BABYLON.Engine.ALPHA_COMBINE;
+    atmosphereMaterial.backFaceCulling = false; // Show both sides
+    
+    // Add subtle Fresnel effect for atmospheric rim glow
+    atmosphereMaterial.emissiveFresnelParameters = new BABYLON.FresnelParameters();
+    atmosphereMaterial.emissiveFresnelParameters.bias = 0.6;
+    atmosphereMaterial.emissiveFresnelParameters.power = 2.0;
+    atmosphereMaterial.emissiveFresnelParameters.leftColor = new BABYLON.Color3(0.1, 0.2, 0.4);
+    atmosphereMaterial.emissiveFresnelParameters.rightColor = BABYLON.Color3.Black();
+    
+    // Apply atmosphere material
     atmosphereMesh.material = atmosphereMaterial;
     atmosphereMesh.parent = earthMesh;
     
-    // Create cloud layer
-    const cloudsMaterial = new BABYLON.StandardMaterial('cloudsMaterial', scene);
-    cloudsMaterial.diffuseTexture = new BABYLON.Texture('assets/earth_clouds.jpg', scene);
-    cloudsMaterial.diffuseTexture.hasAlpha = true;
-    cloudsMaterial.useAlphaFromDiffuseTexture = true;
-    cloudsMaterial.backFaceCulling = false;
-    cloudsMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
-    cloudsMaterial.alpha = 0.7; // Make clouds slightly transparent
-    
-    const cloudsMesh = BABYLON.MeshBuilder.CreateSphere('clouds', { 
-        segments: 64, 
-        diameter: EARTH_RADIUS * 2.02 * EARTH_SCALE  
-    }, scene);
-    cloudsMesh.material = cloudsMaterial;
-    
-    // Apply same rotation to clouds
-    cloudsMesh.rotation.x = EARTH_TILT;
-    cloudsMesh.rotation.z = Math.PI;
-    cloudsMesh.parent = earthMesh;
-    
-    earthMesh.material = earthMaterial;
-    
-    // Make cloud layer rotate slightly faster than Earth for effect
-    // Use much slower rotation speed (real Earth rotates once per day)
-    scene.registerBeforeRender(() => {
-        const rotationSpeed = (0.05 * Math.PI / 180) * timeMultiplier * (scene.getAnimationRatio() || 1);
-        earthMesh.rotation.y += rotationSpeed;
-        cloudsMesh.rotation.y += rotationSpeed * 1.05; // Clouds rotate slightly faster
-    });
-    
-    // Animate sun direction for realistic terminator
+    // Store references for updates
+    scene.earthMaterial = earthMaterial;
+    scene.cloudsMaterial = cloudsMaterial;
+    scene.atmosphereMaterial = atmosphereMaterial;
+
+    // Enhanced day/night cycle with proper transitions
+    let frameCount = 0;
     let earthRotation = 0;
+    let solarTime = 0;
+
     scene.registerBeforeRender(() => {
+        // Only update every 2 frames for better performance
+        if (frameCount++ % 2 !== 0) return;
+        
         const rotationSpeed = (0.05 * Math.PI / 180) * timeMultiplier * (scene.getAnimationRatio() || 1);
         earthMesh.rotation.y += rotationSpeed;
-        cloudsMesh.rotation.y += rotationSpeed * 1.05;
         earthRotation += rotationSpeed;
-        // Animate sun direction
-        if (scene.sunLight) {
-            // Sun orbits Earth in XZ plane
-            const sunDir = new BABYLON.Vector3(Math.cos(earthRotation), 0, Math.sin(earthRotation));
-            scene.sunLight.direction = sunDir.negate(); // DirectionalLight points FROM sun to Earth
+        
+        // Update clouds at slightly different rate
+        cloudsMesh.rotation.y = earthMesh.rotation.y * 1.1;
+
+        // Update atmosphere appearance based on sun position (every 10 frames)
+        if (scene.sunLight && frameCount % 10 === 0) {
+            // Calculate sun position based on simulation time
+            solarTime += timeMultiplier * 0.001;
+            
+            // Calculate sun direction in Earth-centered coordinates
+            const earthOrbitAngle = solarTime * 2 * Math.PI / 365.25;
+            const sunDeclination = 23.5 * Math.PI / 180 * Math.sin(earthOrbitAngle);
+            
+            const sunDir = new BABYLON.Vector3(
+                Math.cos(earthOrbitAngle),
+                Math.sin(sunDeclination),
+                Math.sin(earthOrbitAngle) * Math.cos(sunDeclination)
+            ).normalize();
+            
+            // Update light direction
+            scene.sunLight.direction = sunDir.negate();
+            sunDirection = sunDir; // Store for satellite eclipse calculations
+            
+            // Calculate day/night transition parameters
+            const nightIntensity = Math.max(0, -BABYLON.Vector3.Dot(sunDir, new BABYLON.Vector3(1, 0, 0)));
+            const dawnDuskIntensity = Math.pow(Math.max(0, 1 - Math.abs(BABYLON.Vector3.Dot(sunDir, new BABYLON.Vector3(1, 0, 0)))), 2);
+            
+            // Update Earth's night side visibility
+            scene.earthMaterial.emissiveColor = new BABYLON.Color3(
+                nightIntensity * 0.15 + dawnDuskIntensity * 0.07,
+                nightIntensity * 0.1 + dawnDuskIntensity * 0.05,
+                nightIntensity * 0.2 + dawnDuskIntensity * 0.03
+            );
+            
+            // Update atmosphere visibility based on sun angle
+            const atmFactor = 0.12 + dawnDuskIntensity * 0.08;
+            atmosphereMaterial.alpha = atmFactor;
+            
+            // Update sunlight color based on orbit position
+            scene.sunLight.intensity = 0.8 + 0.1 * Math.sin(earthOrbitAngle);
+            scene.sunLight.diffuse = new BABYLON.Color3(
+                1.0,
+                0.97 + 0.03 * Math.sin(earthOrbitAngle * 2),
+                0.92 + 0.05 * Math.cos(earthOrbitAngle)
+            );
         }
     });
 }
 
 async function createMoon() {
+    // Create Moon with balanced polygon count
     moonMesh = BABYLON.MeshBuilder.CreateSphere('moon', { 
-        segments: 32, 
+        segments: 24, // Reduced from 32 for better performance
         diameter: EARTH_RADIUS * 2 * EARTH_SCALE * MOON_SCALE 
     }, scene);
     
+    // Position moon properly in orbit
     moonMesh.position = new BABYLON.Vector3(0, 0, MOON_DISTANCE);
     
-    const moonMaterial = new BABYLON.StandardMaterial('moonMaterial', scene);
-    moonMaterial.diffuseTexture = new BABYLON.Texture('assets/moon_texture.jpg', scene);
+    // Create optimized PBR material for realistic Moon appearance
+    const moonMaterial = new BABYLON.PBRMaterial('moonMaterial', scene);
     
+    // Load and configure diffuse texture with proper error handling
+    const moonTexture = new BABYLON.Texture(
+        'assets/moon_texture.jpg', 
+        scene, 
+        false, false, 
+        BABYLON.Texture.BILINEAR_SAMPLINGMODE,
+        () => console.log("Moon texture loaded successfully"),
+        (err) => console.error("Failed to load Moon texture:", err)
+    );
+    
+    // Configure Moon texture properties for realistic appearance
+    moonMaterial.albedoTexture = moonTexture;
+    moonMaterial.albedoTexture.hasAlpha = false;
+    
+    // Configure Moon material properties for realistic appearance
+    moonMaterial.metallic = 0.0;
+    moonMaterial.roughness = 0.9;  // Moon surface is very rough
+    moonMaterial.ambientColor = new BABYLON.Color3(0.03, 0.03, 0.03); // Very dark ambient
+    
+    // Add subtle Fresnel effect for rim lighting
+    moonMaterial.emissiveFresnelParameters = new BABYLON.FresnelParameters();
+    moonMaterial.emissiveFresnelParameters.bias = 0.8;
+    moonMaterial.emissiveFresnelParameters.power = 4;
+    moonMaterial.emissiveFresnelParameters.leftColor = BABYLON.Color3.White().scale(0.15);
+    moonMaterial.emissiveFresnelParameters.rightColor = BABYLON.Color3.Black();
+    
+    // Apply material and set up moon surface
     moonMesh.material = moonMaterial;
+    moonMesh.receiveShadows = true;
     
+    // Create pivot node for Moon orbit
     const moonPivot = new BABYLON.TransformNode('moonPivot', scene);
     moonMesh.parent = moonPivot;
     
+    // Register Moon orbit animation
     scene.registerBeforeRender(() => {
         // Moon orbits approximately once every 27.3 days, slowed down for visualization
-        moonPivot.rotation.y += (0.03 * Math.PI / 180) * timeMultiplier * (scene.getAnimationRatio() || 1);
+        const orbitSpeed = (0.03 * Math.PI / 180) * timeMultiplier * (scene.getAnimationRatio() || 1);
+        moonPivot.rotation.y += orbitSpeed;
+        
+        // Add slow Moon rotation around its axis (tidally locked to Earth)
+        moonMesh.rotation.y += orbitSpeed * 0.01;
     });
 }
 
 async function loadSatelliteData() {
     try {
-        const response = await fetch('/api/simulation_data');
-        satelliteData = await response.json();
+        // Use the optimized lightweight API endpoint instead of heavy simulation_data
+        const response = await fetch('/api/orbital_elements');
+        const data = await response.json();
+        
+        // Store orbital elements for real-time calculation
+        orbitalElements = data.satellites;
+        
+        // Initialize simulation start time
+        if (data.metadata && data.metadata.simulation_start) {
+            simulationStartTime = new Date(data.metadata.simulation_start);
+        } else {
+            simulationStartTime = new Date();
+        }
+        
+        // Create a lightweight version of satelliteData for compatibility
+        satelliteData = {
+            metadata: {
+                start_time: simulationStartTime.toISOString(),
+                time_step_seconds: 5,
+                total_time_steps: 17280 // For compatibility with UI
+            }
+        };
+        
+        // Add initial trajectory point for each satellite
+        Object.keys(orbitalElements).forEach(satName => {
+            satelliteData[satName] = {
+                trajectory: [{ position: { x: 0, y: 0, z: 0 }, velocity: { x: 0, y: 0, z: 0 } }]
+            };
+        });
         await createSatellites();
         startSimulationLoop();
     } catch (error) {
@@ -352,62 +653,68 @@ function addSatelliteLabel(satName, mesh) {
 }
 
 function updateSatellitePosition(satName, timeIndex) {
-    if (!satelliteData[satName] || !satelliteMeshes[satName]) return;
+    if (!satelliteMeshes[satName] || !orbitalElements[satName]) return;
     
-    const trajectory = satelliteData[satName].trajectory;
-    if (!trajectory || timeIndex >= trajectory.length) return;
-    
-    const point = trajectory[timeIndex];
-    
-    // Improved coordinate transformation between Skyfield/Python and Babylon.js
-    // Skyfield uses a different coordinate system orientation than Babylon.js
-    
-    // Adjust scaling to ensure proper visualization
-    // Skyfield returns positions in km, we need to scale them for our visualization
-    const scaleFactor = EARTH_SCALE;
-    
-    // Apply coordinate transformation: swapping axes to match Babylon.js conventions
-    // X remains the same, but Y and Z are swapped and Z is negated
-    const pos = new BABYLON.Vector3(
-        point.position.x * scaleFactor,
-        point.position.z * scaleFactor,  // Swap Y and Z for proper orientation
-        point.position.y * scaleFactor
-    );
-    
-    // Calculate minimum allowable altitude (e.g., 500km above Earth surface)
-    const minAltitude = EARTH_RADIUS * EARTH_SCALE * 1.1; // 10% above Earth radius
-    
-    // Ensure satellites aren't positioned inside or too close to the Earth
-    const positionLength = pos.length();
-    if (positionLength < minAltitude) {
-        // If satellite position is too close to Earth (due to scale or data issues)
-        // Normalize the direction vector and set position at minimum allowable altitude
-        const directionFromCenter = pos.normalizeToNew();
-        pos.copyFrom(directionFromCenter.scale(minAltitude));
-        console.log(`Adjusted position for ${satName}: too close to Earth`);
-    }
-    
-    // Apply the calculated position to the satellite mesh
-    satelliteMeshes[satName].position = pos;
-    
-    // Update satellite orientation based on velocity vector if available
-    if (point.velocity) {
-        // Apply same coordinate transformation to velocity vector
-        const vel = new BABYLON.Vector3(
-            point.velocity.x,
-            point.velocity.z,
-            point.velocity.y
+    try {
+        // Get orbital elements for this satellite
+        const elements = orbitalElements[satName].elements;
+        const epochTime = new Date(orbitalElements[satName].tle.epoch);
+        
+        // Calculate satellite position using orbital mechanics
+        const result = calculateSatellitePosition(elements, simulationTime, epochTime);
+        
+        // Generate enhanced telemetry data
+        telemetryData[satName] = generateRealTimeTelemetry(
+            result.position, 
+            result.velocity, 
+            elements, 
+            satName
         );
         
-        if (vel.length() > 0) {
+        // Convert position to Babylon coordinates
+        const babylonPos = toBabylonPosition(result.position, EARTH_SCALE);
+        
+        // More aggressive altitude enforcement to prevent satellites from appearing inside Earth
+        const earthRadius = EARTH_RADIUS * EARTH_SCALE;
+        const minRadius = earthRadius + (MIN_LEO_ALTITUDE_KM * EARTH_SCALE);
+        const positionLength = babylonPos.length();
+        
+        if (positionLength < minRadius) {
+            // Force satellite to minimum safe LEO altitude
+            const directionFromCenter = babylonPos.normalizeToNew();
+            const safeFactor = 1.2; // Add 20% safety buffer
+            babylonPos.copyFrom(directionFromCenter.scale(minRadius * safeFactor));
+            
+            // Log altitude correction 
+            console.log(`Satellite ${satName} altitude corrected to ${MIN_LEO_ALTITUDE_KM * safeFactor}km`);
+        }
+        
+        // Add extra buffer zone around Earth's atmosphere for satellites
+        const atmosphereRadius = earthRadius * 1.12; // Add even more margin
+        if (positionLength < atmosphereRadius) {
+            const directionFromCenter = babylonPos.normalizeToNew();
+            babylonPos.copyFrom(directionFromCenter.scale(atmosphereRadius * 1.15));
+        }
+    
+        // Apply the calculated position to the satellite mesh
+        satelliteMeshes[satName].position = babylonPos;
+        
+        // Enhanced satellite orientation based on velocity vector
+        const babylonVel = new BABYLON.Vector3(
+            result.velocity.x * EARTH_SCALE,
+            result.velocity.z * EARTH_SCALE,
+            result.velocity.y * EARTH_SCALE
+        );
+        
+        if (babylonVel.length() > 0) {
             // Normalize velocity vector to create direction vector
-            vel.normalize();
+            babylonVel.normalize();
             
             // Calculate the direction from Earth's center to the satellite (up vector)
-            const upVector = pos.normalize();
+            const upVector = babylonPos.normalize();
             
             // Use velocity as forward direction
-            const forwardVector = vel;
+            const forwardVector = babylonVel;
             
             // Calculate right vector using cross product
             const rightVector = BABYLON.Vector3.Cross(forwardVector, upVector);
@@ -429,47 +736,92 @@ function updateSatellitePosition(satName, timeIndex) {
             const quaternion = BABYLON.Quaternion.FromRotationMatrix(rotationMatrix);
             satelliteMeshes[satName].rotationQuaternion = quaternion;
         }
-    }
-    
-    // Update label position if needed
-    const labelControl = advancedTexture.getControlByName(`${satName}_label`);
-    if (labelControl) {
-        // Adjust label position to be above the satellite
-        labelControl.linkOffsetY = -70;
+        
+        // Update label position to stay above satellite
+        const labelControl = advancedTexture.getControlByName(`${satName}_label`);
+        if (labelControl) {
+            labelControl.linkOffsetY = -70;
+        }
+        
+        // Enhanced eclipse calculation using realistic sun direction
+        try {
+            const satelliteToSun = sunDirection.clone();
+            const satelliteToEarth = babylonPos.normalizeToNew().negate();
+            
+            // Calculate if satellite is in Earth's shadow
+            const earthAngularRadius = Math.atan2(earthRadius, positionLength);
+            const sunAngle = Math.acos(BABYLON.Vector3.Dot(satelliteToSun, satelliteToEarth));
+            
+            const inEclipse = sunAngle < earthAngularRadius;
+            
+            // Apply eclipse effects
+            if (inEclipse) {
+                satelliteMeshes[satName].visibility = 0.3; // Dim in shadow
+                if (labelControl) {
+                    labelControl.alpha = 0.5;
+                }
+            } else {
+                satelliteMeshes[satName].visibility = 1.0;
+                if (labelControl) {
+                    labelControl.alpha = 0.8;
+                }
+            }
+        } catch(e) {
+            // Fallback - keep satellite visible if eclipse calculation fails
+            satelliteMeshes[satName].visibility = 1.0;
+        }
+        
+        return babylonPos;
+    } catch (error) {
+        console.error(`Error updating satellite position for ${satName}:`, error);
+        return null;
     }
 }
 
 function startSimulationLoop() {
-    const totalTimeSteps = satelliteData.metadata ? 
-        satelliteData.metadata.total_time_steps : 0;
-    
-    if (totalTimeSteps <= 0) return;
-    
-    let currentTimeStep = 0;
-    const startTime = new Date(satelliteData.metadata.start_time);
-    const timeStepSeconds = satelliteData.metadata.time_step_seconds || 5;
-    
     // Simulation ratio: 60:1 time acceleration (1 minute of real time = 1 second in simulation)
     const TIME_ACCELERATION = 60;
     
-    simulationTime = new Date(startTime);
+    // Initialize simulation time from start time or use current time
+    simulationTime = simulationStartTime || new Date();
     updateTimeDisplay();
     
+    // Frame counter for performance optimizations
+    let frameCounter = 0;
+    let activeSatelliteList = [];
+    
+    // Pre-filter the satellite list for better performance
+    for (const satName in orbitalElements) {
+        if (satName !== 'metadata') {
+            activeSatelliteList.push(satName);
+        }
+    }
+    
+    // Use a less frequent update for better performance
     scene.registerBeforeRender(() => {
-        if (scene.getFrameId() % 2 !== 0) return;
-        
-        // Use adjusted time multiplier for more appealing visualization
-        currentTimeStep = (currentTimeStep + (timeMultiplier * TIME_ACCELERATION)) % totalTimeSteps;
-        
-        for (const satName in satelliteData) {
-            if (satName === 'metadata') continue;
-            updateSatellitePosition(satName, Math.floor(currentTimeStep));
+        // Run only every 3 frames to reduce CPU load
+        if (frameCounter++ % 3 !== 0) {
+            return;
         }
         
-        simulationTime = new Date(startTime.getTime() + (currentTimeStep * timeStepSeconds * 1000));
+        // Calculate time increment based on time multiplier
+        const timeIncrement = timeMultiplier * TIME_ACCELERATION * 1000 * 3; // Adjust for the frame skip
+        
+        // Advance simulation time
+        simulationTime = new Date(simulationTime.getTime() + timeIncrement);
+        
+        // Only process visible satellites or limit to 5 at a time for smoother loading
+        const visibleSats = frameCounter < 120 ? 
+            activeSatelliteList.slice(0, Math.min(Math.floor(frameCounter/12), activeSatelliteList.length)) : 
+            activeSatelliteList;
+        
+        // Update positions
+        for (const satName of visibleSats) {
+            updateSatellitePosition(satName);
+        }
         
         // Only update time display every 30 frames for performance
-        if (scene.getFrameId() % 30 === 0) {
+        if (frameCounter % 30 === 0) {
             updateTimeDisplay();
         }
     });
@@ -494,7 +846,22 @@ function updateTimeDisplay() {
 }
 
 function updateTelemetryUI() {
+    // Check if advanced telemetry is open and update it
+    const advancedTelemetry = document.getElementById('advanced-telemetry');
+    if (advancedTelemetry && advancedTelemetry.style.display === 'block') {
+        showAdvancedTelemetry(); // Refresh the advanced telemetry display
+        return;
+    }
+    
+    // Fallback for basic telemetry display (if telemetry-data element exists)
     const telemetryElement = document.getElementById('telemetry-data');
+    if (!telemetryElement) {
+        // If no basic telemetry element, just show advanced telemetry
+        if (activeSatellite) {
+            showAdvancedTelemetry();
+        }
+        return;
+    }
     
     if (!activeSatellite || !telemetryData[activeSatellite]) {
         telemetryElement.innerHTML = '<div class="no-data">No telemetry data available</div>';
@@ -507,23 +874,25 @@ function updateTelemetryUI() {
     html += '<div class="telemetry-group">';
     html += '<h3>Position</h3>';
     html += createTelemetryItem('Altitude', `${data.altitude.toFixed(2)} km`);
-    html += createTelemetryItem('Latitude', `${data.latitude.toFixed(2)}°`);
-    html += createTelemetryItem('Longitude', `${data.longitude.toFixed(2)}°`);
+    if (data.latitude !== undefined) html += createTelemetryItem('Latitude', `${data.latitude.toFixed(2)}°`);
+    if (data.longitude !== undefined) html += createTelemetryItem('Longitude', `${data.longitude.toFixed(2)}°`);
     html += '</div>';
     
     html += '<div class="telemetry-group">';
     html += '<h3>Orbit</h3>';
-    html += createTelemetryItem('Velocity', `${data.velocity.toFixed(2)} km/s`);
-    html += createTelemetryItem('Period', `${data.period.toFixed(2)} min`);
+    html += createTelemetryItem('Velocity', `${data.speed.toFixed(4)} km/s`);
+    if (data.period !== undefined) html += createTelemetryItem('Period', `${data.period.toFixed(2)} min`);
     html += createTelemetryItem('Inclination', `${data.inclination.toFixed(2)}°`);
     html += '</div>';
     
-    html += '<div class="telemetry-group">';
-    html += '<h3>Systems</h3>';
-    for (const system in data.systems) {
-        html += createTelemetryItem(formatSystemName(system), `${data.systems[system].status} (${data.systems[system].value}%)`);
+    if (data.systems) {
+        html += '<div class="telemetry-group">';
+        html += '<h3>Systems</h3>';
+        for (const system in data.systems) {
+            html += createTelemetryItem(formatSystemName(system), `${data.systems[system].status} (${data.systems[system].value}%)`);
+        }
+        html += '</div>';
     }
-    html += '</div>';
     
     telemetryElement.innerHTML = html;
 }
@@ -547,7 +916,7 @@ function showAdvancedTelemetry() {
         return;
     }
     
-    document.getElementById('dashboard-title').textContent = `${activeSatellite} Telemetry`;
+    document.getElementById('dashboard-title').textContent = `${activeSatellite} - Mission Control Dashboard`;
     
     const dashboardContent = document.getElementById('dashboard-content');
     dashboardContent.innerHTML = '';
@@ -555,110 +924,229 @@ function showAdvancedTelemetry() {
     if (telemetryData[activeSatellite]) {
         const telemetry = telemetryData[activeSatellite];
         
+        // Create NASA-style header with mission status
+        const missionHeader = document.createElement('div');
+        missionHeader.className = 'mission-header';
+        missionHeader.innerHTML = `
+            <div class="mission-status">
+                <div class="status-indicator active"></div>
+                <span class="status-text">OPERATIONAL</span>
+            </div>
+            <div class="mission-clock">
+                <span class="clock-label">MISSION TIME</span>
+                <span class="clock-value" id="mission-clock">${simulationTime.toISOString().split('T')[1].split('.')[0]} UTC</span>
+            </div>
+        `;
+        dashboardContent.appendChild(missionHeader);
+        
+        // Enhanced orbital parameters with real-time calculations
         const orbitalCard = document.createElement('div');
-        orbitalCard.className = 'telemetry-card';
+        orbitalCard.className = 'telemetry-card orbital-card';
         orbitalCard.innerHTML = `
-            <h4>Orbital Parameters</h4>
-            <div class="telemetry-item">
-                <span class="telemetry-label">Semi-Major Axis:</span>
-                <span>${telemetry.semiMajorAxis.toFixed(2)} km</span>
+            <div class="card-header">
+                <h4>Orbital Elements</h4>
+                <div class="data-quality">
+                    <span class="quality-indicator good"></span>
+                    <span>REAL-TIME</span>
+                </div>
             </div>
-            <div class="telemetry-item">
-                <span class="telemetry-label">Eccentricity:</span>
-                <span>${telemetry.eccentricity.toFixed(6)}</span>
-            </div>
-            <div class="telemetry-item">
-                <span class="telemetry-label">Inclination:</span>
-                <span>${telemetry.inclination.toFixed(2)}°</span>
-            </div>
-            <div class="telemetry-item">
-                <span class="telemetry-label">RAAN:</span>
-                <span>${telemetry.raan.toFixed(2)}°</span>
-            </div>
-            <div class="telemetry-item">
-                <span class="telemetry-label">Argument of Perigee:</span>
-                <span>${telemetry.argOfPerigee.toFixed(2)}°</span>
-            </div>
-            <div class="telemetry-item">
-                <span class="telemetry-label">Mean Anomaly:</span>
-                <span>${telemetry.meanAnomaly.toFixed(2)}°</span>
+            <div class="telemetry-grid">
+                <div class="telemetry-item">
+                    <span class="telemetry-label">Semi-Major Axis</span>
+                    <span class="telemetry-value">${telemetry.semiMajorAxis.toFixed(2)} km</span>
+                    <span class="telemetry-unit">KM</span>
+                </div>
+                <div class="telemetry-item">
+                    <span class="telemetry-label">Eccentricity</span>
+                    <span class="telemetry-value">${telemetry.eccentricity.toFixed(6)}</span>
+                    <span class="telemetry-unit">-</span>
+                </div>
+                <div class="telemetry-item">
+                    <span class="telemetry-label">Inclination</span>
+                    <span class="telemetry-value">${telemetry.inclination.toFixed(3)}°</span>
+                    <span class="telemetry-unit">DEG</span>
+                </div>
+                <div class="telemetry-item">
+                    <span class="telemetry-label">RAAN</span>
+                    <span class="telemetry-value">${telemetry.raan.toFixed(3)}°</span>
+                    <span class="telemetry-unit">DEG</span>
+                </div>
+                <div class="telemetry-item">
+                    <span class="telemetry-label">Argument of Perigee</span>
+                    <span class="telemetry-value">${telemetry.argOfPerigee.toFixed(3)}°</span>
+                    <span class="telemetry-unit">DEG</span>
+                </div>
+                <div class="telemetry-item">
+                    <span class="telemetry-label">Mean Anomaly</span>
+                    <span class="telemetry-value">${telemetry.meanAnomaly.toFixed(3)}°</span>
+                    <span class="telemetry-unit">DEG</span>
+                </div>
             </div>
         `;
         dashboardContent.appendChild(orbitalCard);
         
+        // Enhanced position and attitude display
         const positionCard = document.createElement('div');
-        positionCard.className = 'telemetry-card';
+        positionCard.className = 'telemetry-card position-card';
         positionCard.innerHTML = `
-            <h4>Position</h4>
-            <div class="telemetry-item">
-                <span class="telemetry-label">X:</span>
-                <span>${telemetry.position.x.toFixed(2)} km</span>
+            <div class="card-header">
+                <h4>Position & Attitude</h4>
+                <div class="coordinate-system">ECI J2000</div>
             </div>
-            <div class="telemetry-item">
-                <span class="telemetry-label">Y:</span>
-                <span>${telemetry.position.y.toFixed(2)} km</span>
-            </div>
-            <div class="telemetry-item">
-                <span class="telemetry-label">Z:</span>
-                <span>${telemetry.position.z.toFixed(2)} km</span>
-            </div>
-            <div class="telemetry-item">
-                <span class="telemetry-label">Altitude:</span>
-                <span>${telemetry.altitude.toFixed(2)} km</span>
+            <div class="telemetry-grid">
+                <div class="telemetry-item">
+                    <span class="telemetry-label">X Position</span>
+                    <span class="telemetry-value">${telemetry.position.x.toFixed(3)}</span>
+                    <span class="telemetry-unit">KM</span>
+                </div>
+                <div class="telemetry-item">
+                    <span class="telemetry-label">Y Position</span>
+                    <span class="telemetry-value">${telemetry.position.y.toFixed(3)}</span>
+                    <span class="telemetry-unit">KM</span>
+                </div>
+                <div class="telemetry-item">
+                    <span class="telemetry-label">Z Position</span>
+                    <span class="telemetry-value">${telemetry.position.z.toFixed(3)}</span>
+                    <span class="telemetry-unit">KM</span>
+                </div>
+                <div class="telemetry-item altitude-highlight">
+                    <span class="telemetry-label">Altitude</span>
+                    <span class="telemetry-value">${telemetry.altitude.toFixed(3)}</span>
+                    <span class="telemetry-unit">KM</span>
+                </div>
+                <div class="telemetry-item">
+                    <span class="telemetry-label">Range from Ground</span>
+                    <span class="telemetry-value">${(telemetry.altitude + EARTH_RADIUS).toFixed(3)}</span>
+                    <span class="telemetry-unit">KM</span>
+                </div>
             </div>
         `;
         dashboardContent.appendChild(positionCard);
         
+        // Enhanced velocity and dynamics
         const velocityCard = document.createElement('div');
-        velocityCard.className = 'telemetry-card';
+        velocityCard.className = 'telemetry-card velocity-card';
         velocityCard.innerHTML = `
-            <h4>Velocity</h4>
-            <div class="telemetry-item">
-                <span class="telemetry-label">X:</span>
-                <span>${telemetry.velocity.x.toFixed(2)} km/s</span>
+            <div class="card-header">
+                <h4>Velocity & Dynamics</h4>
+                <div class="reference-frame">Earth Fixed</div>
             </div>
-            <div class="telemetry-item">
-                <span class="telemetry-label">Y:</span>
-                <span>${telemetry.velocity.y.toFixed(2)} km/s</span>
-            </div>
-            <div class="telemetry-item">
-                <span class="telemetry-label">Z:</span>
-                <span>${telemetry.velocity.z.toFixed(2)} km/s</span>
-            </div>
-            <div class="telemetry-item">
-                <span class="telemetry-label">Speed:</span>
-                <span>${telemetry.speed.toFixed(2)} km/s</span>
+            <div class="telemetry-grid">
+                <div class="telemetry-item">
+                    <span class="telemetry-label">X Velocity</span>
+                    <span class="telemetry-value">${telemetry.velocity.x.toFixed(4)}</span>
+                    <span class="telemetry-unit">KM/S</span>
+                </div>
+                <div class="telemetry-item">
+                    <span class="telemetry-label">Y Velocity</span>
+                    <span class="telemetry-value">${telemetry.velocity.y.toFixed(4)}</span>
+                    <span class="telemetry-unit">KM/S</span>
+                </div>
+                <div class="telemetry-item">
+                    <span class="telemetry-label">Z Velocity</span>
+                    <span class="telemetry-value">${telemetry.velocity.z.toFixed(4)}</span>
+                    <span class="telemetry-unit">KM/S</span>
+                </div>
+                <div class="telemetry-item speed-highlight">
+                    <span class="telemetry-label">Orbital Speed</span>
+                    <span class="telemetry-value">${telemetry.speed.toFixed(4)}</span>
+                    <span class="telemetry-unit">KM/S</span>
+                </div>
+                <div class="telemetry-item">
+                    <span class="telemetry-label">Orbital Period</span>
+                    <span class="telemetry-value">${(2 * Math.PI * Math.sqrt(Math.pow(telemetry.semiMajorAxis, 3) / 398600.4418) / 60).toFixed(2)}</span>
+                    <span class="telemetry-unit">MIN</span>
+                </div>
             </div>
         `;
         dashboardContent.appendChild(velocityCard);
         
+        // Mission parameters with enhanced data
         if (telemetry.missionParameters) {
             const missionCard = document.createElement('div');
-            missionCard.className = 'telemetry-card';
+            missionCard.className = 'telemetry-card mission-card';
             missionCard.innerHTML = `
-                <h4>Mission Parameters</h4>
-                <div class="telemetry-item">
-                    <span class="telemetry-label">Launch Date:</span>
-                    <span>${telemetry.missionParameters.launchDate}</span>
+                <div class="card-header">
+                    <h4>Mission Parameters</h4>
+                    <div class="mission-classification">OPERATIONAL</div>
                 </div>
-                <div class="telemetry-item">
-                    <span class="telemetry-label">Mission Duration:</span>
-                    <span>${telemetry.missionParameters.duration} days</span>
-                </div>
-                <div class="telemetry-item">
-                    <span class="telemetry-label">Status:</span>
-                    <span>${telemetry.missionParameters.status}</span>
+                <div class="telemetry-grid">
+                    <div class="telemetry-item">
+                        <span class="telemetry-label">Launch Date</span>
+                        <span class="telemetry-value">${telemetry.missionParameters.launchDate}</span>
+                        <span class="telemetry-unit">UTC</span>
+                    </div>
+                    <div class="telemetry-item">
+                        <span class="telemetry-label">Mission Duration</span>
+                        <span class="telemetry-value">${telemetry.missionParameters.duration}</span>
+                        <span class="telemetry-unit">DAYS</span>
+                    </div>
+                    <div class="telemetry-item">
+                        <span class="telemetry-label">Operational Status</span>
+                        <span class="telemetry-value status-operational">${telemetry.missionParameters.status}</span>
+                        <span class="telemetry-unit">-</span>
+                    </div>
+                    <div class="telemetry-item">
+                        <span class="telemetry-label">Communication</span>
+                        <span class="telemetry-value comm-active">ACTIVE</span>
+                        <span class="telemetry-unit">-</span>
+                    </div>
                 </div>
             `;
             dashboardContent.appendChild(missionCard);
         }
+        
+        // Add real-time telemetry graph placeholder
+        const graphCard = document.createElement('div');
+        graphCard.className = 'telemetry-card graph-card';
+        graphCard.innerHTML = `
+            <div class="card-header">
+                <h4>Telemetry Trends</h4>
+                <div class="graph-controls">
+                    <button class="graph-btn active" data-param="altitude">ALT</button>
+                    <button class="graph-btn" data-param="speed">SPD</button>
+                    <button class="graph-btn" data-param="position">POS</button>
+                </div>
+            </div>
+            <div class="telemetry-graph">
+                <canvas id="telemetry-canvas" width="400" height="150"></canvas>
+                <div class="graph-placeholder">Real-time telemetry visualization</div>
+            </div>
+        `;
+        dashboardContent.appendChild(graphCard);
     }
     
     document.getElementById('advanced-telemetry').style.display = 'block';
+    
+    // Start real-time updates
+    if (window.telemetryUpdateInterval) {
+        clearInterval(window.telemetryUpdateInterval);
+    }
+    
+    window.telemetryUpdateInterval = setInterval(() => {
+        const clockElement = document.getElementById('mission-clock');
+        if (clockElement) {
+            clockElement.textContent = simulationTime.toISOString().split('T')[1].split('.')[0] + ' UTC';
+        }
+        
+        // Update telemetry values in real-time
+        if (telemetryData[activeSatellite]) {
+            const telemetry = telemetryData[activeSatellite];
+            const values = document.querySelectorAll('.telemetry-value');
+            // Update specific values that change frequently
+            // This could be enhanced with more sophisticated real-time updates
+        }
+    }, 1000);
 }
 
 function hideAdvancedTelemetry() {
     document.getElementById('advanced-telemetry').style.display = 'none';
+    
+    // Clear real-time update interval
+    if (window.telemetryUpdateInterval) {
+        clearInterval(window.telemetryUpdateInterval);
+        window.telemetryUpdateInterval = null;
+    }
 }
 
 // Add keyboard controls

@@ -18,9 +18,9 @@ except ImportError:
 ENGINE_TYPE = os.environ.get('ENGINE_TYPE', 'default')  # 'default' or 'external'
 EXTERNAL_ENGINE_URL = os.environ.get('EXTERNAL_ENGINE_URL', 'http://localhost:5001')
 
-# Time settings
-TIME_SPAN_HOURS = int(os.environ.get("SIMULATION_HOURS", "24"))  # Changed from 6 to 24 hours
-TIME_STEP_SECONDS = int(os.environ.get("TIME_STEP_SECONDS", "5"))  # Time step for simulation
+# Time settings - Optimized for performance
+TIME_SPAN_HOURS = int(os.environ.get("SIMULATION_HOURS", "2"))  # Reduced from 24 to 2 hours for performance
+TIME_STEP_SECONDS = int(os.environ.get("TIME_STEP_SECONDS", "60"))  # Increased from 5 to 60 seconds for performance
 EARTH_GM = 398600.4418  # Earth's gravitational constant (km³/s²)
 
 # Randomization ranges for satellite parameters

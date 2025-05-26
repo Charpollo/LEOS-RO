@@ -261,3 +261,72 @@ def generate_tle_for_satellite(sat_name, altitude_km=None, inclination_deg=None)
     logger.info(f"Generated TLE for {sat_name}: alt={altitude_km:.1f}km, inc={inclination_deg:.1f}°, ecc={eccentricity:.6f}")
     
     return line1, line2, now
+
+def parse_tle_elements(line1, line2):
+    """
+    Parse TLE lines to extract orbital elements.
+    
+    Args:
+        line1: First line of TLE
+        line2: Second line of TLE
+        
+    Returns:
+        Dictionary of orbital elements
+    """
+    try:
+        # Parse Line 1 - Make sure we handle the format correctly
+        epoch_year = int(line1[18:20])
+        
+        # Fix for potential formatting issues
+        epoch_day_str = line1[20:32].strip()
+        # Remove any spaces for malformed TLEs
+        epoch_day_str = epoch_day_str.replace(" ", "")
+        epoch_day = float(epoch_day_str)
+        
+        # Parse Line 2 - Make sure to trim and clean each field
+        inclination_str = line2[8:16].strip()
+        raan_str = line2[17:25].strip()
+        eccentricity_str = line2[26:33].strip()
+        arg_perigee_str = line2[34:42].strip()
+        mean_anomaly_str = line2[43:51].strip()
+        mean_motion_str = line2[52:63].strip()
+        
+        # Convert to floats
+        inclination = float(inclination_str)
+        raan = float(raan_str)
+        eccentricity = float("0." + eccentricity_str)
+        arg_perigee = float(arg_perigee_str)
+        mean_anomaly = float(mean_anomaly_str)
+        mean_motion = float(mean_motion_str)
+        
+        # Calculate derived values
+        period_minutes = 1440.0 / mean_motion  # minutes per orbit
+        semi_major_axis = ((398600.4418 * (period_minutes * 60)**2) / (4 * math.pi**2))**(1/3)  # km
+        
+        return {
+            "inclination_deg": inclination,
+            "raan_deg": raan,
+            "eccentricity": eccentricity,
+            "arg_perigee_deg": arg_perigee,
+            "mean_anomaly_deg": mean_anomaly,
+            "mean_motion_rev_per_day": mean_motion,
+            "period_minutes": period_minutes,
+            "semi_major_axis_km": semi_major_axis,
+            "epoch_year": epoch_year + (2000 if epoch_year < 57 else 1900),
+            "epoch_day": epoch_day
+        }
+        
+    except Exception as e:
+        logger.error(f"Error parsing TLE elements: {e}")
+        return {
+            "inclination_deg": 51.6,
+            "raan_deg": 0.0,
+            "eccentricity": 0.001,
+            "arg_perigee_deg": 0.0,
+            "mean_anomaly_deg": 0.0,
+            "mean_motion_rev_per_day": 15.5,
+            "period_minutes": 93.0,
+            "semi_major_axis_km": 6921.0,
+            "epoch_year": 2025,
+            "epoch_day": 1.0
+        }

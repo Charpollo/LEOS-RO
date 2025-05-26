@@ -11,6 +11,7 @@ from flask_cors import CORS
 
 from .config import DEBUG_MODE, PORT, HOST, STATIC_FOLDER, STATIC_URL_PATH
 from .api.routes import api_bp
+from .api.lightweight_routes import lightweight_api_bp
 from .utils.helpers import setup_logging, timing_decorator
 from .simulation.engine import run_simulation
 from .simulation.data_store import get_simulation_data
@@ -44,6 +45,7 @@ def create_app():
     
     # Register blueprints
     app.register_blueprint(api_bp, url_prefix='/api')
+    app.register_blueprint(lightweight_api_bp, url_prefix='/api')
     
     # Register error handlers
     register_error_handlers(app)

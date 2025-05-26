@@ -495,8 +495,273 @@ body {
 
 .telemetry-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: var(--spacing-md);
+}
+
+.telemetry-card {
+    background: rgba(0, 20, 40, 0.9);
+    border: 1px solid var(--border-glow);
+    border-radius: 8px;
+    padding: var(--spacing-md);
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+}
+
+.telemetry-card:hover {
+    border-color: var(--neon-blue);
+    box-shadow: 0 0 15px var(--neon-blue-glow);
+    transform: translateY(-2px);
+}
+
+.telemetry-card h4 {
+    color: var(--neon-blue);
+    font-size: 1.1rem;
+    font-weight: 500;
+    margin-bottom: var(--spacing-md);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border-subtle);
+    padding-bottom: var(--spacing-sm);
+}
+
+.telemetry-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-sm) 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.telemetry-item:last-child {
+    border-bottom: none;
+}
+
+.telemetry-label {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    flex: 1;
+}
+
+.telemetry-value {
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-weight: 500;
+    margin-right: var(--spacing-sm);
+}
+
+/* =========================================== */
+/* NASA-STYLE ENHANCED TELEMETRY DASHBOARD     */
+/* =========================================== */
+
+.mission-header {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+    padding: var(--spacing-md);
+    background: rgba(0, 50, 100, 0.3);
+    border: 1px solid var(--neon-blue);
+    border-radius: 8px;
+}
+
+.mission-status {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.status-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #ff4444;
+    animation: pulse 2s infinite;
+}
+
+.status-indicator.active {
+    background: #44ff44;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.status-text {
+    color: var(--neon-blue);
+    font-weight: 600;
+    font-family: var(--font-mono);
+    letter-spacing: 0.1em;
+}
+
+.mission-clock {
+    text-align: right;
+}
+
+.clock-label {
+    display: block;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    margin-bottom: 4px;
+}
+
+.clock-value {
+    color: var(--neon-blue);
+    font-family: var(--font-mono);
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-md);
+}
+
+.data-quality {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.quality-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ff4444;
+}
+
+.quality-indicator.good {
+    background: #44ff44;
+}
+
+.coordinate-system, .reference-frame, .mission-classification {
+    font-size: 0.8rem;
+    color: var(--neon-blue);
+    background: rgba(0, 207, 255, 0.1);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+}
+
+.telemetry-grid .telemetry-item {
+    display: grid;
+    grid-template-columns: 2fr 1fr auto;
+    gap: var(--spacing-sm);
+    align-items: center;
+}
+
+.telemetry-unit {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-family: var(--font-mono);
+    min-width: 40px;
+    text-align: right;
+}
+
+.altitude-highlight .telemetry-value,
+.speed-highlight .telemetry-value {
+    color: var(--neon-blue);
+    font-weight: 600;
+}
+
+.status-operational {
+    color: #44ff44 !important;
+}
+
+.comm-active {
+    color: var(--neon-blue) !important;
+}
+
+/* Enhanced telemetry cards */
+.orbital-card {
+    border-left: 4px solid #ff6b35;
+}
+
+.position-card {
+    border-left: 4px solid var(--neon-blue);
+}
+
+.velocity-card {
+    border-left: 4px solid #44ff44;
+}
+
+.mission-card {
+    border-left: 4px solid #ff44ff;
+}
+
+.graph-card {
+    border-left: 4px solid #ffff44;
+    grid-column: 1 / -1; /* Span full width */
+}
+
+.graph-controls {
+    display: flex;
+    gap: var(--spacing-xs);
+}
+
+.graph-btn {
+    background: rgba(0, 207, 255, 0.1);
+    border: 1px solid var(--neon-blue);
+    color: var(--neon-blue);
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.graph-btn.active {
+    background: var(--neon-blue);
+    color: var(--background-black);
+}
+
+.telemetry-graph {
+    margin-top: var(--spacing-md);
+    height: 150px;
+    position: relative;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.graph-placeholder {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+/* =========================================== */
+/* STATUS MESSAGES                             */
+/* =========================================== */
+
+.status-message {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--background-panel);
+    border: 1px solid var(--border-glow);
+    border-radius: 6px;
+    padding: var(--spacing-md) var(--spacing-lg);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 0 15px var(--neon-blue-glow);
+}
+
+.status-message.visible {
+    opacity: 1;
 }
 
 /* =========================================== */
