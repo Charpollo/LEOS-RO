@@ -420,50 +420,50 @@ async function createEarth() {
             scene.sunLight.direction = sunDir.negate();
             sunDirection = sunDir; // Store for satellite eclipse calculations
             
-            // Calculate day/night transition parameters with more realistic sunrise/sunset
-            // Get dot product of surface normal and sun direction to determine day/night
+            // Calculate day/night transition parameters with more dramatic sunrise/sunset
             const surfaceToSunDot = BABYLON.Vector3.Dot(sunDir, new BABYLON.Vector3(1, 0, 0));
             const isNightSide = surfaceToSunDot < 0;
-            
-            // Night intensity - stronger on full night side with sharper cutoff
-            const nightIntensity = Math.max(0, Math.pow(-surfaceToSunDot, 1.2));
-            
-            // Dawn/dusk factor - peaks right at the terminator with extremely sharp transition
-            const terminatorFactor = Math.pow(1.0 - Math.abs(surfaceToSunDot), 16); // Higher power = even sharper terminator
-            
-            // Sunset colors are orange/red - more intense for defined terminator
+
+            // Dramatic, sharper terminator
+            const nightIntensity = Math.max(0, Math.pow(-surfaceToSunDot, 2.2)); // Sharper falloff
+            const terminatorFactor = Math.pow(1.0 - Math.abs(surfaceToSunDot), 32); // Even sharper, more dramatic
+
+            // Sunset/sunrise colors for dramatic effect
             const sunsetColor = new BABYLON.Color3(
                 1.0 * terminatorFactor, // Maximum red
                 0.5 * terminatorFactor, // Medium green (makes orange with red)
                 0.15 * terminatorFactor // Very low blue for warmer orange
             );
-            
-            // Dawn colors are blueish/purple - more intense for defined terminator
             const dawnColor = new BABYLON.Color3(
                 0.4 * terminatorFactor,  // Low red
                 0.5 * terminatorFactor,  // Medium green
                 0.9 * terminatorFactor   // Very strong blue
             );
-            
+
             // Night lights color (city lights - only visible on night side)
             const nightLightsColor = new BABYLON.Color3(
                 1.0 * nightIntensity, // Brighter warm yellow-white city lights
                 0.85 * nightIntensity,
                 0.6 * nightIntensity  // Slightly higher blue for more visible night lights
             );
-            
-            // Combine for final emissive - enhanced night glow with complete contrast between day and night
-            scene.earthMaterial.emissiveColor = isNightSide 
-                ? nightLightsColor.add(dawnColor.scale(0.6)) // Night side gets brighter city lights + enhanced dawn colors
-                : new BABYLON.Color3(0, 0, 0).add(sunsetColor.scale(0.8)); // Day side has zero emission except at enhanced terminator
-            
+
+            // Only show emission (city lights) on the night side, and add dramatic terminator color
+            if (isNightSide) {
+                scene.earthMaterial.emissiveColor = nightLightsColor.add(dawnColor.scale(0.7));
+            } else if (terminatorFactor > 0.001) {
+                // On the day side, only show a dramatic terminator color, no city lights
+                scene.earthMaterial.emissiveColor = sunsetColor.scale(1.2);
+            } else {
+                // Full day: no emission
+                scene.earthMaterial.emissiveColor = new BABYLON.Color3(0, 0, 0);
+            }
+
             // Update atmosphere visibility and color based on sun angle
-            const atmFactor = 0.12 + terminatorFactor * 0.35; // Atmosphere more visible at terminator, less overall
+            const atmFactor = 0.12 + terminatorFactor * 0.45; // More visible at terminator
             atmosphereMaterial.alpha = atmFactor;
-            // Atmosphere color shifts with sunset/sunrise - more dramatic at terminator
             atmosphereMaterial.emissiveColor = isNightSide
-                ? new BABYLON.Color3(0.08, 0.12, 0.4) // Night: darker deeper blue
-                : new BABYLON.Color3(0.15, 0.35, 0.8).scale(1 + terminatorFactor * 2.0); // Day: enhanced sunset contribution
+                ? new BABYLON.Color3(0.08, 0.12, 0.4)
+                : new BABYLON.Color3(0.15, 0.35, 0.8).scale(1 + terminatorFactor * 2.5);
             
             // Update sunlight parameters based on orbit position - seasonal effects
             scene.sunLight.intensity = 1.4 + 0.1 * Math.sin(earthOrbitAngle); // Slight seasonal variation
