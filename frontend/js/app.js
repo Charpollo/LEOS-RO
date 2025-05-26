@@ -126,16 +126,16 @@ async function createScene() {
     // Create proper lighting system
     // Main directional light (sun)
     const sunLight = new BABYLON.DirectionalLight("sunLight", new BABYLON.Vector3(1, 0, 0), scene);
-    sunLight.intensity = 0.7; // Lower intensity to prevent texture washout
+    sunLight.intensity = 2.0; // Strong sunlight for a hard terminator
     sunLight.diffuse = new BABYLON.Color3(1.0, 0.98, 0.92); // Warm sunlight
-    sunLight.specular = new BABYLON.Color3(0.2, 0.2, 0.2); // Reduced specular intensity
+    sunLight.specular = new BABYLON.Color3(1.0, 1.0, 1.0); // Strong specular for highlights
     scene.sunLight = sunLight;
 
-    // Add neutral ambient light
+    // Remove or minimize ambient light for a hard terminator
     const ambientLight = new BABYLON.HemisphericLight("ambientLight", new BABYLON.Vector3(0, 1, 0), scene);
-    ambientLight.intensity = 0.2;
-    ambientLight.diffuse = new BABYLON.Color3(1.0, 1.0, 1.0); // Pure white ambient light
-    ambientLight.groundColor = new BABYLON.Color3(0.1, 0.1, 0.1); // Neutral gray ground color
+    ambientLight.intensity = 0.03; // Very low, just enough to see a hint of the night side
+    ambientLight.diffuse = new BABYLON.Color3(1.0, 1.0, 1.0);
+    ambientLight.groundColor = new BABYLON.Color3(0.1, 0.1, 0.1);
     scene.ambientLight = ambientLight;
     
     // Disable glow layer to prevent unwanted shadow effects
@@ -180,89 +180,46 @@ async function createScene() {
 
 function createSkybox() {
     // Create a proper skybox for a realistic star field background
-    const skyboxSize = 5000.0; // Large size to ensure it's always in the background
+    const skyboxSize = 5000.0;
     const skybox = BABYLON.MeshBuilder.CreateBox("skyBox", {size: skyboxSize}, scene);
-    
-    // Use specialized material for proper space background
+
+    // Use a cube texture for a realistic starfield
     const skyboxMaterial = new BABYLON.StandardMaterial("skyBoxMaterial", scene);
     skyboxMaterial.backFaceCulling = false;
-    skyboxMaterial.disableLighting = true; // We don't want the skybox affected by scene lights
-    
-    // Set pure black background with no textures to start
-    skyboxMaterial.diffuseColor = new BABYLON.Color3(0, 0, 0); // Pure black
-    skyboxMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
-    skyboxMaterial.emissiveColor = new BABYLON.Color3(0, 0, 0); // No emission
-    
-    // Try to load star texture, fallback to pure black if not available
+    skyboxMaterial.disableLighting = true;
     try {
-        const starTexture = new BABYLON.Texture("assets/stars.jpg", scene, false, false,
-            BABYLON.Texture.BILINEAR_SAMPLINGMODE,
-            () => {
-                console.log("Star texture loaded successfully");
-                starTexture.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
-                skyboxMaterial.reflectionTexture = starTexture;
-                starTexture.level = 0.8; // Dim the star texture
-            },
-            () => {
-                console.log("Star texture failed to load, using pure black space");
-                // Keep the black material as fallback
-            }
-        );
-    } catch (error) {
-        console.log("Using pure black space background");
+        const cubeTexture = new BABYLON.CubeTexture("assets/starfield/stars", scene);
+        cubeTexture.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
+        skyboxMaterial.reflectionTexture = cubeTexture;
+        cubeTexture.level = 1.2;
+    } catch (e) {
+        skyboxMaterial.diffuseColor = new BABYLON.Color3(0,0,0);
+        skyboxMaterial.emissiveColor = new BABYLON.Color3(0,0,0);
     }
-    
+    skyboxMaterial.specularColor = new BABYLON.Color3(0,0,0);
     skybox.material = skyboxMaterial;
-    skybox.infiniteDistance = true; // Keep the skybox stationary relative to camera
-    
-    // Create sharp, realistic star particles for a proper starfield
-    const starsParticles = new BABYLON.ParticleSystem("stars", 4000, scene);
-    
-    // Create a simple white dot texture procedurally if no texture is available
-    const particleTexture = new BABYLON.DynamicTexture("starParticle", {width: 16, height: 16}, scene, false);
-    const context = particleTexture.getContext();
-    context.fillStyle = "black";
-    context.fillRect(0, 0, 16, 16);
-    context.fillStyle = "white";
-    context.beginPath();
-    context.arc(8, 8, 6, 0, 2 * Math.PI);
-    context.fill();
-    particleTexture.update();
-    
+    skybox.infiniteDistance = true;
+
+    // Star particles: more, bigger, brighter
+    const starsParticles = new BABYLON.ParticleSystem("stars", 8000, scene);
+    const particleTexture = new BABYLON.Texture("assets/particle_star.png", scene);
     starsParticles.particleTexture = particleTexture;
-    
-    // Configure particle appearance for sharp, realistic stars
-    starsParticles.minSize = 0.05;
-    starsParticles.maxSize = 0.3;
+    starsParticles.minSize = 0.18;
+    starsParticles.maxSize = 0.7;
     starsParticles.minLifeTime = Number.MAX_SAFE_INTEGER;
     starsParticles.maxLifeTime = Number.MAX_SAFE_INTEGER;
-    starsParticles.emitRate = 4000; // Emit all particles at once
-    
-    // Configure realistic star colors - predominantly white
-    starsParticles.addColorGradient(0, new BABYLON.Color4(1.0, 1.0, 1.0, 0.9)); // Bright white
-    starsParticles.addColorGradient(0.3, new BABYLON.Color4(1.0, 1.0, 1.0, 0.8)); // White
-    starsParticles.addColorGradient(0.6, new BABYLON.Color4(0.9, 0.9, 1.0, 0.7)); // Slight blue tint
-    starsParticles.addColorGradient(0.8, new BABYLON.Color4(1.0, 0.95, 0.8, 0.6)); // Slight yellow tint
-    starsParticles.addColorGradient(1.0, new BABYLON.Color4(1.0, 1.0, 1.0, 0.5)); // Dimmer white
-    
-    // Configure emission box (3D space where particles appear)
-    const emitBoxSize = skyboxSize * 0.9; // Keep particles within skybox
+    starsParticles.emitRate = 8000;
+    starsParticles.addColorGradient(0, new BABYLON.Color4(1,1,1,1));
+    starsParticles.addColorGradient(0.5, new BABYLON.Color4(1,1,1,0.95));
+    starsParticles.addColorGradient(1, new BABYLON.Color4(1,1,1,0.9));
+    const emitBoxSize = skyboxSize * 0.95;
     starsParticles.minEmitBox = new BABYLON.Vector3(-emitBoxSize, -emitBoxSize, -emitBoxSize);
     starsParticles.maxEmitBox = new BABYLON.Vector3(emitBoxSize, emitBoxSize, emitBoxSize);
-    
-    // Configure particle behavior for sharp, bright rendering
-    starsParticles.blendMode = BABYLON.ParticleSystem.BLENDMODE_ADD; // Additive blending for bright stars
-    
-    // Add realistic size variation
-    starsParticles.addSizeGradient(0, 0.8);
-    starsParticles.addSizeGradient(0.2, 1.0);
-    starsParticles.addSizeGradient(0.5, 0.6);
-    starsParticles.addSizeGradient(0.8, 1.2);
-    starsParticles.addSizeGradient(1.0, 0.4);
-    
-    // Start particle system
+    starsParticles.blendMode = BABYLON.ParticleSystem.BLENDMODE_ADD;
+    starsParticles.addSizeGradient(0, 1.0);
+    starsParticles.addSizeGradient(1.0, 1.0);
     starsParticles.start();
-    starsParticles.targetStopDuration = 0.1; // Stop emitting quickly, keeping existing particles
+    starsParticles.targetStopDuration = 0.1;
 }
 
 async function createEarth() {
@@ -270,7 +227,7 @@ async function createEarth() {
     
     // Create base Earth mesh with optimized polygon count
     earthMesh = BABYLON.MeshBuilder.CreateSphere('earth', { 
-        segments: 32, // Balanced for performance vs quality
+        segments: 32,
         diameter: EARTH_RADIUS * 2 * EARTH_SCALE 
     }, scene);
     
@@ -318,6 +275,13 @@ async function createEarth() {
     earthMaterial.lightFalloff = true;
     earthMaterial.usePhysicalLightFalloff = false; // Disable for more forgiving lighting
     
+    // Add Fresnel rim for a soft blue edge glow
+    earthMaterial.emissiveFresnelParameters = new BABYLON.FresnelParameters();
+    earthMaterial.emissiveFresnelParameters.bias = 0.5;
+    earthMaterial.emissiveFresnelParameters.power = 2.5;
+    earthMaterial.emissiveFresnelParameters.leftColor = new BABYLON.Color3(0.15, 0.25, 0.7);
+    earthMaterial.emissiveFresnelParameters.rightColor = BABYLON.Color3.Black();
+    
     // Apply material to Earth mesh
     earthMesh.material = earthMaterial;
     earthMesh.receiveShadows = true;
@@ -334,11 +298,11 @@ async function createEarth() {
     // Configure cloud texture with proper alpha
     const cloudsTexture = new BABYLON.Texture('assets/earth_clouds.jpg', scene);
     cloudsMaterial.diffuseTexture = cloudsTexture;
-    cloudsMaterial.diffuseTexture.level = 1.2; // Brighter clouds
+    cloudsMaterial.diffuseTexture.level = 1.5; // Brighter clouds
     
     // Make clouds appear white by setting proper diffuse color
-    cloudsMaterial.diffuseColor = new BABYLON.Color3(1.0, 1.0, 1.0); // Pure white
-    cloudsMaterial.emissiveColor = new BABYLON.Color3(0.2, 0.2, 0.2); // Slight self-illumination
+    cloudsMaterial.diffuseColor = new BABYLON.Color3(1.1, 1.1, 1.1); // Slightly above white for pop
+    cloudsMaterial.emissiveColor = new BABYLON.Color3(0.3, 0.3, 0.3);
     
     // Set up alpha for proper transparency
     cloudsMaterial.opacityTexture = cloudsTexture;
@@ -367,16 +331,16 @@ async function createEarth() {
     // Create atmosphere material with subtle, realistic glow
     const atmosphereMaterial = new BABYLON.StandardMaterial('atmosphereMaterial', scene);
     atmosphereMaterial.diffuseColor = new BABYLON.Color3(0, 0, 0); // No diffuse
-    atmosphereMaterial.emissiveColor = new BABYLON.Color3(0.05, 0.15, 0.3); // Very subtle blue glow
-    atmosphereMaterial.alpha = 0.08; // Very transparent
+    atmosphereMaterial.emissiveColor = new BABYLON.Color3(0.18, 0.38, 0.85); // Very subtle blue glow
+    atmosphereMaterial.alpha = 0.16; // Very transparent
     atmosphereMaterial.alphaMode = BABYLON.Engine.ALPHA_COMBINE;
     atmosphereMaterial.backFaceCulling = false; // Show both sides
     
     // Add subtle Fresnel effect for atmospheric rim glow
     atmosphereMaterial.emissiveFresnelParameters = new BABYLON.FresnelParameters();
-    atmosphereMaterial.emissiveFresnelParameters.bias = 0.6;
-    atmosphereMaterial.emissiveFresnelParameters.power = 2.0;
-    atmosphereMaterial.emissiveFresnelParameters.leftColor = new BABYLON.Color3(0.1, 0.2, 0.4);
+    atmosphereMaterial.emissiveFresnelParameters.bias = 0.7;
+    atmosphereMaterial.emissiveFresnelParameters.power = 2.5;
+    atmosphereMaterial.emissiveFresnelParameters.leftColor = new BABYLON.Color3(0.25, 0.5, 1.0);
     atmosphereMaterial.emissiveFresnelParameters.rightColor = BABYLON.Color3.Black();
     
     // Apply atmosphere material
@@ -408,17 +372,16 @@ async function createEarth() {
         if (scene.sunLight && frameCount % 10 === 0) {
             // Calculate sun position based on simulation time
             solarTime += timeMultiplier * 0.001;
-            
-            // Calculate sun direction in Earth-centered coordinates
+            // Earth's orbit around the sun (annual cycle)
             const earthOrbitAngle = solarTime * 2 * Math.PI / 365.25;
-            const sunDeclination = 23.5 * Math.PI / 180 * Math.sin(earthOrbitAngle);
-            
+            // Earth's axial tilt
+            const tilt = 23.5 * Math.PI / 180;
+            // Sun direction in ECI (Earth-Centered Inertial) frame
             const sunDir = new BABYLON.Vector3(
                 Math.cos(earthOrbitAngle),
-                Math.sin(sunDeclination),
-                Math.sin(earthOrbitAngle) * Math.cos(sunDeclination)
+                Math.sin(tilt) * Math.sin(earthOrbitAngle),
+                Math.sin(earthOrbitAngle + Math.PI/2) * Math.cos(tilt)
             ).normalize();
-            
             // Update light direction
             scene.sunLight.direction = sunDir.negate();
             sunDirection = sunDir; // Store for satellite eclipse calculations
