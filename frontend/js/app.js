@@ -1,9 +1,22 @@
 import * as BABYLON from '@babylonjs/core';
 import '@babylonjs/loaders';
 import { AdvancedDynamicTexture, TextBlock, Rectangle } from '@babylonjs/gui';
-import { calculateSatellitePosition, generateRealTimeTelemetry, toBabylonPosition, isInEclipse } from './orbital-mechanics.js';
-// Import the updateSatellitePosition function for reference but we're using inline version for better integration
-// import { updateSatellitePosition as updateSatellitePositionExternal } from './updateSatellitePosition.js';
+
+// Import UI components and manager
+import './components/telemetry-card.js';
+import './components/telemetry-item.js';
+import { uiManager } from './ui/manager.js';
+import { initBrandUI, hideLoadingScreen, showWelcomeModal } from './ui/brand-ui.js';
+import { createTelemetryItem } from './ui/template-manager.js';
+
+// Import our modular components
+import { EARTH_RADIUS, EARTH_SCALE, MIN_LEO_ALTITUDE_KM, MOON_DISTANCE, MOON_SCALE } from './constants.js';
+import { createSkybox } from './skybox.js';
+import { createEarth } from './earth.js';
+import { createMoon } from './moon.js';
+import { createSatellites, getSatelliteMeshes, getTelemetryData, updateSatelliteFromOrbitalElements } from './satellites.js';
+import { updateTelemetryUI } from './telemetry.js';
+import { startSimulationLoop, updateTimeDisplay } from './simulation.js';
 
 // Globals
 let engine;
@@ -11,28 +24,19 @@ let scene;
 let camera;
 let earthMesh;
 let moonMesh;
-let satelliteMeshes = {};
-let orbitLines = {};
-let timeMultiplier = 0.1; // Slowed down for more appealing visualization
-let lastTimeMultiplier = 0.1;
-let simulationTime = new Date();
 let satelliteData = {};
-let telemetryData = {};
 let activeSatellite = null;
 let isInitialized = false;
 let sceneLoaded = false;
-let advancedTexture; // Define globally to fix the error
+let advancedTexture; 
+let timeMultiplier = 0.1; // Slowed down for more appealing visualization
+let lastTimeMultiplier = 0.1;
 
 // Orbital elements and real-time calculation data
 let orbitalElements = {};
 let simulationStartTime = new Date();
+let simulationTime = new Date();
 let sunDirection = new BABYLON.Vector3(1, 0, 0);
-
-const EARTH_RADIUS = 6371; // km
-const EARTH_SCALE = 0.001;
-const MIN_LEO_ALTITUDE_KM = 160; // Minimum altitude above Earth surface for LEO
-const MOON_DISTANCE = 384400 * EARTH_SCALE;
-const MOON_SCALE = 0.27;
 
 async function initApp() {
     // Delay UI initialization until after scene is created for better startup performance
@@ -79,6 +83,12 @@ async function initApp() {
         resizeTimeout = setTimeout(() => {
             engine.resize();
         }, 100);
+    });
+    
+    // Listen for satellite selection events
+    window.addEventListener('satelliteSelected', (event) => {
+        activeSatellite = event.detail.name;
+        updateTelemetryUI(activeSatellite, getTelemetryData());
     });
 }
 
@@ -168,58 +178,14 @@ async function createScene() {
     advancedTexture = AdvancedDynamicTexture.CreateFullscreenUI("UI", true, scene);
     
     // Create the skybox first (background)
-    createSkybox();
+    createSkybox(scene);
     
     // Then create Earth and Moon
-    await createEarth();
-    await createMoon();
+    earthMesh = await createEarth(scene, timeMultiplier, sunDirection);
+    moonMesh = await createMoon(scene, timeMultiplier);
     
     // Finally load satellite data
     await loadSatelliteData();
-}
-
-function createSkybox() {
-    // Create a proper skybox for a realistic star field background
-    const skyboxSize = 5000.0;
-    const skybox = BABYLON.MeshBuilder.CreateBox("skyBox", {size: skyboxSize}, scene);
-
-    // Use a cube texture for a realistic starfield
-    const skyboxMaterial = new BABYLON.StandardMaterial("skyBoxMaterial", scene);
-    skyboxMaterial.backFaceCulling = false;
-    skyboxMaterial.disableLighting = true;
-    try {
-        const cubeTexture = new BABYLON.CubeTexture("assets/starfield/stars", scene);
-        cubeTexture.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
-        skyboxMaterial.reflectionTexture = cubeTexture;
-        cubeTexture.level = 1.2;
-    } catch (e) {
-        skyboxMaterial.diffuseColor = new BABYLON.Color3(0,0,0);
-        skyboxMaterial.emissiveColor = new BABYLON.Color3(0,0,0);
-    }
-    skyboxMaterial.specularColor = new BABYLON.Color3(0,0,0);
-    skybox.material = skyboxMaterial;
-    skybox.infiniteDistance = true;
-
-    // Star particles: more, bigger, brighter
-    const starsParticles = new BABYLON.ParticleSystem("stars", 8000, scene);
-    const particleTexture = new BABYLON.Texture("assets/particle_star.png", scene);
-    starsParticles.particleTexture = particleTexture;
-    starsParticles.minSize = 0.18;
-    starsParticles.maxSize = 0.7;
-    starsParticles.minLifeTime = Number.MAX_SAFE_INTEGER;
-    starsParticles.maxLifeTime = Number.MAX_SAFE_INTEGER;
-    starsParticles.emitRate = 8000;
-    starsParticles.addColorGradient(0, new BABYLON.Color4(1,1,1,1));
-    starsParticles.addColorGradient(0.5, new BABYLON.Color4(1,1,1,0.95));
-    starsParticles.addColorGradient(1, new BABYLON.Color4(1,1,1,0.9));
-    const emitBoxSize = skyboxSize * 0.95;
-    starsParticles.minEmitBox = new BABYLON.Vector3(-emitBoxSize, -emitBoxSize, -emitBoxSize);
-    starsParticles.maxEmitBox = new BABYLON.Vector3(emitBoxSize, emitBoxSize, emitBoxSize);
-    starsParticles.blendMode = BABYLON.ParticleSystem.BLENDMODE_ADD;
-    starsParticles.addSizeGradient(0, 1.0);
-    starsParticles.addSizeGradient(1.0, 1.0);
-    starsParticles.start();
-    starsParticles.targetStopDuration = 0.1;
 }
 
 async function createEarth() {
@@ -565,245 +531,18 @@ async function loadSatelliteData() {
                 trajectory: [{ position: { x: 0, y: 0, z: 0 }, velocity: { x: 0, y: 0, z: 0 } }]
             };
         });
-        await createSatellites();
-        startSimulationLoop();
+        
+        // Create satellites using the imported module
+        await createSatellites(scene, satelliteData, orbitalElements, activeSatellite, advancedTexture, simulationTime);
+        
+        // Start the simulation loop using the imported module
+        simulationTime = startSimulationLoop(scene, satelliteData, orbitalElements, simulationStartTime, timeMultiplier, advancedTexture, activeSatellite, getTelemetryData());
     } catch (error) {
         console.error('Error loading satellite data:', error);
     }
 }
 
-async function createSatellites() {
-    for (const satName in satelliteMeshes) {
-        if (satelliteMeshes[satName]) {
-            satelliteMeshes[satName].dispose();
-        }
-    }
-    satelliteMeshes = {};
-    
-    for (const satName in satelliteData) {
-        if (satName === 'metadata') continue;
-        
-        const modelFile = satName.toUpperCase().includes('CRTS') 
-            ? 'assets/crts_satellite.glb' 
-            : 'assets/bulldog_sat.glb';
-        
-        try {
-            const result = await BABYLON.SceneLoader.ImportMeshAsync('', '', modelFile, scene);
-            const satelliteMesh = result.meshes[0];
-            satelliteMesh.name = `${satName}_mesh`;
-            satelliteMesh.scaling = new BABYLON.Vector3(0.01, 0.01, 0.01);
-            satelliteMeshes[satName] = satelliteMesh;
-            addSatelliteLabel(satName, satelliteMesh);
-            satelliteMesh.isPickable = true;
-            satelliteMesh.actionManager = new BABYLON.ActionManager(scene);
-            satelliteMesh.actionManager.registerAction(
-                new BABYLON.ExecuteCodeAction(
-                    BABYLON.ActionManager.OnPointerOverTrigger,
-                    () => {
-                        document.getElementById('renderCanvas').style.cursor = 'pointer';
-                        satelliteMesh.getChildMeshes().forEach(child => {
-                            if (child.material) {
-                                child.material.emissiveColor = new BABYLON.Color3(0.1, 0.4, 0.8);
-                            }
-                        });
-                    }
-                )
-            );
-            satelliteMesh.actionManager.registerAction(
-                new BABYLON.ExecuteCodeAction(
-                    BABYLON.ActionManager.OnPointerOutTrigger,
-                    () => {
-                        document.getElementById('renderCanvas').style.cursor = 'default';
-                        satelliteMesh.getChildMeshes().forEach(child => {
-                            if (child.material) {
-                                child.material.emissiveColor = new BABYLON.Color3(0, 0, 0);
-                            }
-                        });
-                    }
-                )
-            );
-            satelliteMesh.actionManager.registerAction(
-                new BABYLON.ExecuteCodeAction(
-                    BABYLON.ActionManager.OnPickTrigger,
-                    () => {
-                        activeSatellite = satName;
-                        updateTelemetryUI();
-                    }
-                )
-            );
-            updateSatellitePosition(satName, 0);
-        } catch (error) {
-            console.error(`Error loading satellite model for ${satName}:`, error);
-        }
-    }
-}
-
-function addSatelliteLabel(satName, mesh) {
-    const label = new TextBlock();
-    label.text = satName;
-    label.color = "white";
-    label.fontSize = 14;
-    label.fontWeight = "bold";
-    label.resizeToFit = true;
-    label.outlineWidth = 3;
-    label.outlineColor = "black";
-    
-    const rect = new Rectangle();
-    rect.name = `${satName}_label`; // Add name for selection later
-    rect.width = "120px";
-    rect.height = "40px";
-    rect.cornerRadius = 8;
-    rect.background = "rgba(0, 0, 0, 0.7)";
-    rect.thickness = 1;
-    rect.alpha = 0.8;
-    rect.addControl(label);
-    
-    // Make labels interactive
-    rect.isPointerBlocker = true;
-    rect.onPointerEnterObservable.add(() => {
-        rect.background = "rgba(0, 100, 200, 0.7)";
-        rect.alpha = 1.0;
-    });
-    rect.onPointerOutObservable.add(() => {
-        rect.background = "rgba(0, 0, 0, 0.7)";
-        rect.alpha = 0.8;
-    });
-    rect.onPointerUpObservable.add(() => {
-        activeSatellite = satName;
-        updateTelemetryUI();
-    });
-    
-    advancedTexture.addControl(rect);
-    rect.linkWithMesh(mesh);
-    rect.linkOffsetY = -70; // Position label higher above satellite
-    rect.isVisible = true;
-}
-
-function updateSatellitePosition(satName, timeIndex) {
-    if (!satelliteMeshes[satName] || !orbitalElements[satName]) return;
-    
-    try {
-        // Get orbital elements for this satellite
-        const elements = orbitalElements[satName].elements;
-        const epochTime = new Date(orbitalElements[satName].tle.epoch);
-        
-        // Calculate satellite position using orbital mechanics
-        const result = calculateSatellitePosition(elements, simulationTime, epochTime);
-        
-        // Generate enhanced telemetry data
-        telemetryData[satName] = generateRealTimeTelemetry(
-            result.position, 
-            result.velocity, 
-            elements, 
-            satName
-        );
-        
-        // Convert position to Babylon coordinates
-        const babylonPos = toBabylonPosition(result.position, EARTH_SCALE);
-        
-        // More aggressive altitude enforcement to prevent satellites from appearing inside Earth
-        const earthRadius = EARTH_RADIUS * EARTH_SCALE;
-        const minRadius = earthRadius + (MIN_LEO_ALTITUDE_KM * EARTH_SCALE);
-        const positionLength = babylonPos.length();
-        
-        if (positionLength < minRadius) {
-            // Force satellite to minimum safe LEO altitude
-            const directionFromCenter = babylonPos.normalizeToNew();
-            const safeFactor = 1.2; // Add 20% safety buffer
-            babylonPos.copyFrom(directionFromCenter.scale(minRadius * safeFactor));
-            
-            // Log altitude correction 
-            console.log(`Satellite ${satName} altitude corrected to ${MIN_LEO_ALTITUDE_KM * safeFactor}km`);
-        }
-        
-        // Add extra buffer zone around Earth's atmosphere for satellites
-        const atmosphereRadius = earthRadius * 1.12; // Add even more margin
-        if (positionLength < atmosphereRadius) {
-            const directionFromCenter = babylonPos.normalizeToNew();
-            babylonPos.copyFrom(directionFromCenter.scale(atmosphereRadius * 1.15));
-        }
-    
-        // Apply the calculated position to the satellite mesh
-        satelliteMeshes[satName].position = babylonPos;
-        
-        // Enhanced satellite orientation based on velocity vector
-        const babylonVel = new BABYLON.Vector3(
-            result.velocity.x * EARTH_SCALE,
-            result.velocity.z * EARTH_SCALE,
-            result.velocity.y * EARTH_SCALE
-        );
-        
-        if (babylonVel.length() > 0) {
-            // Normalize velocity vector to create direction vector
-            babylonVel.normalize();
-            
-            // Calculate the direction from Earth's center to the satellite (up vector)
-            const upVector = babylonPos.normalize();
-            
-            // Use velocity as forward direction
-            const forwardVector = babylonVel;
-            
-            // Calculate right vector using cross product
-            const rightVector = BABYLON.Vector3.Cross(forwardVector, upVector);
-            rightVector.normalize();
-            
-            // Recalculate forward vector to ensure orthogonal basis
-            const correctedForwardVector = BABYLON.Vector3.Cross(upVector, rightVector);
-            correctedForwardVector.normalize();
-            
-            // Create rotation matrix from vectors
-            const rotationMatrix = BABYLON.Matrix.FromXYZAxesToRef(
-                rightVector,
-                upVector,
-                correctedForwardVector,
-                new BABYLON.Matrix()
-            );
-            
-            // Convert to quaternion and apply to satellite
-            const quaternion = BABYLON.Quaternion.FromRotationMatrix(rotationMatrix);
-            satelliteMeshes[satName].rotationQuaternion = quaternion;
-        }
-        
-        // Update label position to stay above satellite
-        const labelControl = advancedTexture.getControlByName(`${satName}_label`);
-        if (labelControl) {
-            labelControl.linkOffsetY = -70;
-        }
-        
-        // Enhanced eclipse calculation using realistic sun direction
-        try {
-            const satelliteToSun = sunDirection.clone();
-            const satelliteToEarth = babylonPos.normalizeToNew().negate();
-            
-            // Calculate if satellite is in Earth's shadow
-            const earthAngularRadius = Math.atan2(earthRadius, positionLength);
-            const sunAngle = Math.acos(BABYLON.Vector3.Dot(satelliteToSun, satelliteToEarth));
-            
-            const inEclipse = sunAngle < earthAngularRadius;
-            
-            // Apply eclipse effects
-            if (inEclipse) {
-                satelliteMeshes[satName].visibility = 0.3; // Dim in shadow
-                if (labelControl) {
-                    labelControl.alpha = 0.5;
-                }
-            } else {
-                satelliteMeshes[satName].visibility = 1.0;
-                if (labelControl) {
-                    labelControl.alpha = 0.8;
-                }
-            }
-        } catch(e) {
-            // Fallback - keep satellite visible if eclipse calculation fails
-            satelliteMeshes[satName].visibility = 1.0;
-        }
-        
-        return babylonPos;
-    } catch (error) {
-        console.error(`Error updating satellite position for ${satName}:`, error);
-        return null;
-    }
-}
+// All satellite related functions have been moved to satellites.js
 
 function startSimulationLoop() {
     // Simulation ratio: 60:1 time acceleration (1 minute of real time = 1 second in simulation)
@@ -844,7 +583,7 @@ function startSimulationLoop() {
         
         // Update positions
         for (const satName of visibleSats) {
-            updateSatellitePosition(satName);
+            updateSatelliteFromOrbitalElements(satName, simulationTime);
         }
         
         // Only update time display every 30 frames for performance
@@ -873,542 +612,13 @@ function updateTimeDisplay() {
 }
 
 function updateTelemetryUI() {
-    // Check if advanced telemetry is open and update it
-    const advancedTelemetry = document.getElementById('advanced-telemetry');
-    if (advancedTelemetry && advancedTelemetry.style.display === 'block') {
-        showAdvancedTelemetry(); // Refresh the advanced telemetry display
-        return;
-    }
-    
-    // Fallback for basic telemetry display (if telemetry-data element exists)
-    const telemetryElement = document.getElementById('telemetry-data');
-    if (!telemetryElement) {
-        // If no basic telemetry element, just show advanced telemetry
-        if (activeSatellite) {
-            showAdvancedTelemetry();
-        }
-        return;
-    }
-    
     if (!activeSatellite || !telemetryData[activeSatellite]) {
-        telemetryElement.innerHTML = '<div class="no-data">No telemetry data available</div>';
+        uiManager.updateBasicTelemetry(null);
         return;
     }
-    
-    const data = telemetryData[activeSatellite];
-    let html = '';
-    
-    html += '<div class="telemetry-group">';
-    html += '<h3>Position</h3>';
-    html += createTelemetryItem('Altitude', `${data.altitude.toFixed(2)} km`);
-    if (data.latitude !== undefined) html += createTelemetryItem('Latitude', `${data.latitude.toFixed(2)}°`);
-    if (data.longitude !== undefined) html += createTelemetryItem('Longitude', `${data.longitude.toFixed(2)}°`);
-    html += '</div>';
-    
-    html += '<div class="telemetry-group">';
-    html += '<h3>Orbit</h3>';
-    html += createTelemetryItem('Velocity', `${data.speed.toFixed(4)} km/s`);
-    if (data.period !== undefined) html += createTelemetryItem('Period', `${data.period.toFixed(2)} min`);
-    html += createTelemetryItem('Inclination', `${data.inclination.toFixed(2)}°`);
-    html += '</div>';
-    
-    if (data.systems) {
-        html += '<div class="telemetry-group">';
-        html += '<h3>Systems</h3>';
-        for (const system in data.systems) {
-            html += createTelemetryItem(formatSystemName(system), `${data.systems[system].status} (${data.systems[system].value}%)`);
-        }
-        html += '</div>';
-    }
-    
-    telemetryElement.innerHTML = html;
+    uiManager.updateTelemetry(telemetryData[activeSatellite]);
 }
 
-function createTelemetryItem(label, value) {
-    return `<div class="telemetry-item">
-        <span class="telemetry-label">${label}:</span>
-        <span class="telemetry-value">${value}</span>
-    </div>`;
-}
-
-function formatSystemName(name) {
-    return name.split('_')
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-            .join(' ');
-}
-
-function showAdvancedTelemetry() {
-    if (!activeSatellite) {
-        updateStatus('Select a satellite first');
-        return;
-    }
-    
-    document.getElementById('dashboard-title').textContent = `${activeSatellite} - Mission Control Dashboard`;
-    
-    const dashboardContent = document.getElementById('dashboard-content');
-    dashboardContent.innerHTML = '';
-    
-    if (telemetryData[activeSatellite]) {
-        const telemetry = telemetryData[activeSatellite];
-        
-        // Create NASA-style header with mission status
-        const missionHeader = document.createElement('div');
-        missionHeader.className = 'mission-header';
-        missionHeader.innerHTML = `
-            <div class="mission-status">
-                <div class="status-indicator active"></div>
-                <span class="status-text">OPERATIONAL</span>
-            </div>
-            <div class="mission-clock">
-                <span class="clock-label">MISSION TIME</span>
-                <span class="clock-value" id="mission-clock">${simulationTime.toISOString().split('T')[1].split('.')[0]} UTC</span>
-            </div>
-        `;
-        dashboardContent.appendChild(missionHeader);
-        
-        // Enhanced orbital parameters with real-time calculations
-        const orbitalCard = document.createElement('div');
-        orbitalCard.className = 'telemetry-card orbital-card';
-        orbitalCard.innerHTML = `
-            <div class="card-header">
-                <h4>Orbital Elements</h4>
-                <div class="data-quality">
-                    <span class="quality-indicator good"></span>
-                    <span>REAL-TIME</span>
-                </div>
-            </div>
-            <div class="telemetry-grid">
-                <div class="telemetry-item">
-                    <span class="telemetry-label">Semi-Major Axis</span>
-                    <span class="telemetry-value">${telemetry.semiMajorAxis.toFixed(2)} km</span>
-                    <span class="telemetry-unit">KM</span>
-                </div>
-                <div class="telemetry-item">
-                    <span class="telemetry-label">Eccentricity</span>
-                    <span class="telemetry-value">${telemetry.eccentricity.toFixed(6)}</span>
-                    <span class="telemetry-unit">-</span>
-                </div>
-                <div class="telemetry-item">
-                    <span class="telemetry-label">Inclination</span>
-                    <span class="telemetry-value">${telemetry.inclination.toFixed(3)}°</span>
-                    <span class="telemetry-unit">DEG</span>
-                </div>
-                <div class="telemetry-item">
-                    <span class="telemetry-label">RAAN</span>
-                    <span class="telemetry-value">${telemetry.raan.toFixed(3)}°</span>
-                    <span class="telemetry-unit">DEG</span>
-                </div>
-                <div class="telemetry-item">
-                    <span class="telemetry-label">Argument of Perigee</span>
-                    <span class="telemetry-value">${telemetry.argOfPerigee.toFixed(3)}°</span>
-                    <span class="telemetry-unit">DEG</span>
-                </div>
-                <div class="telemetry-item">
-                    <span class="telemetry-label">Mean Anomaly</span>
-                    <span class="telemetry-value">${telemetry.meanAnomaly.toFixed(3)}°</span>
-                    <span class="telemetry-unit">DEG</span>
-                </div>
-            </div>
-        `;
-        dashboardContent.appendChild(orbitalCard);
-        
-        // Enhanced position and attitude display
-        const positionCard = document.createElement('div');
-        positionCard.className = 'telemetry-card position-card';
-        positionCard.innerHTML = `
-            <div class="card-header">
-                <h4>Position & Attitude</h4>
-                <div class="coordinate-system">ECI J2000</div>
-            </div>
-            <div class="telemetry-grid">
-                <div class="telemetry-item">
-                    <span class="telemetry-label">X Position</span>
-                    <span class="telemetry-value">${telemetry.position.x.toFixed(3)}</span>
-                    <span class="telemetry-unit">KM</span>
-                </div>
-                <div class="telemetry-item">
-                    <span class="telemetry-label">Y Position</span>
-                    <span class="telemetry-value">${telemetry.position.y.toFixed(3)}</span>
-                    <span class="telemetry-unit">KM</span>
-                </div>
-                <div class="telemetry-item">
-                    <span class="telemetry-label">Z Position</span>
-                    <span class="telemetry-value">${telemetry.position.z.toFixed(3)}</span>
-                    <span class="telemetry-unit">KM</span>
-                </div>
-                <div class="telemetry-item altitude-highlight">
-                    <span class="telemetry-label">Altitude</span>
-                    <span class="telemetry-value">${telemetry.altitude.toFixed(3)}</span>
-                    <span class="telemetry-unit">KM</span>
-                </div>
-                <div class="telemetry-item">
-                    <span class="telemetry-label">Range from Ground</span>
-                    <span class="telemetry-value">${(telemetry.altitude + EARTH_RADIUS).toFixed(3)}</span>
-                    <span class="telemetry-unit">KM</span>
-                </div>
-            </div>
-        `;
-        dashboardContent.appendChild(positionCard);
-        
-        // Enhanced velocity and dynamics
-        const velocityCard = document.createElement('div');
-        velocityCard.className = 'telemetry-card velocity-card';
-        velocityCard.innerHTML = `
-            <div class="card-header">
-                <h4>Velocity & Dynamics</h4>
-                <div class="reference-frame">Earth Fixed</div>
-            </div>
-            <div class="telemetry-grid">
-                <div class="telemetry-item">
-                    <span class="telemetry-label">X Velocity</span>
-                    <span class="telemetry-value">${telemetry.velocity.x.toFixed(4)}</span>
-                    <span class="telemetry-unit">KM/S</span>
-                </div>
-                <div class="telemetry-item">
-                    <span class="telemetry-label">Y Velocity</span>
-                    <span class="telemetry-value">${telemetry.velocity.y.toFixed(4)}</span>
-                    <span class="telemetry-unit">KM/S</span>
-                </div>
-                <div class="telemetry-item">
-                    <span class="telemetry-label">Z Velocity</span>
-                    <span class="telemetry-value">${telemetry.velocity.z.toFixed(4)}</span>
-                    <span class="telemetry-unit">KM/S</span>
-                </div>
-                <div class="telemetry-item speed-highlight">
-                    <span class="telemetry-label">Orbital Speed</span>
-                    <span class="telemetry-value">${telemetry.speed.toFixed(4)}</span>
-                    <span class="telemetry-unit">KM/S</span>
-                </div>
-                <div class="telemetry-item">
-                    <span class="telemetry-label">Orbital Period</span>
-                    <span class="telemetry-value">${(2 * Math.PI * Math.sqrt(Math.pow(telemetry.semiMajorAxis, 3) / 398600.4418) / 60).toFixed(2)}</span>
-                    <span class="telemetry-unit">MIN</span>
-                </div>
-            </div>
-        `;
-        dashboardContent.appendChild(velocityCard);
-        
-        // Mission parameters with enhanced data
-        if (telemetry.missionParameters) {
-            const missionCard = document.createElement('div');
-            missionCard.className = 'telemetry-card mission-card';
-            missionCard.innerHTML = `
-                <div class="card-header">
-                    <h4>Mission Parameters</h4>
-                    <div class="mission-classification">OPERATIONAL</div>
-                </div>
-                <div class="telemetry-grid">
-                    <div class="telemetry-item">
-                        <span class="telemetry-label">Launch Date</span>
-                        <span class="telemetry-value">${telemetry.missionParameters.launchDate}</span>
-                        <span class="telemetry-unit">UTC</span>
-                    </div>
-                    <div class="telemetry-item">
-                        <span class="telemetry-label">Mission Duration</span>
-                        <span class="telemetry-value">${telemetry.missionParameters.duration}</span>
-                        <span class="telemetry-unit">DAYS</span>
-                    </div>
-                    <div class="telemetry-item">
-                        <span class="telemetry-label">Operational Status</span>
-                        <span class="telemetry-value status-operational">${telemetry.missionParameters.status}</span>
-                        <span class="telemetry-unit">-</span>
-                    </div>
-                    <div class="telemetry-item">
-                        <span class="telemetry-label">Communication</span>
-                        <span class="telemetry-value comm-active">ACTIVE</span>
-                        <span class="telemetry-unit">-</span>
-                    </div>
-                </div>
-            `;
-            dashboardContent.appendChild(missionCard);
-        }
-        
-        // Add real-time telemetry graph placeholder
-        const graphCard = document.createElement('div');
-        graphCard.className = 'telemetry-card graph-card';
-        graphCard.innerHTML = `
-            <div class="card-header">
-                <h4>Telemetry Trends</h4>
-                <div class="graph-controls">
-                    <button class="graph-btn active" data-param="altitude">ALT</button>
-                    <button class="graph-btn" data-param="speed">SPD</button>
-                    <button class="graph-btn" data-param="position">POS</button>
-                </div>
-            </div>
-            <div class="telemetry-graph">
-                <canvas id="telemetry-canvas" width="400" height="150"></canvas>
-                <div class="graph-placeholder">Real-time telemetry visualization</div>
-            </div>
-        `;
-        dashboardContent.appendChild(graphCard);
-    }
-    
-    document.getElementById('advanced-telemetry').style.display = 'block';
-    
-    // Start real-time updates
-    if (window.telemetryUpdateInterval) {
-        clearInterval(window.telemetryUpdateInterval);
-    }
-    
-    window.telemetryUpdateInterval = setInterval(() => {
-        const clockElement = document.getElementById('mission-clock');
-        if (clockElement) {
-            clockElement.textContent = simulationTime.toISOString().split('T')[1].split('.')[0] + ' UTC';
-        }
-        
-        // Update telemetry values in real-time
-        if (telemetryData[activeSatellite]) {
-            const telemetry = telemetryData[activeSatellite];
-            const values = document.querySelectorAll('.telemetry-value');
-            // Update specific values that change frequently
-            // This could be enhanced with more sophisticated real-time updates
-        }
-    }, 1000);
-}
-
-function hideAdvancedTelemetry() {
-    document.getElementById('advanced-telemetry').style.display = 'none';
-    
-    // Clear real-time update interval
-    if (window.telemetryUpdateInterval) {
-        clearInterval(window.telemetryUpdateInterval);
-        window.telemetryUpdateInterval = null;
-    }
-}
-
-// Add keyboard controls
-function setupKeyboardControls() {
-    // Track simulation paused state
-    let isPaused = false;
-    let previousTimeMultiplier = timeMultiplier;
-    
-    // Set up key handlers
-    scene.onKeyboardObservable.add((kbInfo) => {
-        // Only react to key down events
-        if (kbInfo.type === BABYLON.KeyboardEventTypes.KEYDOWN) {
-            switch (kbInfo.event.key) {
-                case 'r':
-                case 'R':
-                    // Reset camera to default position
-                    camera.alpha = -Math.PI / 2;
-                    camera.beta = Math.PI / 2;
-                    camera.radius = EARTH_RADIUS * EARTH_SCALE * 3;
-                    break;
-                
-                case ' ':
-                    // Space key toggles pause/resume
-                    isPaused = !isPaused;
-                    if (isPaused) {
-                        previousTimeMultiplier = timeMultiplier;
-                        timeMultiplier = 0;
-                        updateStatus("Simulation paused");
-                    } else {
-                        timeMultiplier = previousTimeMultiplier;
-                        updateStatus("Simulation resumed");
-                    }
-                    break;
-                
-                case '+':
-                case '=':
-                    // Speed up simulation
-                    timeMultiplier = Math.min(timeMultiplier * 2, 10);
-                    updateStatus(`Simulation speed: ${timeMultiplier.toFixed(1)}x`);
-                    break;
-                
-                case '-':
-                case '_':
-                    // Slow down simulation
-                    timeMultiplier = Math.max(timeMultiplier / 2, 0.1);
-                    updateStatus(`Simulation speed: ${timeMultiplier.toFixed(1)}x`);
-                    break;
-                
-                case 'Escape':
-                    // Close any open overlays
-                    hideInstructions();
-                    hideAdvancedTelemetry();
-                    break;
-                
-                case 'h':
-                case 'H':
-                case '?':
-                    // Show instructions
-                    showInstructions();
-                    break;
-            }
-        }
-    });
-}
-
-// Add a status update function
-function updateStatus(message, duration = 2000) {
-    // Create status element if it doesn't exist
-    let statusElement = document.getElementById('status-message');
-    if (!statusElement) {
-        statusElement = document.createElement('div');
-        statusElement.id = 'status-message';
-        statusElement.className = 'status-message';
-        document.getElementById('renderCanvas-container').appendChild(statusElement);
-    }
-    
-    // Set message and make visible
-    statusElement.textContent = message;
-    statusElement.classList.add('visible');
-    
-    // Auto-hide after duration
-    setTimeout(() => {
-        statusElement.classList.remove('visible');
-    }, duration);
-}
-
-// =========================================== //
-// BRAND UI FUNCTIONS                          //
-// =========================================== //
-
-// Space facts for loading screen
-const spaceFacts = [
-    "Did you know? There are over 34,000 objects larger than 10cm currently orbiting Earth.",
-    "The International Space Station travels at approximately 28,000 km/h around Earth.",
-    "Low Earth Orbit extends from about 160km to 2,000km above Earth's surface.",
-    "Satellites in geostationary orbit complete one revolution in exactly 24 hours.",
-    "The first artificial satellite, Sputnik 1, was launched on October 4, 1957.",
-    "Space debris is tracked by global surveillance networks to prevent collisions.",
-    "The Kessler Syndrome describes a cascade effect of space debris collisions.",
-    "CubeSats are standardized miniature satellites used for space research."
-];
-
-// Initialize brand UI components
-function initBrandUI() {
-    // Set random space fact
-    const spaceFactElement = document.getElementById('space-fact');
-    if (spaceFactElement) {
-        const randomFact = spaceFacts[Math.floor(Math.random() * spaceFacts.length)];
-        spaceFactElement.querySelector('p').textContent = randomFact;
-    }
-    
-    // Initialize panel toggle
-    initPanelToggle();
-    
-    // Initialize welcome modal
-    initWelcomeModal();
-    
-    // Initialize info panel
-    initInfoPanel();
-    
-    // Initialize time display
-    initTimeDisplay();
-    
-    // Initialize telemetry dashboard
-    initTelemetryDashboard();
-}
-
-// Panel toggle functionality
-function initPanelToggle() {
-    const panelToggle = document.getElementById('panel-toggle');
-    const infoPanel = document.getElementById('info-panel');
-    
-    if (panelToggle && infoPanel) {
-        panelToggle.addEventListener('click', () => {
-            const isVisible = infoPanel.classList.contains('visible');
-            
-            if (isVisible) {
-                infoPanel.classList.remove('visible');
-                panelToggle.classList.remove('active');
-            } else {
-                infoPanel.classList.add('visible');
-                panelToggle.classList.add('active');
-            }
-        });
-    }
-}
-
-// Welcome modal functionality
-function initWelcomeModal() {
-    const gotItBtn = document.getElementById('got-it-btn');
-    const welcomeModal = document.getElementById('welcome-modal');
-    
-    if (gotItBtn && welcomeModal) {
-        gotItBtn.addEventListener('click', () => {
-            welcomeModal.style.display = 'none';
-            sessionStorage.setItem('welcomeModalShown', 'true');
-        });
-    }
-}
-
-// Info panel functionality
-function initInfoPanel() {
-    const closePanel = document.getElementById('close-panel');
-    const showTutorial = document.getElementById('show-tutorial');
-    const infoPanel = document.getElementById('info-panel');
-    const welcomeModal = document.getElementById('welcome-modal');
-    const panelToggle = document.getElementById('panel-toggle');
-    
-    if (closePanel && infoPanel && panelToggle) {
-        closePanel.addEventListener('click', () => {
-            infoPanel.classList.remove('visible');
-            panelToggle.classList.remove('active');
-        });
-    }
-    
-    if (showTutorial && welcomeModal) {
-        showTutorial.addEventListener('click', () => {
-            welcomeModal.style.display = 'flex';
-        });
-    }
-}
-
-// Time display functionality
-function initTimeDisplay() {
-    const timeDisplay = document.getElementById('current-time');
-    
-    function updateTime() {
-        if (timeDisplay) {
-            const now = new Date();
-            const utcTime = now.toUTCString().split(' ')[4]; // Extract time part
-            timeDisplay.textContent = `${utcTime} UTC`;
-        }
-    }
-    
-    // Update time immediately and then every second
-    updateTime();
-    setInterval(updateTime, 1000);
-}
-
-// Telemetry dashboard functionality
-function initTelemetryDashboard() {
-    const closeDashboard = document.querySelector('.close-dashboard');
-    const telemetryDashboard = document.getElementById('advanced-telemetry');
-    
-    if (closeDashboard && telemetryDashboard) {
-        closeDashboard.addEventListener('click', () => {
-            hideAdvancedTelemetry();
-        });
-    }
-}
-
-// Hide loading screen with smooth transition
-function hideLoadingScreen() {
-    const loadingScreen = document.getElementById('loading-screen');
-    if (loadingScreen) {
-        loadingScreen.style.opacity = '0';
-        loadingScreen.style.transition = 'opacity 0.5s ease-out';
-        
-        setTimeout(() => {
-            loadingScreen.style.display = 'none';
-        }, 500);
-    }
-}
-
-// Show welcome modal for first-time users
-function showWelcomeModal() {
-    const welcomeModalShown = sessionStorage.getItem('welcomeModalShown') === 'true';
-    const welcomeModal = document.getElementById('welcome-modal');
-    
-    if (!welcomeModalShown && welcomeModal) {
-        // Show modal after a brief delay
-        setTimeout(() => {
-            welcomeModal.style.display = 'flex';
-        }, 1000);
-    }
-}
+// Removed all Brand UI functions since they've been moved
 
 window.addEventListener('DOMContentLoaded', initApp);

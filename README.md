@@ -252,119 +252,246 @@ The frontend is built using vanilla JavaScript modules and Three.js:
    - Telemetry display panels
    - Responsive design for various screen sizes
 
-## Babylon.js Visualization
+# Frontend Architecture Documentation
 
-The frontend uses Babylon.js to create a realistic 3D visualization of:
+## 1. Core Architecture Components
 
-- Earth with realistic textures, including cloud layers and night lights
-- The Moon in proper orbit around Earth
-- LEO satellites with their orbital paths
-- Realistic lighting and space environment
+### Entry Point (`main.js`)
+- Main application initialization sequence
+- Initializes core systems in order:
+  1. Responsive system for device adaptation
+  2. 3D scene initialization
+  3. UI components setup
+  4. Event listeners registration
+  5. Earth and Moon object creation
+  6. Animation systems startup
+  7. Satellite data loading
 
-### Features
+### Scene Management (`scene.js`)
+- 3D scene initialization and configuration
+- Multiple camera management:
+  - Earth view
+  - Moon view
+  - Satellite tracking view
+- Window resize handling with performance optimization
+- Scene optimization settings
+- Star field and space background
+- Adaptive orbit controls for smooth navigation
 
-- Interactive camera controls for exploring the 3D environment
-- Real-time telemetry display for each satellite
-- Orbital path visualization
-- Time controls to adjust simulation speed
-- Satellite tracking camera mode
+### Earth Rendering (`earth.js`)
+- Photorealistic Earth visualization:
+  - PBR (Physically Based Rendering) materials
+  - Dynamic day/night cycle with city lights
+  - Animated cloud layer with transparency
+  - Atmospheric scattering for realistic atmosphere
+  - Seasonal lighting variations
+  - Accurate Earth rotation (counterclockwise)
+  - Surface detail mapping with specular highlights
+  - Fresnel-based rim lighting
 
-### Development
+### Satellite System (`satellites.js`)
+- Comprehensive satellite management:
+  - Dynamic mesh creation and disposal
+  - Real-time position updates via orbital mechanics
+  - Telemetry data generation and updates
+  - Eclipse detection and visual effects
+  - Interactive selection and highlighting
+  - Label management with distance scaling
+  - Orientation based on velocity vector
+  - Safe altitude enforcement
 
-To build the frontend:
+### Orbital Mechanics (`orbital-mechanics.js`)
+- High-precision orbital calculations:
+  - Kepler equation solver
+  - Position and velocity computation
+  - Orbital elements processing
+  - Eclipse condition detection
+  - Coordinate transformations
+  - Fallback trajectories for error cases
 
-```bash
-# Install dependencies
-npm install
+## 2. User Interface Components
 
-# Build the frontend with webpack
-./build_frontend.sh
+### Core UI (`ui.js`)
+- Base UI system:
+  - Satellite information panel
+  - Orbit information display
+  - Following mode indicator
+  - Instructions overlay
+  - Panel collapse/expand functionality
+  - Dynamic resizing handlers
+  - Error message display
+
+### User Interaction (`user-interaction.js`)
+- Comprehensive input handling:
+  - Mouse and touch event processing
+  - Camera control system
+  - Satellite selection logic
+  - Smooth view transitions
+  - Zoom and pan controls
+  - Double-tap/click detection
+  - Long press handling
+  - Custom cursor states
+
+### Brand UI (`ui/brand-ui.js`)
+- Brand-specific interface elements:
+  - Welcome modal with tutorial
+  - Loading screen with progress
+  - Custom-styled UI components
+  - Logo and branding elements
+  - Modal dialogs
+  - Notification system
+
+### Telemetry Display (`telemetry.js`)
+- Real-time data visualization:
+  - Satellite status monitoring
+  - Position and velocity display
+  - System health metrics
+  - Power system status
+  - Temperature monitoring
+  - Custom telemetry cards
+
+## 3. Animation and Time Management
+
+### Animation System (`animation.js`)
+- Advanced animation control:
+  - Main animation loop
+  - Frame timing management
+  - Performance optimization
+  - Smooth transitions
+  - Animation state tracking
+  - Frame limiting (30 FPS)
+  - Animation smoothing
+
+### Time Management (`simulation.js`)
+- Simulation time control:
+  - Time acceleration handling
+  - Day/night cycle management
+  - Seasonal changes
+  - Time display formatting
+  - Simulation speed adjustment
+  - Time synchronization
+
+## 4. Configuration and Utilities
+
+### Constants (`config.js`)
+- Centralized configuration:
+  - Earth and space constants
+  - Animation parameters
+  - Camera settings
+  - UI configuration
+  - Scale factors
+  - Asset paths
+  - Debug settings
+  - Performance tuning
+
+### Utilities (`utils.js`)
+- Helper functions:
+  - Logging and debugging
+  - Mathematical calculations
+  - Window dimension handling
+  - Performance monitoring
+  - Error handling
+  - Data formatting
+  - Type checking
+
+## 5. Data Management
+
+### Data Loading (`data.js`)
+- Data handling system:
+  - API data fetching
+  - Trajectory loading
+  - Data caching
+  - Error handling
+  - Retry logic
+  - Data validation
+  - Cache invalidation
+
+## 6. Build and Asset Management
+
+### Webpack Configuration
+```javascript
+// webpack.config.js key features:
+- Development mode with source maps
+- Entry point: frontend/js/app.js
+- Output: Bundled JavaScript
+- CSS processing with style-loader
+- Asset preservation
+- HTML template processing
+- File copying for assets and CSS
 ```
 
-To run the application locally:
-
-```bash
-python3 server.py
+### Asset Structure
+```plaintext
+/frontend/assets/
+  ├── earth_diffuse.png     # High-detail Earth texture
+  ├── earth_clouds.jpg      # Dynamic cloud layer
+  ├── earth_night.jpg      # Night lights texture
+  ├── earth_specular.tif   # Surface detail map
+  ├── moon_texture.jpg     # Moon surface texture
+  ├── stars.jpg            # Space background
+  ├── crts_satellite.glb   # CRTS satellite model
+  └── bulldog_sat.glb      # Bulldog satellite model
 ```
 
-The application will be available at [http://localhost:8080](http://localhost:8080).
+## 7. Performance Optimizations
 
-## API Documentation
+### Rendering Optimizations
+- Frame rate limiting to 30 FPS
+- Throttled resize event handling
+- Selective rendering updates
+- Optimized material settings
+- Reduced geometry complexity
+- Proper resource cleanup
+- Texture compression
+- Level of detail management
 
-The application provides several API endpoints:
+### Memory Management
+- Proper mesh disposal
+- Texture cleanup
+- Event listener cleanup
+- Cache size limits
+- Asset preloading
+- Garbage collection optimization
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/simulation_data` | GET | Get all simulation data for all satellites |
-| `/api/tle` | GET | Get Two-Line Element data for all satellites |
-| `/api/telemetry` | GET | Get current telemetry for all satellites |
-| `/api/telemetry/<satellite>` | GET | Get telemetry for a specific satellite |
-| `/api/starpath/<satellite>` | GET | Get orbit path data for a specific satellite |
-| `/api/status` | GET | Get system status information |
+## 8. Code Organization
+```plaintext
+/frontend/js/
+  ├── main.js              # Application entry
+  ├── scene.js            # 3D scene management
+  ├── earth.js            # Earth visualization
+  ├── satellites.js       # Satellite management
+  ├── orbital-mechanics.js # Orbital calculations
+  ├── animation.js        # Animation system
+  ├── ui.js              # Core UI components
+  ├── user-interaction.js # User input handling
+  ├── config.js          # Constants and settings
+  ├── data.js            # Data management
+  ├── utils.js           # Utility functions
+  └── ui/                # UI components
+      ├── brand-ui.js    # Brand-specific UI
+      ├── manager.js     # UI state management
+      └── templates.js   # UI templates
+```
 
-## Frontend Module Overview
+## 9. Best Practices
 
-The JavaScript code is organized into 12 modules:
+### Code Style
+- Modular architecture
+- Clear separation of concerns
+- Consistent naming conventions
+- Comprehensive error handling
+- Proper documentation
+- Performance optimization
+- Memory management
+- Event cleanup
 
-1. **config.js** - Configuration parameters and constants
-2. **utils.js** - General utility functions
-3. **scene.js** - Three.js scene management
-4. **earth.js** - Earth and Moon rendering
-5. **satellites.js** - Satellite visualization
-6. **ui.js** - User interface elements
-7. **animation.js** - Animation loop and timing
-8. **data-loader.js** - API data fetching
-9. **main.js** - Application entry point
-10. **user-interaction.js** - User input handling
-11. **data.js** - Data processing and caching
-12. **interaction.js** - High-level interaction logic
+### Development Workflow
+- Use npm for dependency management
+- Webpack for asset bundling
+- Source maps for debugging
+- CSS preprocessing
+- Asset optimization
+- Code minification
+- Cache management
 
-## Security Features
-
-- Backend code can be obfuscated with PyArmor for intellectual property protection
-- Frontend JavaScript is minified and obfuscated before deployment
-- Docker containers run with non-root users for enhanced security
-- HTTPS encryption when deployed to Cloud Run
-
-## Troubleshooting
-
-### Application Issues
-
-- **Blank screen**: Check browser console for JavaScript errors
-- **Missing satellite models**: Verify that all assets are properly loaded
-- **API errors**: Check backend logs for Python exceptions
-
-### Deployment Issues
-
-- **Permission errors**: Ensure proper GCP permissions are set up
-- **Build failures**: Check Docker build logs for errors
-- **Python errors**: Verify all dependencies are installed correctly
-
-## Performance Considerations
-
-- The simulation engine caches orbit data to improve performance
-- 3D models are optimized for web delivery
-- Adaptive sampling of orbit points based on distance and visibility
-
-## Future Enhancements
-
-Potential areas for future development:
-
-- Additional satellite types and configurations
-- Real-time data from actual satellite sources
-- Enhanced physics simulation with perturbations
-- Mobile application versions
-- VR/AR visualization capabilities
-
-## Contributing
-
-When contributing to this project:
-
-1. Follow the existing code structure and style
-2. Document all new functions and modules
-3. Test thoroughly in the development environment before deploying
-4. Update the README with any necessary changes
-
-## License
-
-This project is proprietary software. All rights reserved.
+This documentation provides a comprehensive overview of the LEOS frontend architecture, making it easier for developers to understand and maintain the codebase. Each component is designed to be modular and maintainable, with clear responsibilities and interfaces.

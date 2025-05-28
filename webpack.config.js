@@ -6,8 +6,11 @@ module.exports = {
   mode: 'development',
   entry: './frontend/js/app.js',
   output: {
-    filename: 'bundle.js',
+    filename: 'js/bundle.js',
     path: path.resolve(__dirname, 'frontend'),
+    clean: {
+      keep: /assets\//  // Keep the assets directory
+    }
   },
   module: {
     rules: [
@@ -23,6 +26,12 @@ module.exports = {
       filename: 'index.html',
       inject: false  // Prevent automatic injection of bundle.js to rely on manual include
     }),
+    new CopyWebpackPlugin({
+      patterns: [
+        { from: 'frontend/css', to: 'css' },
+        { from: 'frontend/assets', to: 'assets' }
+      ]
+    })
   ],
   devtool: 'source-map',
 };

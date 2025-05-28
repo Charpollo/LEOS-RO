@@ -1,0 +1,113 @@
+/* Web Components Styles */
+:host {
+    display: block;
+    font-family: system-ui, -apple-system, sans-serif;
+    color: #ffffff;
+}
+
+/* Telemetry Card Styles */
+:host(.telemetry-card) {
+    background: rgba(0, 20, 40, 0.8);
+    border: 1px solid rgba(0, 150, 255, 0.3);
+    border-radius: 8px;
+    margin: 10px;
+    padding: 15px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+h4 {
+    margin: 0;
+    color: #00a8ff;
+    font-size: 1.1em;
+}
+
+.classification {
+    font-size: 0.8em;
+    padding: 3px 8px;
+    background: rgba(0, 255, 100, 0.2);
+    border-radius: 4px;
+}
+
+.telemetry-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px;
+}
+
+/* Telemetry Item Styles */
+:host(.telemetry-item) {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 10px;
+    align-items: center;
+    padding: 5px;
+    border-radius: 4px;
+    background: transparent;
+    transition: background-color 0.3s ease;
+}
+
+:host(.telemetry-item[highlight]) {
+    background: rgba(0, 150, 255, 0.1);
+}
+
+.telemetry-label {
+    color: #88ccff;
+    font-size: 0.9em;
+}
+
+.telemetry-value {
+    color: #ffffff;
+    font-family: 'Courier New', monospace;
+    font-size: 1.1em;
+    text-align: right;
+}
+
+.telemetry-unit {
+    color: #888888;
+    font-size: 0.8em;
+    min-width: 40px;
+}
+
+/* Graph Card Styles */
+.graph-controls {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.graph-btn {
+    background: rgba(0, 100, 200, 0.2);
+    border: 1px solid rgba(0, 150, 255, 0.3);
+    color: #88ccff;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8em;
+    transition: all 0.3s ease;
+}
+
+.graph-btn:hover {
+    background: rgba(0, 150, 255, 0.2);
+}
+
+.graph-btn.active {
+    background: rgba(0, 150, 255, 0.3);
+    color: #ffffff;
+}
+
+.telemetry-graph {
+    position: relative;
+    width: 100%;
+    height: 150px;
+    background: rgba(0, 20, 40, 0.3);
+    border-radius: 4px;
+    overflow: hidden;
+}
