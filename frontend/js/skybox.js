@@ -1,3 +1,5 @@
+import * as BABYLON from '@babylonjs/core';
+
 // Create a skybox with stars for the space environment
 export function createSkybox(scene) {
     // Create a proper skybox for a realistic star field background

@@ -1,3 +1,4 @@
+import * as BABYLON from '@babylonjs/core';
 import { EARTH_RADIUS, EARTH_SCALE, MOON_DISTANCE, MOON_SCALE } from './constants.js';
 
 export async function createMoon(scene, timeMultiplier) {

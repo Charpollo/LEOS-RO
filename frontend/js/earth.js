@@ -1,3 +1,4 @@
+import * as BABYLON from '@babylonjs/core';
 import { EARTH_RADIUS, EARTH_SCALE } from './constants.js';
 
 export async function createEarth(scene, timeMultiplier, sunDirection) {

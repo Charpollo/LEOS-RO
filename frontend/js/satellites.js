@@ -1,6 +1,8 @@
+import * as BABYLON from '@babylonjs/core';
 import { EARTH_RADIUS, EARTH_SCALE, MIN_LEO_ALTITUDE_KM } from './constants.js';
 import { generateRealTimeTelemetry } from './telemetry.js';
 import { calculateSatellitePosition, toBabylonPosition } from './orbital-mechanics.js';
+import { TextBlock, Rectangle } from '@babylonjs/gui';
 
 let satelliteMeshes = {};
 let telemetryData = {};
@@ -80,7 +82,7 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
                 )
             );
             
-            updateSatellitePosition(satName, 0, orbitalElements, simulationTime, scene);
+            updateSatellitePosition(satName, 0, orbitalElements, simulationTime, scene, advancedTexture);
         } catch (error) {
             console.error(`Error loading satellite model for ${satName}:`, error);
         }
@@ -129,7 +131,7 @@ function addSatelliteLabel(satName, mesh, advancedTexture, activeSatellite) {
     rect.isVisible = true;
 }
 
-export function updateSatellitePosition(satName, timeIndex, orbitalElements, simulationTime, scene) {
+export function updateSatellitePosition(satName, timeIndex, orbitalElements, simulationTime, scene, advancedTexture) {
     if (!satelliteMeshes[satName] || !orbitalElements[satName]) return null;
     
     try {
@@ -215,9 +217,11 @@ export function updateSatellitePosition(satName, timeIndex, orbitalElements, sim
         }
         
         // Update label position to stay above satellite
-        const labelControl = advancedTexture.getControlByName(`${satName}_label`);
-        if (labelControl) {
-            labelControl.linkOffsetY = -70;
+        if (advancedTexture) {
+            const labelControl = advancedTexture.getControlByName(`${satName}_label`);
+            if (labelControl) {
+                labelControl.linkOffsetY = -70;
+            }
         }
         
         // Enhanced eclipse calculation using realistic sun direction

@@ -17,6 +17,7 @@ import { createMoon } from './moon.js';
 import { createSatellites, getSatelliteMeshes, getTelemetryData, updateSatelliteFromOrbitalElements } from './satellites.js';
 import { updateTelemetryUI } from './telemetry.js';
 import { startSimulationLoop, updateTimeDisplay } from './simulation.js';
+import { setupKeyboardControls } from './controls.js';
 
 // Globals
 let engine;
@@ -64,9 +65,12 @@ async function initApp() {
             if (scene.isReady() && !sceneLoaded) {
                 hideLoadingScreen();
                 sceneLoaded = true;
-                
                 // Initialize keyboard controls once the scene is loaded
-                setupKeyboardControls();
+                setupKeyboardControls(
+                    camera,
+                    (v) => { lastTimeMultiplier = timeMultiplier; timeMultiplier = v; },
+                    () => timeMultiplier
+                );
                 
                 // Show welcome modal after a slight delay
                 setTimeout(() => {

@@ -38,7 +38,7 @@ export function startSimulationLoop(scene, satelliteData, orbitalElements, simul
         
         // Update positions
         for (const satName of visibleSats) {
-            updateSatellitePosition(satName, 0, orbitalElements, simulationTime, scene);
+            updateSatellitePosition(satName, 0, orbitalElements, simulationTime, scene, advancedTexture);
         }
         
         // Only update time display every 30 frames for performance
