@@ -30,8 +30,12 @@ let activeSatellite = null;
 let isInitialized = false;
 let sceneLoaded = false;
 let advancedTexture; 
-let timeMultiplier = 0.1; // Slowed down for more appealing visualization
-let lastTimeMultiplier = 0.1;
+
+// Use a shared state object for timeMultiplier
+const simState = {
+    timeMultiplier: 0.1, // Slowed down for more appealing visualization
+    lastTimeMultiplier: 0.1
+};
 
 // Orbital elements and real-time calculation data
 let orbitalElements = {};
@@ -68,8 +72,8 @@ async function initApp() {
                 // Initialize keyboard controls once the scene is loaded
                 setupKeyboardControls(
                     camera,
-                    (v) => { lastTimeMultiplier = timeMultiplier; timeMultiplier = v; },
-                    () => timeMultiplier
+                    (v) => { simState.lastTimeMultiplier = simState.timeMultiplier; simState.timeMultiplier = v; },
+                    () => simState.timeMultiplier
                 );
                 
                 // Show welcome modal after a slight delay
@@ -122,10 +126,10 @@ async function createScene() {
     // Create camera with optimized settings first (before any rendering pipelines)
     camera = new BABYLON.ArcRotateCamera('camera', -Math.PI / 2, Math.PI / 2, 20, BABYLON.Vector3.Zero(), scene);
     camera.attachControl(canvas, true);
-    camera.minZ = 0.5;
+    camera.minZ = 0.01;
     camera.maxZ = 10000;
-    camera.lowerRadiusLimit = EARTH_RADIUS * EARTH_SCALE * 1.2;
-    camera.upperRadiusLimit = EARTH_RADIUS * EARTH_SCALE * 50;
+    camera.lowerRadiusLimit = EARTH_RADIUS * EARTH_SCALE * 0.95; // Allow zoom just above surface
+    camera.upperRadiusLimit = EARTH_RADIUS * EARTH_SCALE * 100; // Allow zoom far out
     camera.useAutoRotationBehavior = false;
     camera.inertia = 0.7; // Slightly higher for smoother movement
     camera.wheelDeltaPercentage = 0.04; // Smoother zoom
@@ -180,13 +184,14 @@ async function createScene() {
     
     // Initialize the advanced texture for satellite labels
     advancedTexture = AdvancedDynamicTexture.CreateFullscreenUI("UI", true, scene);
+    advancedTexture.renderScale = 1;
     
     // Create the skybox first (background)
     createSkybox(scene);
     
     // Then create Earth and Moon
-    earthMesh = await createEarth(scene, timeMultiplier, sunDirection);
-    moonMesh = await createMoon(scene, timeMultiplier);
+    earthMesh = await createEarth(scene, () => simState.timeMultiplier, sunDirection);
+    moonMesh = await createMoon(scene, () => simState.timeMultiplier);
     
     // Finally load satellite data
     await loadSatelliteData();
@@ -228,7 +233,7 @@ async function loadSatelliteData() {
         await createSatellites(scene, satelliteData, orbitalElements, activeSatellite, advancedTexture, simulationTime);
         
         // Start the simulation loop using the imported module
-        simulationTime = startSimulationLoop(scene, satelliteData, orbitalElements, simulationStartTime, timeMultiplier, advancedTexture, activeSatellite, getTelemetryData());
+        simulationTime = startSimulationLoop(scene, satelliteData, orbitalElements, simulationStartTime, () => simState.timeMultiplier, advancedTexture, activeSatellite, getTelemetryData());
     } catch (error) {
         console.error('Error loading satellite data:', error);
     }

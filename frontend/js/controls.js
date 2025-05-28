@@ -11,7 +11,30 @@ export function setupKeyboardControls(camera, setTimeMultiplier, getTimeMultipli
         switch (event.key) {
             case 'r':
             case 'R':
-                if (camera) camera.setTarget(BABYLON.Vector3.Zero());
+                if (camera) {
+                    camera.setTarget(BABYLON.Vector3.Zero());
+                    camera.setPosition(new BABYLON.Vector3(
+                        camera.radius * Math.sin(camera.alpha) * Math.cos(camera.beta),
+                        camera.radius * Math.sin(camera.beta),
+                        camera.radius * Math.cos(camera.alpha) * Math.cos(camera.beta)
+                    ));
+                }
+                break;
+            case '+':
+            case '=': // Allow both + and = for easier access
+                {
+                    let tm = getTimeMultiplier();
+                    tm = Math.min(tm * 2, 100); // Cap max speed
+                    setTimeMultiplier(tm);
+                }
+                break;
+            case '-':
+            case '_':
+                {
+                    let tm = getTimeMultiplier();
+                    tm = Math.max(tm / 2, 0.0001); // Cap min speed
+                    setTimeMultiplier(tm);
+                }
                 break;
             case ' ':
                 // Spacebar: Pause/resume simulation (toggle timeMultiplier)

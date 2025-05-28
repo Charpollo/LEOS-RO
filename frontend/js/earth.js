@@ -1,13 +1,13 @@
 import * as BABYLON from '@babylonjs/core';
-import { EARTH_RADIUS, EARTH_SCALE } from './constants.js';
+import { EARTH_RADIUS, EARTH_SCALE, TIME_ACCELERATION } from './constants.js';
 
-export async function createEarth(scene, timeMultiplier, sunDirection) {
+export async function createEarth(scene, getTimeMultiplier, sunDirection) {
     // Create Earth with properly separated layers and optimized materials
     
     // Create base Earth mesh with optimized polygon count
     const earthMesh = BABYLON.MeshBuilder.CreateSphere('earth', { 
         segments: 32,
-        diameter: EARTH_RADIUS * 2 * EARTH_SCALE 
+        diameter: 2 // Unit sphere (radius 1)
     }, scene);
     
     // Earth's proper axial tilt (23.5 degrees)
@@ -90,7 +90,7 @@ export async function createEarth(scene, timeMultiplier, sunDirection) {
     // Create properly layered and separated clouds
     const cloudsMesh = BABYLON.MeshBuilder.CreateSphere('clouds', {
         segments: 24, // Fewer segments for clouds is fine
-        diameter: EARTH_RADIUS * 2.015 * EARTH_SCALE // Slightly larger than Earth
+        diameter: 2.015 // Slightly larger than Earth
     }, scene);
     
     // Create standard material for clouds with proper white appearance
@@ -132,7 +132,7 @@ export async function createEarth(scene, timeMultiplier, sunDirection) {
     // Create atmospheric scattering effect with proper appearance
     const atmosphereMesh = BABYLON.MeshBuilder.CreateSphere('atmosphere', {
         segments: 24, // Fewer segments for better performance
-        diameter: EARTH_RADIUS * 2.02 * EARTH_SCALE // Atmosphere is 2% larger than Earth (reduced from 3%)
+        diameter: 2.02 // Atmosphere is 2% larger than Earth
     }, scene);
     
     // Create atmosphere material with enhanced, realistic glow
@@ -167,11 +167,17 @@ export async function createEarth(scene, timeMultiplier, sunDirection) {
     scene.registerBeforeRender(() => {
         // Only update every 2 frames for better performance
         if (frameCount++ % 2 !== 0) return;
-        
-        // Use negative rotation speed for counterclockwise rotation (west to east, correct Earth rotation)
-        const rotationSpeed = (-0.05 * Math.PI / 180) * timeMultiplier * (scene.getAnimationRatio() || 1);
-        earthMesh.rotation.y += rotationSpeed;
-        earthRotation += rotationSpeed;
+        // --- Physically accurate Earth rotation ---
+        // Earth's sidereal day: 23.9345 hours = 86164 seconds
+        // Babylon.js: 1 unit = 1 second of simulated time
+        // So, rotation per second = 2 * PI / 86164
+        // But we want to scale by TIME_ACCELERATION and timeMultiplier
+        const timeMultiplier = getTimeMultiplier();
+        const simSecondsPerFrame = timeMultiplier * TIME_ACCELERATION * (scene.getAnimationRatio() || 1);
+        const earthRotationPerSecond = 2 * Math.PI / 86164; // radians per real second
+        const rotationStep = earthRotationPerSecond * simSecondsPerFrame;
+        earthMesh.rotation.y += rotationStep;
+        earthRotation += rotationStep;
         
         // Update clouds at slightly different rate, maintaining counterclockwise direction
         cloudsMesh.rotation.y = earthMesh.rotation.y * 1.1;

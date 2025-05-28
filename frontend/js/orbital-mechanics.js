@@ -4,6 +4,7 @@
  */
 
 import * as BABYLON from '@babylonjs/core';
+import { EARTH_SCALE } from './constants.js';
 
 // Earth constants
 const EARTH_RADIUS_KM = 6371.0;
@@ -212,7 +213,7 @@ export function generateRealTimeTelemetry(position, velocity, elements, satName)
  * @param {number} scale - Scaling factor
  * @returns {BABYLON.Vector3} Babylon.js position
  */
-export function toBabylonPosition(position, scale = 0.001) {
+export function toBabylonPosition(position, scale = EARTH_SCALE) {
     // Convert from orbital mechanics coordinates to Babylon.js
     // Swap Y and Z, and apply scaling
     return new BABYLON.Vector3(

@@ -1,7 +1,7 @@
 import * as BABYLON from '@babylonjs/core';
 import { EARTH_RADIUS, EARTH_SCALE, MOON_DISTANCE, MOON_SCALE } from './constants.js';
 
-export async function createMoon(scene, timeMultiplier) {
+export async function createMoon(scene, getTimeMultiplier) {
     // Create Moon with balanced polygon count
     const moonMesh = BABYLON.MeshBuilder.CreateSphere('moon', { 
         segments: 24, // Reduced from 32 for better performance
@@ -51,6 +51,7 @@ export async function createMoon(scene, timeMultiplier) {
     // Register Moon orbit animation
     scene.registerBeforeRender(() => {
         // Moon orbits approximately once every 27.3 days, slowed down for visualization
+        const timeMultiplier = getTimeMultiplier();
         const orbitSpeed = (0.03 * Math.PI / 180) * timeMultiplier * (scene.getAnimationRatio() || 1);
         moonPivot.rotation.y += orbitSpeed;
         

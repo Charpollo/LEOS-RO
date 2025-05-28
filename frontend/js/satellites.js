@@ -2,10 +2,12 @@ import * as BABYLON from '@babylonjs/core';
 import { EARTH_RADIUS, EARTH_SCALE, MIN_LEO_ALTITUDE_KM } from './constants.js';
 import { generateRealTimeTelemetry } from './telemetry.js';
 import { calculateSatellitePosition, toBabylonPosition } from './orbital-mechanics.js';
-import { TextBlock, Rectangle } from '@babylonjs/gui';
+import { TextBlock, Rectangle, Control, Button } from '@babylonjs/gui';
 
 let satelliteMeshes = {};
 let telemetryData = {};
+let telemetryPanel = null;
+let telemetryPanelUpdateInterval = null;
 
 export function getSatelliteMeshes() {
     return satelliteMeshes;
@@ -36,10 +38,22 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
             const result = await BABYLON.SceneLoader.ImportMeshAsync('', '', modelFile, scene);
             const satelliteMesh = result.meshes[0];
             satelliteMesh.name = `${satName}_mesh`;
-            satelliteMesh.scaling = new BABYLON.Vector3(0.01, 0.01, 0.01);
+            // Set mesh scaling based on new Earth scale
+            // Increase satellite size for better visibility
+            const SATELLITE_VISUAL_SCALE = 0.005; // Increase from 0.001 to 0.005 (adjust as needed)
+            satelliteMesh.scaling = new BABYLON.Vector3(SATELLITE_VISUAL_SCALE, SATELLITE_VISUAL_SCALE, SATELLITE_VISUAL_SCALE);
+            // Set mesh color by satellite type
+            const isCRTS = satName.toUpperCase().includes('CRTS');
+            const isBulldog = satName.toUpperCase().includes('BULLDOG');
+            const meshColor = isCRTS ? new BABYLON.Color3(1, 0.5, 0) : isBulldog ? new BABYLON.Color3(0, 1, 1) : new BABYLON.Color3(0.1, 0.4, 0.8);
+            satelliteMesh.getChildMeshes().forEach(child => {
+                if (child.material) {
+                    child.material.emissiveColor = meshColor;
+                }
+            });
             satelliteMeshes[satName] = satelliteMesh;
             
-            addSatelliteLabel(satName, satelliteMesh, advancedTexture, activeSatellite);
+            addSatelliteLabel(satName, satelliteMesh, advancedTexture, activeSatellite, meshColor);
             
             satelliteMesh.isPickable = true;
             satelliteMesh.actionManager = new BABYLON.ActionManager(scene);
@@ -91,49 +105,52 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
     return { satelliteMeshes, telemetryData };
 }
 
-function addSatelliteLabel(satName, mesh, advancedTexture, activeSatellite) {
-    const label = new TextBlock();
-    label.text = satName;
-    label.color = "white";
-    label.fontSize = 14;
-    label.fontWeight = "bold";
-    label.resizeToFit = true;
-    label.outlineWidth = 3;
-    label.outlineColor = "black";
-    
-    const rect = new Rectangle();
-    rect.name = `${satName}_label`; // Add name for selection later
-    rect.width = "120px";
-    rect.height = "40px";
-    rect.cornerRadius = 8;
-    rect.background = "rgba(0, 0, 0, 0.7)";
-    rect.thickness = 1;
-    rect.alpha = 0.8;
-    rect.addControl(label);
-    
-    // Make labels interactive
-    rect.isPointerBlocker = true;
-    rect.onPointerEnterObservable.add(() => {
-        rect.background = "rgba(0, 100, 200, 0.7)";
-        rect.alpha = 1.0;
+// Update addSatelliteLabel to accept meshColor and set label color accordingly
+function addSatelliteLabel(satName, mesh, advancedTexture, activeSatellite, meshColor) {
+    const labelBtn = Button.CreateSimpleButton(`${satName}_btn`, satName);
+    labelBtn.width = "120px";
+    labelBtn.height = "40px";
+    labelBtn.cornerRadius = 8;
+    labelBtn.background = "rgba(0, 0, 0, 0.7)";
+    labelBtn.color = meshColor ? meshColor.toHexString() : "white";
+    labelBtn.fontSize = 12; // Reduced font size for aesthetics
+    labelBtn.fontWeight = "bold";
+    labelBtn.thickness = 1;
+    labelBtn.alpha = 0.8;
+    labelBtn.zIndex = 2000;
+    labelBtn.isPointerBlocker = true;
+    labelBtn.onPointerEnterObservable.add(() => {
+        labelBtn.background = "rgba(0, 100, 200, 0.7)";
+        labelBtn.alpha = 1.0;
     });
-    rect.onPointerOutObservable.add(() => {
-        rect.background = "rgba(0, 0, 0, 0.7)";
-        rect.alpha = 0.8;
+    labelBtn.onPointerOutObservable.add(() => {
+        labelBtn.background = "rgba(0, 0, 0, 0.7)";
+        labelBtn.alpha = 0.8;
     });
-    rect.onPointerUpObservable.add(() => {
+    labelBtn.onPointerUpObservable.add(() => {
+        console.log('Label button clicked:', satName); // Debug log
+        showSatelliteTelemetryPanel(satName, telemetryData, advancedTexture, meshColor);
         window.dispatchEvent(new CustomEvent('satelliteSelected', { detail: { name: satName } }));
     });
-    
-    advancedTexture.addControl(rect);
-    rect.linkWithMesh(mesh);
-    rect.linkOffsetY = -70; // Position label higher above satellite
-    rect.isVisible = true;
+    advancedTexture.addControl(labelBtn);
+    labelBtn.linkWithMesh(mesh);
+    labelBtn.linkOffsetY = -30;
+    labelBtn.isVisible = true;
+    // --- Label scaling with camera distance ---
+    const scene = mesh.getScene();
+    scene.onBeforeRenderObservable.add(() => {
+        const camera = scene.activeCamera;
+        if (!camera) return;
+        const dist = BABYLON.Vector3.Distance(camera.position, mesh.position);
+        // Scale label: closer = 1, far = 0.3 (tweak as needed)
+        let scale = 1.0;
+        if (dist > 2) scale = Math.max(0.3, 2.5 / dist); // 2.5 is a visual fudge factor
+        labelBtn.scaleX = labelBtn.scaleY = scale;
+    });
 }
 
 export function updateSatellitePosition(satName, timeIndex, orbitalElements, simulationTime, scene, advancedTexture) {
     if (!satelliteMeshes[satName] || !orbitalElements[satName]) return null;
-    
     try {
         // Get orbital elements for this satellite
         const elements = orbitalElements[satName].elements;
@@ -150,31 +167,29 @@ export function updateSatellitePosition(satName, timeIndex, orbitalElements, sim
             satName
         );
         
-        // Convert position to Babylon coordinates
-        const babylonPos = toBabylonPosition(result.position, EARTH_SCALE);
-        
-        // More aggressive altitude enforcement to prevent satellites from appearing inside Earth
-        const earthRadius = EARTH_RADIUS * EARTH_SCALE;
-        const minRadius = earthRadius + (MIN_LEO_ALTITUDE_KM * EARTH_SCALE);
-        const positionLength = babylonPos.length();
-        
-        if (positionLength < minRadius) {
+        // Convert position to Babylon coordinates (scaling happens here only)
+        let posKm = { ...result.position };
+        // Enforce minimum LEO altitude in km before scaling
+        const earthRadiusKm = EARTH_RADIUS;
+        // Set a very conservative minimum altitude (e.g., 1000 km above surface)
+        const minVisualLEO = 1000; // km above surface for visual safety
+        const minRadiusKm = earthRadiusKm + minVisualLEO;
+        const positionLengthKm = Math.sqrt(posKm.x * posKm.x + posKm.y * posKm.y + posKm.z * posKm.z);
+        if (positionLengthKm < minRadiusKm) {
             // Force satellite to minimum safe LEO altitude
-            const directionFromCenter = babylonPos.normalizeToNew();
-            const safeFactor = 1.2; // Add 20% safety buffer
-            babylonPos.copyFrom(directionFromCenter.scale(minRadius * safeFactor));
-            
-            // Log altitude correction 
-            console.log(`Satellite ${satName} altitude corrected to ${MIN_LEO_ALTITUDE_KM * safeFactor}km`);
+            const directionFromCenter = {
+                x: posKm.x / positionLengthKm,
+                y: posKm.y / positionLengthKm,
+                z: posKm.z / positionLengthKm
+            };
+            const safeFactor = 2.5; // Large buffer to guarantee separation
+            posKm.x = directionFromCenter.x * minRadiusKm * safeFactor;
+            posKm.y = directionFromCenter.y * minRadiusKm * safeFactor;
+            posKm.z = directionFromCenter.z * minRadiusKm * safeFactor;
         }
+        // Now scale and map axes for Babylon.js
+        const babylonPos = toBabylonPosition(posKm, EARTH_SCALE);
         
-        // Add extra buffer zone around Earth's atmosphere for satellites
-        const atmosphereRadius = earthRadius * 1.12; // Add even more margin
-        if (positionLength < atmosphereRadius) {
-            const directionFromCenter = babylonPos.normalizeToNew();
-            babylonPos.copyFrom(directionFromCenter.scale(atmosphereRadius * 1.15));
-        }
-    
         // Apply the calculated position to the satellite mesh
         satelliteMeshes[satName].position = babylonPos;
         
@@ -258,4 +273,97 @@ export function updateSatellitePosition(satName, timeIndex, orbitalElements, sim
         console.error(`Error updating satellite position for ${satName}:`, error);
         return null;
     }
+}
+
+// Add showSatelliteTelemetryPanel function
+function showSatelliteTelemetryPanel(satName, telemetryData, advancedTexture, meshColor) {
+    // Remove any existing panel
+    if (telemetryPanel) {
+        advancedTexture.removeControl(telemetryPanel);
+        telemetryPanel = null;
+        if (telemetryPanelUpdateInterval) {
+            clearInterval(telemetryPanelUpdateInterval);
+            telemetryPanelUpdateInterval = null;
+        }
+    }
+    // Create panel
+    telemetryPanel = new Rectangle();
+    telemetryPanel.width = "400px";
+    telemetryPanel.height = "340px";
+    telemetryPanel.cornerRadius = 18;
+    telemetryPanel.thickness = 2;
+    telemetryPanel.background = "rgba(10, 20, 40, 0.92)";
+    telemetryPanel.color = meshColor ? meshColor.toHexString() : "#00ffff";
+    telemetryPanel.zIndex = 1000;
+    telemetryPanel.alpha = 0;
+    telemetryPanel.left = "40%";
+    telemetryPanel.top = "-30%";
+    telemetryPanel.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
+    telemetryPanel.verticalAlignment = Control.VERTICAL_ALIGNMENT_CENTER;
+    advancedTexture.addControl(telemetryPanel);
+    // Animate in
+    BABYLON.Animation.CreateAndStartAnimation("fadeInPanel", telemetryPanel, "alpha", 60, 12, 0, 1, 0);
+    // Add close button
+    const closeBtn = new TextBlock();
+    closeBtn.text = "✕";
+    closeBtn.color = "#fff";
+    closeBtn.fontSize = 28;
+    closeBtn.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
+    closeBtn.textVerticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+    closeBtn.paddingRight = "18px";
+    closeBtn.paddingTop = "8px";
+    closeBtn.width = "40px";
+    closeBtn.height = "40px";
+    closeBtn.onPointerUpObservable.add(() => {
+        BABYLON.Animation.CreateAndStartAnimation("fadeOutPanel", telemetryPanel, "alpha", 60, 10, 1, 0, 0, null, () => {
+            advancedTexture.removeControl(telemetryPanel);
+            telemetryPanel = null;
+            if (telemetryPanelUpdateInterval) {
+                clearInterval(telemetryPanelUpdateInterval);
+                telemetryPanelUpdateInterval = null;
+            }
+        });
+    });
+    telemetryPanel.addControl(closeBtn);
+    // Add content block
+    const content = new TextBlock();
+    content.text = "";
+    content.color = meshColor ? meshColor.toHexString() : "#fff";
+    content.fontSize = 20;
+    content.fontFamily = "monospace";
+    content.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+    content.textVerticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+    content.paddingLeft = "28px";
+    content.paddingTop = "48px";
+    content.width = "92%";
+    content.height = "90%";
+    content.textWrapping = true;
+    telemetryPanel.addControl(content);
+    // Live update function
+    function updatePanel() {
+        const t = telemetryData[satName];
+        if (!t) {
+            content.text = `🛰️  ${satName}\n\nNo telemetry data available.`;
+            return;
+        }
+        let special = "";
+        if (t.systems && t.systems.sensors) {
+            special = `\nSensors:\n  Radiation: ${t.systems.sensors.radiation_detector ?? 'N/A'}\n  Magnetometer: ${t.systems.sensors.magnetometer ?? 'N/A'}\n  Star Tracker: ${t.systems.sensors.star_tracker ?? 'N/A'}`;
+        } else if (t.systems && t.systems.payload) {
+            special = `\nPayload:\n  Imaging: ${t.systems.payload.imaging_system ?? 'N/A'}%\n  Storage: ${t.systems.payload.storage_capacity ?? 'N/A'} GB\n  Memory: ${t.systems.payload.memory_usage ?? 'N/A'}%`;
+        }
+        content.text = `🛰️  ${satName}\n\n` +
+            `Altitude: ${t.altitude !== undefined ? t.altitude.toFixed(1) : 'N/A'} km\n` +
+            `Velocity: ${t.velocity !== undefined ? t.velocity.toFixed(2) : 'N/A'} km/s\n` +
+            `Period: ${t.period !== undefined ? t.period.toFixed(1) : 'N/A'} min\n` +
+            `Inclination: ${t.inclination !== undefined ? t.inclination.toFixed(2) : 'N/A'}°\n` +
+            `Lat/Lon: ${t.latitude !== undefined ? t.latitude.toFixed(2) : 'N/A'}, ${t.longitude !== undefined ? t.longitude.toFixed(2) : 'N/A'}\n` +
+            `\nSystems:` +
+            `\n  Power: ${t.systems && t.systems.power && t.systems.power.value !== undefined ? t.systems.power.value : 'N/A'}% (${t.systems && t.systems.power && t.systems.power.status ? t.systems.power.status : 'N/A'})` +
+            `\n  Thermal: ${t.systems && t.systems.thermal && (t.systems.thermal.value ?? t.systems.thermal.core_temp) !== undefined ? (t.systems.thermal.value ?? t.systems.thermal.core_temp) : 'N/A'}°C (${t.systems && t.systems.thermal && t.systems.thermal.status ? t.systems.thermal.status : 'N/A'})` +
+            `\n  Comms: ${t.systems && (t.systems.communications || t.systems.comms) && ((t.systems.communications && t.systems.communications.value !== undefined) ? t.systems.communications.value : (t.systems.comms && t.systems.comms.signal_strength !== undefined ? t.systems.comms.signal_strength : 'N/A'))} (${t.systems && (t.systems.communications || t.systems.comms) && ((t.systems.communications && t.systems.communications.status) ? t.systems.communications.status : (t.systems.comms && t.systems.comms.signal_strength !== undefined ? 'NOMINAL' : 'N/A'))})` +
+            special;
+    }
+    updatePanel();
+    telemetryPanelUpdateInterval = setInterval(updatePanel, 500);
 }

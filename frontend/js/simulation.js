@@ -2,7 +2,7 @@ import { TIME_ACCELERATION } from './constants.js';
 import { updateSatellitePosition } from './satellites.js';
 import { updateTelemetryUI } from './telemetry.js';
 
-export function startSimulationLoop(scene, satelliteData, orbitalElements, simulationStartTime, timeMultiplier, advancedTexture, activeSatellite, telemetryData) {
+export function startSimulationLoop(scene, satelliteData, orbitalElements, simulationStartTime, getTimeMultiplier, advancedTexture, activeSatellite, telemetryData) {
     // Initialize simulation time from start time or use current time
     let simulationTime = simulationStartTime || new Date();
     updateTimeDisplay(simulationTime);
@@ -17,18 +17,20 @@ export function startSimulationLoop(scene, satelliteData, orbitalElements, simul
             activeSatelliteList.push(satName);
         }
     }
-    
+    // --- Accurate time scaling ---
+    let lastFrameTime = performance.now();
     // Use a less frequent update for better performance
     scene.registerBeforeRender(() => {
         // Run only every 3 frames to reduce CPU load
         if (frameCounter++ % 3 !== 0) {
             return;
         }
-        
-        // Calculate time increment based on time multiplier
-        const timeIncrement = timeMultiplier * TIME_ACCELERATION * 1000 * 3; // Adjust for the frame skip
-        
-        // Advance simulation time
+        const now = performance.now();
+        const deltaRealSeconds = (now - lastFrameTime) / 1000;
+        lastFrameTime = now;
+        const timeMultiplier = getTimeMultiplier();
+        // Advance simulation time by real elapsed time * timeMultiplier * TIME_ACCELERATION
+        const timeIncrement = timeMultiplier * TIME_ACCELERATION * deltaRealSeconds * 1000; // ms
         simulationTime = new Date(simulationTime.getTime() + timeIncrement);
         
         // Only process visible satellites or limit to 5 at a time for smoother loading
