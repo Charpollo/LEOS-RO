@@ -134,24 +134,12 @@ def generate_realistic_leo_params():
     Returns:
         Dictionary with realistic LEO parameters
     """
+    from ..config import EARTH_RADIUS_KM, LEO_MIN_ALTITUDE
+    
     # LEO altitude ranges from ~160km (very low) to ~2000km (upper limit)
     # Most common LEO satellites are between 400-800km
-    altitude_groups = [
-        (160, 300, 0.15),   # Very low LEO (15% chance)
-        (300, 500, 0.30),   # Low LEO (30% chance)
-        (500, 800, 0.40),   # Medium LEO (40% chance)
-        (800, 1200, 0.10),  # High LEO (10% chance)
-        (1200, 2000, 0.05)  # Very high LEO (5% chance)
-    ]
-    
-    # Choose altitude band based on probabilities
-    rand = random.random()
-    cumulative_prob = 0
-    for min_alt, max_alt, prob in altitude_groups:
-        cumulative_prob += prob
-        if rand <= cumulative_prob:
-            altitude_km = random.uniform(min_alt, max_alt)
-            break
+    # OVERRIDE: Place all satellites at 800 km for visibility testing
+    altitude_km = 800
     
     # Popular inclinations with realistic distribution
     inclination_groups = [
@@ -175,12 +163,15 @@ def generate_realistic_leo_params():
     
     # Eccentricity - LEO orbits are mostly circular but have small variations
     # Lower orbits tend to have lower eccentricity due to atmospheric drag circularizing them
-    if altitude_km < 400:
-        eccentricity = random.uniform(0.0001, 0.003)
-    elif altitude_km < 800:
-        eccentricity = random.uniform(0.0001, 0.01)
-    else:
-        eccentricity = random.uniform(0.0001, 0.02)
+    eccentricity = random.uniform(0.0001, 0.01)
+    
+    # --- ENFORCE PERIGEE ABOVE MINIMUM ---
+    semi_major_axis = EARTH_RADIUS_KM + altitude_km
+    min_perigee = EARTH_RADIUS_KM + 400  # Always use 400 km as minimum perigee
+    # Clamp eccentricity so perigee is never below 400 km
+    max_eccentricity = 1.0 - (min_perigee / semi_major_axis)
+    if eccentricity > max_eccentricity:
+        eccentricity = max(0.0001, max_eccentricity)
     
     # RAAN (Right Ascension of Ascending Node) - any value from 0-360°
     raan_deg = random.uniform(0, 360)

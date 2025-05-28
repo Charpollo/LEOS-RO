@@ -39,8 +39,8 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
             const satelliteMesh = result.meshes[0];
             satelliteMesh.name = `${satName}_mesh`;
             // Set mesh scaling based on new Earth scale
-            // Increase satellite size for better visibility
-            const SATELLITE_VISUAL_SCALE = 0.005; // Increase from 0.001 to 0.005 (adjust as needed)
+            // Make satellites smaller for better zoom-in experience
+            const SATELLITE_VISUAL_SCALE = 0.001; // Smaller for more realistic appearance
             satelliteMesh.scaling = new BABYLON.Vector3(SATELLITE_VISUAL_SCALE, SATELLITE_VISUAL_SCALE, SATELLITE_VISUAL_SCALE);
             // Set mesh color by satellite type
             const isCRTS = satName.toUpperCase().includes('CRTS');
@@ -84,8 +84,28 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
                 )
             );
             
+            // --- Add comet-like orbit trail ---
+            if (!satelliteMesh.orbitTrail) {
+                const trailMaterial = new BABYLON.StandardMaterial(`${satName}_trailMat`, scene);
+                trailMaterial.emissiveColor = meshColor;
+                trailMaterial.alpha = 0.7;
+                const trail = new BABYLON.TrailMesh(`${satName}_trail`, satelliteMesh, scene, 0.05, 60, true);
+                trail.material = trailMaterial;
+                satelliteMesh.orbitTrail = trail;
+            }
+            
             // Set active satellite when clicked
             const setActiveSatellite = () => {
+                // --- Camera UX: zoom and center on satellite ---
+                const camera = scene.activeCamera;
+                if (camera && satelliteMesh) {
+                    const target = satelliteMesh.position.clone();
+                    // Move camera to a close, offset position for observation
+                    const offset = target.add(new BABYLON.Vector3(0.2, 0.1, 0.2));
+                    BABYLON.Animation.CreateAndStartAnimation('camMove', camera, 'position', 60, 30, camera.position, offset, 0, undefined, () => {
+                        camera.setTarget(target);
+                    });
+                }
                 window.dispatchEvent(new CustomEvent('satelliteSelected', { detail: { name: satName } }));
             };
             
@@ -102,12 +122,37 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
         }
     }
     
+    // After all satellites and labels are created, force Babylon GUI to update layout
+    if (advancedTexture && typeof advancedTexture.markAsDirty === 'function') {
+        if (scene && typeof scene.executeOnNextRender === 'function') {
+            scene.executeOnNextRender(() => {
+                advancedTexture.markAsDirty();
+                if (advancedTexture._rootContainer && typeof advancedTexture._rootContainer._rebuildLayout === 'function') {
+                    advancedTexture._rootContainer._rebuildLayout();
+                }
+                console.debug('[BabylonGUI] Forced layout update after satellite/label creation at', Date.now());
+                // --- Force a resize event to trigger pointer recalculation ---
+                window.dispatchEvent(new Event('resize'));
+            });
+        } else {
+            // fallback
+            setTimeout(() => {
+                advancedTexture.markAsDirty();
+                if (advancedTexture._rootContainer && typeof advancedTexture._rootContainer._rebuildLayout === 'function') {
+                    advancedTexture._rootContainer._rebuildLayout();
+                }
+                console.debug('[BabylonGUI] Forced layout update (timeout fallback) at', Date.now());
+                // --- Force a resize event to trigger pointer recalculation ---
+                window.dispatchEvent(new Event('resize'));
+            }, 100);
+        }
+    }
     return { satelliteMeshes, telemetryData };
 }
 
 // Update addSatelliteLabel to accept meshColor and set label color accordingly
 function addSatelliteLabel(satName, mesh, advancedTexture, activeSatellite, meshColor) {
-    const labelBtn = Button.CreateSimpleButton(`${satName}_btn`, satName);
+    const labelBtn = Button.CreateSimpleButton(`${satName}_label`, satName); // Use unique name for getControlByName
     labelBtn.width = "120px";
     labelBtn.height = "40px";
     labelBtn.cornerRadius = 8;
@@ -136,6 +181,7 @@ function addSatelliteLabel(satName, mesh, advancedTexture, activeSatellite, mesh
     labelBtn.linkWithMesh(mesh);
     labelBtn.linkOffsetY = -30;
     labelBtn.isVisible = true;
+    console.debug(`[LabelLink] ${satName} label linked to mesh`, mesh && mesh.name, 'at', Date.now(), 'mesh pos:', mesh && mesh.position ? mesh.position.asArray() : null);
     // --- Label scaling with camera distance ---
     const scene = mesh.getScene();
     scene.onBeforeRenderObservable.add(() => {
@@ -169,29 +215,25 @@ export function updateSatellitePosition(satName, timeIndex, orbitalElements, sim
         
         // Convert position to Babylon coordinates (scaling happens here only)
         let posKm = { ...result.position };
-        // Enforce minimum LEO altitude in km before scaling
+        // Clamp: if inside Earth, move to min allowed altitude along same direction
         const earthRadiusKm = EARTH_RADIUS;
-        // Set a very conservative minimum altitude (e.g., 1000 km above surface)
-        const minVisualLEO = 1000; // km above surface for visual safety
-        const minRadiusKm = earthRadiusKm + minVisualLEO;
+        const minAltitudeKm = 400; // Hard minimum perigee
         const positionLengthKm = Math.sqrt(posKm.x * posKm.x + posKm.y * posKm.y + posKm.z * posKm.z);
-        if (positionLengthKm < minRadiusKm) {
-            // Force satellite to minimum safe LEO altitude
-            const directionFromCenter = {
-                x: posKm.x / positionLengthKm,
-                y: posKm.y / positionLengthKm,
-                z: posKm.z / positionLengthKm
-            };
-            const safeFactor = 2.5; // Large buffer to guarantee separation
-            posKm.x = directionFromCenter.x * minRadiusKm * safeFactor;
-            posKm.y = directionFromCenter.y * minRadiusKm * safeFactor;
-            posKm.z = directionFromCenter.z * minRadiusKm * safeFactor;
+        if (positionLengthKm < earthRadiusKm + minAltitudeKm) {
+            // Move to min altitude along same direction
+            const scale = (earthRadiusKm + minAltitudeKm) / positionLengthKm;
+            posKm.x *= scale;
+            posKm.y *= scale;
+            posKm.z *= scale;
+            console.warn(`Satellite ${satName} was inside the Earth. Clamped to min altitude.`, posKm);
         }
-        // Now scale and map axes for Babylon.js
         const babylonPos = toBabylonPosition(posKm, EARTH_SCALE);
-        
         // Apply the calculated position to the satellite mesh
         satelliteMeshes[satName].position = babylonPos;
+        // Debug: log mesh and label positions
+        const mesh = satelliteMeshes[satName];
+        const labelControl = advancedTexture ? advancedTexture.getControlByName(`${satName}_label`) : null;
+        console.debug(`[SatUpdate] ${satName} mesh pos:`, mesh.position.asArray(), 'label pos:', labelControl && labelControl._linkedMesh ? labelControl._linkedMesh.position.asArray() : null, 'at', Date.now());
         
         // Enhanced satellite orientation based on velocity vector
         const babylonVel = new BABYLON.Vector3(
