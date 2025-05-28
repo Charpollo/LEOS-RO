@@ -18,6 +18,11 @@ if [ ! -d "./node_modules" ]; then
     npm install
 fi
 
+# Ensure the 'frontend/dist' directory exists
+if [ ! -d "./frontend/dist" ]; then
+    mkdir -p ./frontend/dist
+fi
+
 # Build the frontend using webpack
 echo "Building frontend..."
 npx webpack --config webpack.config.js

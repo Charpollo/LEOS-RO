@@ -7,10 +7,8 @@ module.exports = {
   entry: './frontend/js/app.js',
   output: {
     filename: 'js/bundle.js',
-    path: path.resolve(__dirname, 'frontend'),
-    clean: {
-      keep: /assets\//  // Keep the assets directory
-    }
+    path: path.resolve(__dirname, 'frontend/dist'), // Output to a dedicated build directory
+    clean: true // Clean the build directory safely
   },
   module: {
     rules: [
