@@ -415,8 +415,9 @@ body {
 
 .floating-display {
     position: fixed;
-    bottom: var(--spacing-lg);
-    right: var(--spacing-lg);
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
     background: var(--background-panel);
     backdrop-filter: blur(15px);
     border: 1px solid var(--border-glow);
@@ -765,6 +766,123 @@ body {
 }
 
 /* =========================================== */
+/* MISSION DASHBOARD OVERLAY                   */
+/* =========================================== */
+
+.mission-dashboard-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 1200;
+    pointer-events: none;
+    background: none;
+}
+.mission-dashboard-overlay.visible {
+    pointer-events: auto;
+}
+.mission-dashboard-tile {
+    position: absolute;
+    background: rgba(0, 20, 40, 0.82); /* More opac, see-through */
+    border-radius: 16px;
+    box-shadow: 0 0 30px var(--neon-blue-glow);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    backdrop-filter: blur(8px);
+    opacity: 0.98;
+    transition: box-shadow 0.3s, opacity 0.3s;
+}
+.mission-dashboard-tile.left-tile {
+    left: 32px;
+    top: 18vh;
+    width: 420px;
+    height: 480px;
+    border-left: 8px solid var(--neon-blue);
+    justify-content: flex-start;
+    background: rgba(10, 20, 40, 0.97); /* more opaque */
+}
+.mission-dashboard-tile.model-tile {
+    right: 32px;
+    bottom: 32px;
+    width: 420px;
+    height: 420px;
+    border-right: 8px solid #ff6b35;
+    justify-content: flex-end;
+    background: rgba(10, 20, 40, 0.97); /* more opaque */
+}
+.mission-dashboard-tile.crts-panel {
+    border-left: 8px solid #ff6b35 !important;
+    border-right: 8px solid #ff6b35 !important;
+    box-shadow: 0 0 30px #ff6b35cc;
+}
+.mission-dashboard-tile.bulldog-panel {
+    border-left: 8px solid var(--neon-blue) !important;
+    border-right: 8px solid var(--neon-blue) !important;
+    box-shadow: 0 0 30px var(--neon-blue-glow);
+}
+.tile-header {
+    font-size: 1.2rem;
+    font-weight: 600;
+    padding: 18px 24px;
+    letter-spacing: 0.05em;
+    text-shadow: 0 0 10px var(--neon-blue-glow);
+}
+.tile-header.crts-header {
+    background: linear-gradient(90deg, #ff6b35 0%, #ffb347 100%) !important;
+}
+.tile-header.bulldog-header {
+    background: linear-gradient(90deg, var(--neon-blue) 0%, var(--neon-blue-dark) 100%) !important;
+}
+.tile-content {
+    flex: 1;
+    padding: 24px;
+    overflow-y: auto;
+    color: var(--text-primary);
+    background: transparent;
+}
+.telemetry-placeholder, .model-placeholder {
+    color: var(--text-secondary);
+    font-style: italic;
+    text-align: center;
+    margin-top: 40px;
+}
+.close-mission-dashboard {
+    position: absolute;
+    top: 32px;
+    right: 48px;
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 2.2rem;
+    cursor: pointer;
+    z-index: 1300;
+    transition: color 0.2s;
+    text-shadow: 0 0 10px var(--neon-blue-glow);
+}
+.close-mission-dashboard:hover {
+    color: var(--neon-blue);
+}
+.mission-dashboard-overlay.visible ~ .panel-toggle {
+    display: none !important;
+}
+@media (max-width: 900px) {
+    .mission-dashboard-tile.left-tile,
+    .mission-dashboard-tile.model-tile {
+        left: 4vw !important;
+        right: 4vw !important;
+        width: 90vw !important;
+        min-width: unset;
+        max-width: unset;
+        height: 220px !important;
+    }
+    .mission-dashboard-tile.model-tile {
+        bottom: 16px;
+    }
+}
+
+/* =========================================== */
 /* ANIMATIONS                                  */
 /* =========================================== */
 
@@ -830,6 +948,20 @@ body {
         left: var(--spacing-md);
         width: 45px;
         height: 45px;
+    }
+}
+
+@media (max-width: 900px) {
+    .mission-dashboard-tile {
+        min-width: 90vw;
+        max-width: 98vw;
+        margin: 0 4vw;
+        height: 60vh;
+    }
+    .mission-dashboard-overlay {
+        flex-direction: column;
+        align-items: flex-end;
+        justify-content: flex-end;
     }
 }
 

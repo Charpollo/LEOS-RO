@@ -46,11 +46,12 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
             const isCRTS = satName.toUpperCase().includes('CRTS');
             const isBulldog = satName.toUpperCase().includes('BULLDOG');
             const meshColor = isCRTS ? new BABYLON.Color3(1, 0.5, 0) : isBulldog ? new BABYLON.Color3(0, 1, 1) : new BABYLON.Color3(0.1, 0.4, 0.8);
-            satelliteMesh.getChildMeshes().forEach(child => {
-                if (child.material) {
-                    child.material.emissiveColor = meshColor;
-                }
-            });
+            // Do NOT set child.material.emissiveColor here; let the model use its own appearance
+            // satelliteMesh.getChildMeshes().forEach(child => {
+            //     if (child.material) {
+            //         child.material.emissiveColor = meshColor;
+            //     }
+            // });
             satelliteMeshes[satName] = satelliteMesh;
             
             addSatelliteLabel(satName, satelliteMesh, advancedTexture, activeSatellite, meshColor);
@@ -62,11 +63,7 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
                     BABYLON.ActionManager.OnPointerOverTrigger,
                     () => {
                         document.getElementById('renderCanvas').style.cursor = 'pointer';
-                        satelliteMesh.getChildMeshes().forEach(child => {
-                            if (child.material) {
-                                child.material.emissiveColor = new BABYLON.Color3(0.1, 0.4, 0.8);
-                            }
-                        });
+                        // Optionally, highlight with outline or glow instead of color
                     }
                 )
             );
@@ -75,11 +72,7 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
                     BABYLON.ActionManager.OnPointerOutTrigger,
                     () => {
                         document.getElementById('renderCanvas').style.cursor = 'default';
-                        satelliteMesh.getChildMeshes().forEach(child => {
-                            if (child.material) {
-                                child.material.emissiveColor = new BABYLON.Color3(0, 0, 0);
-                            }
-                        });
+                        // Remove highlight if any
                     }
                 )
             );
@@ -88,8 +81,11 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
             if (!satelliteMesh.orbitTrail) {
                 const trailMaterial = new BABYLON.StandardMaterial(`${satName}_trailMat`, scene);
                 trailMaterial.emissiveColor = meshColor;
-                trailMaterial.alpha = 0.7;
-                const trail = new BABYLON.TrailMesh(`${satName}_trail`, satelliteMesh, scene, 0.05, 60, true);
+                trailMaterial.alpha = 0.9; // More visible
+                // Make the trail long and wide for visibility
+                const TRAIL_LENGTH = 300; // Increase for longer trail
+                const TRAIL_WIDTH = 0.15; // Increase for thicker trail
+                const trail = new BABYLON.TrailMesh(`${satName}_trail`, satelliteMesh, scene, TRAIL_WIDTH, TRAIL_LENGTH, true);
                 trail.material = trailMaterial;
                 satelliteMesh.orbitTrail = trail;
             }
@@ -130,7 +126,6 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
                 if (advancedTexture._rootContainer && typeof advancedTexture._rootContainer._rebuildLayout === 'function') {
                     advancedTexture._rootContainer._rebuildLayout();
                 }
-                console.debug('[BabylonGUI] Forced layout update after satellite/label creation at', Date.now());
                 // --- Force a resize event to trigger pointer recalculation ---
                 window.dispatchEvent(new Event('resize'));
             });
@@ -141,7 +136,6 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
                 if (advancedTexture._rootContainer && typeof advancedTexture._rootContainer._rebuildLayout === 'function') {
                     advancedTexture._rootContainer._rebuildLayout();
                 }
-                console.debug('[BabylonGUI] Forced layout update (timeout fallback) at', Date.now());
                 // --- Force a resize event to trigger pointer recalculation ---
                 window.dispatchEvent(new Event('resize'));
             }, 100);
@@ -173,7 +167,6 @@ function addSatelliteLabel(satName, mesh, advancedTexture, activeSatellite, mesh
         labelBtn.alpha = 0.8;
     });
     labelBtn.onPointerUpObservable.add(() => {
-        console.log('Label button clicked:', satName); // Debug log
         showSatelliteTelemetryPanel(satName, telemetryData, advancedTexture, meshColor);
         window.dispatchEvent(new CustomEvent('satelliteSelected', { detail: { name: satName } }));
     });
@@ -181,7 +174,6 @@ function addSatelliteLabel(satName, mesh, advancedTexture, activeSatellite, mesh
     labelBtn.linkWithMesh(mesh);
     labelBtn.linkOffsetY = -30;
     labelBtn.isVisible = true;
-    console.debug(`[LabelLink] ${satName} label linked to mesh`, mesh && mesh.name, 'at', Date.now(), 'mesh pos:', mesh && mesh.position ? mesh.position.asArray() : null);
     // --- Label scaling with camera distance ---
     const scene = mesh.getScene();
     scene.onBeforeRenderObservable.add(() => {
@@ -225,7 +217,6 @@ export function updateSatellitePosition(satName, timeIndex, orbitalElements, sim
             posKm.x *= scale;
             posKm.y *= scale;
             posKm.z *= scale;
-            console.warn(`Satellite ${satName} was inside the Earth. Clamped to min altitude.`, posKm);
         }
         const babylonPos = toBabylonPosition(posKm, EARTH_SCALE);
         // Apply the calculated position to the satellite mesh
@@ -233,7 +224,6 @@ export function updateSatellitePosition(satName, timeIndex, orbitalElements, sim
         // Debug: log mesh and label positions
         const mesh = satelliteMeshes[satName];
         const labelControl = advancedTexture ? advancedTexture.getControlByName(`${satName}_label`) : null;
-        console.debug(`[SatUpdate] ${satName} mesh pos:`, mesh.position.asArray(), 'label pos:', labelControl && labelControl._linkedMesh ? labelControl._linkedMesh.position.asArray() : null, 'at', Date.now());
         
         // Enhanced satellite orientation based on velocity vector
         const babylonVel = new BABYLON.Vector3(

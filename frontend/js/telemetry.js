@@ -75,69 +75,86 @@ export function generateRealTimeTelemetry(position, velocity, elements, satName)
 }
 
 export function updateTelemetryUI(activeSatellite, telemetryData) {
-    // Check if advanced telemetry is open and update it
+    // Hide old advanced telemetry dashboard if open
     const advancedTelemetry = document.getElementById('advanced-telemetry');
-    if (advancedTelemetry && advancedTelemetry.style.display === 'block') {
-        showAdvancedTelemetry(activeSatellite, telemetryData);
-        return;
+    if (advancedTelemetry) {
+        advancedTelemetry.style.display = 'none';
     }
-    
-    // Fallback for basic telemetry display (if telemetry-data element exists)
-    const telemetryElement = document.getElementById('telemetry-data');
-    if (!telemetryElement) {
-        // If no basic telemetry element, just show advanced telemetry
-        if (activeSatellite) {
-            showAdvancedTelemetry(activeSatellite, telemetryData);
-        }
-        return;
+    // Show new mission dashboard overlay
+    const missionDashboard = document.getElementById('mission-dashboard');
+    const hamburger = document.getElementById('panel-toggle');
+    // Panel color logic
+    let panelClass = '', headerClass = '';
+    if (activeSatellite && activeSatellite.toUpperCase().includes('CRTS')) {
+        panelClass = 'crts-panel';
+        headerClass = 'crts-header';
+    } else if (activeSatellite && activeSatellite.toUpperCase().includes('BULLDOG')) {
+        panelClass = 'bulldog-panel';
+        headerClass = 'bulldog-header';
     }
-    
-    if (!activeSatellite || !telemetryData[activeSatellite]) {
-        telemetryElement.innerHTML = '<div class="no-data">No telemetry data available</div>';
-        return;
+    if (missionDashboard) {
+        missionDashboard.classList.remove('hidden');
+        missionDashboard.classList.add('visible');
+        if (hamburger) hamburger.style.display = 'none';
+        // Set panel color classes
+        const leftTile = missionDashboard.querySelector('.left-tile');
+        const rightTile = missionDashboard.querySelector('.model-tile');
+        const leftHeader = leftTile?.querySelector('.tile-header');
+        const rightHeader = rightTile?.querySelector('.tile-header');
+        leftTile?.classList.remove('crts-panel','bulldog-panel');
+        rightTile?.classList.remove('crts-panel','bulldog-panel');
+        leftHeader?.classList.remove('crts-header','bulldog-header');
+        rightHeader?.classList.remove('crts-header','bulldog-header');
+        if (panelClass) {
+            leftTile?.classList.add(panelClass);
+            rightTile?.classList.add(panelClass);
+        }
+        if (headerClass) {
+            leftHeader?.classList.add(headerClass);
+            rightHeader?.classList.add(headerClass);
+        }
+        // Populate left tile with telemetry
+        const leftContent = document.getElementById('mission-telemetry-content');
+        if (leftContent && activeSatellite && telemetryData[activeSatellite]) {
+            const t = telemetryData[activeSatellite];
+            leftContent.innerHTML = `
+                <h2>${activeSatellite} Telemetry</h2>
+                <div><strong>Altitude:</strong> ${t.altitude?.toFixed(2) ?? 'N/A'} km</div>
+                <div><strong>Velocity:</strong> ${t.velocity?.toFixed(2) ?? 'N/A'} km/s</div>
+                <div><strong>Inclination:</strong> ${t.inclination?.toFixed(2) ?? 'N/A'}°</div>
+                <div><strong>Lat/Lon:</strong> ${t.latitude?.toFixed(2) ?? 'N/A'}, ${t.longitude?.toFixed(2) ?? 'N/A'}</div>
+                <div><strong>Period:</strong> ${t.period?.toFixed(2) ?? 'N/A'} min</div>
+                <hr>
+                <div><strong>Power:</strong> ${t.systems?.power?.value ?? t.systems?.power?.battery ?? 'N/A'}%</div>
+                <div><strong>Thermal:</strong> ${t.systems?.thermal?.value ?? t.systems?.thermal?.core_temp ?? 'N/A'}°C</div>
+                <div><strong>Comms:</strong> ${t.systems?.communications?.value ?? t.systems?.comms?.signal_strength ?? 'N/A'}</div>
+                <div style="margin-top:1em;color:var(--text-muted);font-size:0.95em;">(Graphs and subsystem data coming soon)</div>
+            `;
+        } else if (leftContent) {
+            leftContent.innerHTML = '<div class="telemetry-placeholder">No telemetry data available.</div>';
+        }
+        // Populate right tile with 3D model placeholder
+        const rightContent = document.getElementById('mission-model-content');
+        if (rightContent) {
+            rightContent.innerHTML = `<div class="model-placeholder">3D model viewer coming soon.</div>`;
+        }
     }
-    
-    const data = telemetryData[activeSatellite];
-    let html = '';
-    
-    html += '<div class="telemetry-group">';
-    html += '<h3>Position</h3>';
-    html += createTelemetryItem('Altitude', `${data.altitude.toFixed(2)} km`);
-    if (data.latitude !== undefined) html += createTelemetryItem('Latitude', `${data.latitude.toFixed(2)}°`);
-    if (data.longitude !== undefined) html += createTelemetryItem('Longitude', `${data.longitude.toFixed(2)}°`);
-    html += '</div>';
-    
-    html += '<div class="telemetry-group">';
-    html += '<h3>Orbit</h3>';
-    html += createTelemetryItem('Velocity', `${data.speed.toFixed(4)} km/s`);
-    if (data.period !== undefined) html += createTelemetryItem('Period', `${data.period.toFixed(2)} min`);
-    html += createTelemetryItem('Inclination', `${data.inclination.toFixed(2)}°`);
-    html += '</div>';
-    
-    if (data.systems) {
-        html += '<div class="telemetry-group">';
-        html += '<h3>Systems</h3>';
-        
-        // Power systems
-        if (data.systems.power) {
-            html += createTelemetryItem('Battery', `${data.systems.power.battery}%`);
-            html += createTelemetryItem('Solar Array', `${data.systems.power.solar_array}%`);
+}
+
+// Add close button logic for mission dashboard overlay
+if (typeof window !== 'undefined') {
+    window.addEventListener('DOMContentLoaded', () => {
+        const closeBtn = document.getElementById('close-mission-dashboard');
+        const missionDashboard = document.getElementById('mission-dashboard');
+        const hamburger = document.getElementById('panel-toggle');
+        if (closeBtn && missionDashboard) {
+            closeBtn.addEventListener('click', () => {
+                missionDashboard.classList.remove('visible');
+                missionDashboard.classList.add('hidden');
+                if (hamburger) hamburger.style.display = '';
+            });
         }
-        
-        // Thermal systems
-        if (data.systems.thermal) {
-            html += createTelemetryItem('Core Temp', `${data.systems.thermal.core_temp}°C`);
-        }
-        
-        // Comms systems
-        if (data.systems.comms) {
-            html += createTelemetryItem('Signal', `${data.systems.comms.signal_strength}%`);
-        }
-        
-        html += '</div>';
-    }
-    
-    telemetryElement.innerHTML = html;
+    });
 }
 
 export function showAdvancedTelemetry(activeSatellite, telemetryData) {

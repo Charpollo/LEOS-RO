@@ -104,22 +104,23 @@
             <div id="current-time">00:00:00 UTC</div>
         </div>
         
-        <!-- Panel Toggle Button -->
-        <button id="panel-toggle" class="panel-toggle">
-            <span class="hamburger-line"></span>
-            <span class="hamburger-line"></span>
-            <span class="hamburger-line"></span>
-        </button>
-        
-        <!-- Telemetry Dashboard -->
-        <div class="telemetry-dashboard" id="advanced-telemetry">
-            <div class="dashboard-header">
-                <h3 id="dashboard-title">Satellite Telemetry</h3>
-                <button class="close-dashboard">&times;</button>
+        <!-- Mission Dashboard Overlay (hidden by default) -->
+        <div id="mission-dashboard" class="mission-dashboard-overlay hidden">
+            <div class="mission-dashboard-tile left-tile">
+                <div class="tile-header ambient-blue">Mission Telemetry</div>
+                <div class="tile-content" id="mission-telemetry-content">
+                    <!-- Telemetry, graphs, and subsystem data will go here -->
+                    <div class="telemetry-placeholder">Select a satellite to view telemetry.</div>
+                </div>
             </div>
-            <div class="telemetry-grid" id="dashboard-content">
-                <!-- Telemetry cards will be inserted here dynamically -->
+            <div class="mission-dashboard-tile model-tile">
+                <div class="tile-header ambient-orange">3D Satellite Model</div>
+                <div class="tile-content" id="mission-model-content">
+                    <!-- 3D model viewer will go here -->
+                    <div class="model-placeholder">3D model viewer coming soon.</div>
+                </div>
             </div>
+            <button id="close-mission-dashboard" class="close-mission-dashboard">&times;</button>
         </div>
     </div>
 </body>
