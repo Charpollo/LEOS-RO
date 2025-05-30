@@ -46,6 +46,7 @@ export function setupKeyboardControls(camera, setTimeMultiplier, getTimeMultipli
             case 'X': {
                 const dash = document.getElementById('mission-dashboard');
                 if (dash) dash.classList.replace('visible','hidden');
+                window.dispatchEvent(new Event('missionDashboardClosed'));
                 break;
             }
             // Add more controls as needed
@@ -60,6 +61,7 @@ window.addEventListener('DOMContentLoaded', () => {
         closeBtn.addEventListener('click', () => {
             const dash = document.getElementById('mission-dashboard');
             if (dash) dash.classList.replace('visible','hidden');
+            window.dispatchEvent(new Event('missionDashboardClosed'));
         });
     }
 });

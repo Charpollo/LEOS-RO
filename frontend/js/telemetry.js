@@ -93,6 +93,9 @@ export function updateTelemetryUI(activeSatellite, telemetryData) {
          const rightTile = missionDashboard.querySelector('.model-tile');
          const leftHeader = leftTile?.querySelector('.tile-header');
          const rightHeader = rightTile?.querySelector('.tile-header');
+         // Update header text to reflect selected satellite
+         if (leftHeader) leftHeader.textContent = `${activeSatellite} Telemetry`;
+         if (rightHeader) rightHeader.textContent = `${activeSatellite} Asset`;
          leftTile?.classList.remove('crts-panel','bulldog-panel');
          rightTile?.classList.remove('crts-panel','bulldog-panel');
          leftHeader?.classList.remove('crts-header','bulldog-header');
@@ -110,7 +113,6 @@ export function updateTelemetryUI(activeSatellite, telemetryData) {
          if (leftContent && activeSatellite && telemetryData[activeSatellite]) {
              const t = telemetryData[activeSatellite];
             leftContent.innerHTML = `
-                <h2>${activeSatellite} Telemetry</h2>
                 <div><strong>Altitude:</strong> ${t.altitude?.toFixed(2) ?? 'N/A'} km</div>
                 <div><strong>Velocity:</strong> ${t.velocity?.toFixed(2) ?? 'N/A'} km/s</div>
                 <div><strong>Inclination:</strong> ${t.inclination?.toFixed(2) ?? 'N/A'}°</div>

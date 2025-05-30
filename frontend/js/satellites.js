@@ -83,8 +83,8 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
                 trailMaterial.emissiveColor = meshColor;
                 trailMaterial.alpha = 0.9; // More visible
                 // Make the trail long and wide for visibility
-                const TRAIL_LENGTH = 300; // Increase for longer trail
-                const TRAIL_WIDTH = 0.15; // Increase for thicker trail
+                const TRAIL_LENGTH = 600; // Longer trail for enhanced visibility
+                const TRAIL_WIDTH = 0.3;  // Thicker trail for better view
                 const trail = new BABYLON.TrailMesh(`${satName}_trail`, satelliteMesh, scene, TRAIL_WIDTH, TRAIL_LENGTH, true);
                 trail.material = trailMaterial;
                 satelliteMesh.orbitTrail = trail;

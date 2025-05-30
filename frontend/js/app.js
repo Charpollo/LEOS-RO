@@ -97,6 +97,31 @@ async function initApp() {
     window.addEventListener('satelliteSelected', (event) => {
         activeSatellite = event.detail.name;
         updateTelemetryUI(activeSatellite, getTelemetryData());
+        // Focus camera on selected satellite
+        const satMesh = getSatelliteMeshes()[activeSatellite];
+        if (camera && satMesh) {
+            camera.setTarget(satMesh.position);
+            // compute azimuth so camera looks straight down on satellite
+            const pos = satMesh.position;
+            const azimuth = Math.atan2(pos.z, pos.x) + Math.PI/2;
+            camera.alpha = azimuth;
+            camera.beta = 0.2;  // near-top-down angle
+            // clamp zoom to stay above Earth
+            const minR = camera.lowerRadiusLimit;
+            const currentR = camera.radius;
+            const targetR = Math.max(minR, currentR * 0.5);
+            BABYLON.Animation.CreateAndStartAnimation(
+                'zoomIn', camera, 'radius', 60, 30,
+                currentR, targetR,
+                BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
+            );
+        }
+    });
+    // Restore free view when dashboard closes
+    window.addEventListener('missionDashboardClosed', () => {
+        if (camera) {
+            camera.setTarget(BABYLON.Vector3.Zero());
+        }
     });
 }
 
