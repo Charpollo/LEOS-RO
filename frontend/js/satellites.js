@@ -169,6 +169,9 @@ function addSatelliteLabel(satName, mesh, advancedTexture, activeSatellite, mesh
     labelBtn.onPointerUpObservable.add(() => {
         showSatelliteTelemetryPanel(satName, telemetryData, advancedTexture, meshColor);
         window.dispatchEvent(new CustomEvent('satelliteSelected', { detail: { name: satName } }));
+        // --- Remove highlight from label after click (in case it stays highlighted) ---
+        labelBtn.background = "rgba(0, 0, 0, 0.7)";
+        labelBtn.alpha = 0.8;
     });
     advancedTexture.addControl(labelBtn);
     labelBtn.linkWithMesh(mesh);
@@ -353,6 +356,12 @@ function showSatelliteTelemetryPanel(satName, telemetryData, advancedTexture, me
             if (telemetryPanelUpdateInterval) {
                 clearInterval(telemetryPanelUpdateInterval);
                 telemetryPanelUpdateInterval = null;
+            }
+            // --- Remove highlight from label when panel is closed ---
+            const labelControl = advancedTexture.getControlByName(`${satName}_label`);
+            if (labelControl) {
+                labelControl.background = "rgba(0, 0, 0, 0.7)";
+                labelControl.alpha = 0.8;
             }
         });
     });
