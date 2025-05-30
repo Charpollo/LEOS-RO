@@ -92,17 +92,42 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
             
             // Set active satellite when clicked
             const setActiveSatellite = () => {
-                // --- Camera UX: zoom and center on satellite ---
+                // --- Camera UX: zoom and center on satellite with enhanced animation ---
                 const camera = scene.activeCamera;
                 if (camera && satelliteMesh) {
+                    // Store the current satellite as the active one for tracking purposes
+                    window.activeSatellite = satName;
+                    
                     const target = satelliteMesh.position.clone();
-                    // Move camera to a close, offset position for observation
-                    const offset = target.add(new BABYLON.Vector3(0.2, 0.1, 0.2));
-                    BABYLON.Animation.CreateAndStartAnimation('camMove', camera, 'position', 60, 30, camera.position, offset, 0, undefined, () => {
-                        camera.setTarget(target);
-                    });
+                    
+                    // Calculate a safer offset position to avoid going inside Earth
+                    const directionToEarthCenter = target.clone().normalize().scale(-1);
+                    const distanceToEarthCenter = target.length();
+                    const minSafeDistance = EARTH_RADIUS * EARTH_SCALE * 1.2; // 20% margin
+                    
+                    // Create a safer offset in a direction away from Earth
+                    const offsetDirection = new BABYLON.Vector3(0.2, 0.1, 0.2);
+                    offsetDirection.addInPlace(directionToEarthCenter.scale(0.2)); // Add a component away from Earth
+                    
+                    // Calculate an offset position for the camera that keeps it outside Earth
+                    const offset = target.add(offsetDirection.normalize().scale(Math.max(0.2, minSafeDistance * 0.2)));
+                    
+                    // Use easing function for smoother animation
+                    const easingFunction = new BABYLON.CircleEase();
+                    easingFunction.setEasingMode(BABYLON.EasingFunction.EASINGMODE_EASEINOUT);
+                    
+                    // Animate camera movement
+                    const anim = BABYLON.Animation.CreateAndStartAnimation(
+                        'camMove', camera, 'position', 60, 40, // Use 40 frames for smoother animation
+                        camera.position, offset, 0, easingFunction, 
+                        () => {
+                            // Once animation is complete, set the target
+                            camera.setTarget(target);
+                        }
+                    );
+                    if (anim) anim.disposeOnEnd = true;
                 }
-                window.dispatchEvent(new CustomEvent('satelliteSelected', { detail: { name: satName } }));
+                window.dispatchEvent(new CustomEvent('satelliteSelected', { detail: { name: satName, source: 'mesh' } }));
             };
             
             satelliteMesh.actionManager.registerAction(
@@ -168,7 +193,7 @@ function addSatelliteLabel(satName, mesh, advancedTexture, activeSatellite, mesh
     });
     labelBtn.onPointerUpObservable.add(() => {
         showSatelliteTelemetryPanel(satName, telemetryData, advancedTexture, meshColor);
-        window.dispatchEvent(new CustomEvent('satelliteSelected', { detail: { name: satName } }));
+        window.dispatchEvent(new CustomEvent('satelliteSelected', { detail: { name: satName }, source: 'label' }));
         // --- Remove highlight from label after click (in case it stays highlighted) ---
         labelBtn.background = "rgba(0, 0, 0, 0.7)";
         labelBtn.alpha = 0.8;
@@ -196,6 +221,9 @@ export function updateSatellitePosition(satName, timeIndex, orbitalElements, sim
         // Get orbital elements for this satellite
         const elements = orbitalElements[satName].elements;
         const epochTime = new Date(orbitalElements[satName].tle.epoch);
+        
+        // Check if this satellite is currently selected and the camera is tracking it
+        const isActiveTracking = satName === window.activeSatellite && scene.activeCamera;
         
         // Calculate satellite position using orbital mechanics
         const result = calculateSatellitePosition(elements, simulationTime, epochTime);
@@ -312,6 +340,9 @@ export function updateSatellitePosition(satName, timeIndex, orbitalElements, sim
 
 // Add showSatelliteTelemetryPanel function
 function showSatelliteTelemetryPanel(satName, telemetryData, advancedTexture, meshColor) {
+    // Set globally accessible active satellite
+    window.activeSatellite = satName;
+    
     // Remove any existing panel
     if (telemetryPanel) {
         advancedTexture.removeControl(telemetryPanel);
@@ -357,6 +388,11 @@ function showSatelliteTelemetryPanel(satName, telemetryData, advancedTexture, me
                 clearInterval(telemetryPanelUpdateInterval);
                 telemetryPanelUpdateInterval = null;
             }
+            
+            // Reset active satellite and trigger a dashboard closed event to reset camera view
+            window.activeSatellite = null;
+            window.dispatchEvent(new CustomEvent('missionDashboardClosed'));
+            
             // --- Remove highlight from label when panel is closed ---
             const labelControl = advancedTexture.getControlByName(`${satName}_label`);
             if (labelControl) {

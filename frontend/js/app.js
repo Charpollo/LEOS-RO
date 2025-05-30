@@ -105,11 +105,26 @@ async function initApp() {
             const pos = satMesh.position;
             const azimuth = Math.atan2(pos.z, pos.x) + Math.PI/2;
             camera.alpha = azimuth;
-            camera.beta = 0.2;  // near-top-down angle
-            // clamp zoom to stay above Earth
+            
+            // Adjust camera position based on whether this is a label click
+            const isLabelClick = event.detail.source === 'label';
             const minR = camera.lowerRadiusLimit;
             const currentR = camera.radius;
-            const targetR = Math.max(minR, currentR * 0.5);
+            let targetR;
+            
+            if (isLabelClick) {
+                // For label clicks, use a safer distance to prevent going inside Earth
+                const safeDistance = EARTH_RADIUS * EARTH_SCALE * 2.5;
+                const distanceToSat = BABYLON.Vector3.Distance(BABYLON.Vector3.Zero(), satMesh.position);
+                targetR = Math.max(safeDistance, distanceToSat * 1.1); // 10% farther than the satellite
+                camera.beta = 0.4; // Less steep angle to see more context around the satellite
+            } else {
+                // For satellite mesh clicks, closer view but still safe
+                camera.beta = 0.2;  // near-top-down angle
+                targetR = Math.max(minR * 1.2, currentR * 0.5); // Stay at least 20% away from minimum limit
+            }
+            
+            // Animate camera movement smoothly
             BABYLON.Animation.CreateAndStartAnimation(
                 'zoomIn', camera, 'radius', 60, 30,
                 currentR, targetR,
@@ -117,10 +132,66 @@ async function initApp() {
             );
         }
     });
-    // Restore free view when dashboard closes
+    // Restore free view when dashboard closes - with enhanced smooth transition
     window.addEventListener('missionDashboardClosed', () => {
         if (camera) {
-            camera.setTarget(BABYLON.Vector3.Zero());
+            // Store current position and target
+            const currentPos = camera.position.clone();
+            const currentTarget = camera.target.clone();
+            
+            // Reset activeSatellite when dashboard closes
+            activeSatellite = null;
+            
+            // Define a more sophisticated easing function for smoother transitions
+            const easingFunction = new BABYLON.CircleEase();
+            easingFunction.setEasingMode(BABYLON.EasingFunction.EASINGMODE_EASEINOUT);
+            
+            // Smoothly move camera target to Earth center with nicer animation timing (45 frames)
+            const targetAnim = BABYLON.Animation.CreateAndStartAnimation(
+                'targetToEarth', camera, 'target', 60, 45,
+                currentTarget, BABYLON.Vector3.Zero(),
+                BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
+            );
+            if (targetAnim) targetAnim.disposeOnEnd = true;
+            targetAnim.setEasingFunction(easingFunction);
+            
+            // Reset alpha and beta for a nicer view of Earth
+            const targetAlpha = -Math.PI/2; // Nice side view
+            const targetBeta = Math.PI/3;   // Slightly elevated
+            
+            // Stagger animation timings for a more natural feel
+            setTimeout(() => {
+                // Animate rotation parameters smoothly
+                const alphaAnim = BABYLON.Animation.CreateAndStartAnimation(
+                    'alphaReset', camera, 'alpha', 60, 40,
+                    camera.alpha, targetAlpha,
+                    BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
+                );
+                if (alphaAnim) alphaAnim.disposeOnEnd = true;
+                alphaAnim.setEasingFunction(easingFunction);
+            }, 100);
+            
+            setTimeout(() => {
+                const betaAnim = BABYLON.Animation.CreateAndStartAnimation(
+                    'betaReset', camera, 'beta', 60, 35,
+                    camera.beta, targetBeta,
+                    BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
+                );
+                if (betaAnim) betaAnim.disposeOnEnd = true;
+                betaAnim.setEasingFunction(easingFunction);
+            }, 150);
+            
+            // Ensure we're at a safe distance with a slight delay
+            setTimeout(() => {
+                const safeRadius = EARTH_RADIUS * EARTH_SCALE * 3.5; // A comfortable viewing distance, slightly farther back
+                const radiusAnim = BABYLON.Animation.CreateAndStartAnimation(
+                    'radiusReset', camera, 'radius', 60, 50, // Longer animation (50 frames)
+                    camera.radius, safeRadius,
+                    BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
+                );
+                if (radiusAnim) radiusAnim.disposeOnEnd = true;
+                radiusAnim.setEasingFunction(easingFunction);
+            }, 50);
         }
     });
     
@@ -162,11 +233,15 @@ async function createScene() {
     camera.attachControl(canvas, true);
     camera.minZ = 0.01;
     camera.maxZ = 10000;
-    camera.lowerRadiusLimit = EARTH_RADIUS * EARTH_SCALE * 0.95; // Allow zoom just above surface
+    camera.lowerRadiusLimit = EARTH_RADIUS * EARTH_SCALE * 1.05; // Increased safety margin to prevent going inside Earth
     camera.upperRadiusLimit = EARTH_RADIUS * EARTH_SCALE * 100; // Allow zoom far out
     camera.useAutoRotationBehavior = false;
     camera.inertia = 0.7; // Slightly higher for smoother movement
     camera.wheelDeltaPercentage = 0.04; // Smoother zoom
+    
+    // Add camera boundaries to prevent going through Earth and ensure smooth motion
+    camera.checkCollisions = true;
+    camera.collisionRadius = new BABYLON.Vector3(0.1, 0.1, 0.1);
     
     // Set initial camera position for better Earth view
     camera.setPosition(new BABYLON.Vector3(
@@ -182,6 +257,23 @@ async function createScene() {
     sunLight.diffuse = new BABYLON.Color3(1.0, 0.98, 0.92); // Warm sunlight color
     sunLight.specular = new BABYLON.Color3(0.3, 0.3, 0.3); // Very low specular to avoid unrealistic shiny appearance
     scene.sunLight = sunLight;
+
+    // Add camera safety observer to prevent going inside Earth
+    scene.onBeforeRenderObservable.add(() => {
+        if (camera) {
+            // Calculate distance from camera to Earth center
+            const distanceToCenter = camera.position.length();
+            const minSafeDistance = EARTH_RADIUS * EARTH_SCALE * 1.05; // Safe distance threshold
+            
+            // If camera is too close to Earth, move it out to the safe distance
+            if (distanceToCenter < minSafeDistance) {
+                // Normalize position vector and set to safe distance
+                const direction = camera.position.normalizeToNew();
+                const safePosition = direction.scale(minSafeDistance);
+                camera.position = safePosition;
+            }
+        }
+    });
 
     // Almost entirely eliminate ambient light for a realistic hard terminator
     const ambientLight = new BABYLON.HemisphericLight("ambientLight", new BABYLON.Vector3(0, 1, 0), scene);

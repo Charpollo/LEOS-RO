@@ -62,12 +62,6 @@ class UIManager {
     }
 
     setupEventListeners() {
-        // Close dashboard button
-        const closeBtn = document.querySelector('.close-dashboard');
-        if (closeBtn) {
-            closeBtn.addEventListener('click', () => this.hideAdvancedTelemetry());
-        }
-
         // Graph control buttons
         document.addEventListener('click', (e) => {
             if (e.target.matches('.graph-btn')) {
@@ -189,6 +183,15 @@ class UIManager {
     updateGraph(parameter) {
         // Update graph based on selected parameter
         // This would be implemented based on your graphing needs
+    }
+
+    /**
+     * Hide the advanced telemetry dashboard
+     */
+    hideAdvancedTelemetry() {
+        if (this.elements && this.elements.telemetryDashboard) {
+            this.elements.telemetryDashboard.style.display = 'none';
+        }
     }
 }
 

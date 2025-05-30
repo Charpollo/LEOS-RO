@@ -97,16 +97,49 @@ function initTimeDisplay() {
     setInterval(updateTime, 1000);
 }
 
+// Import UIManager
+import { uiManager } from './manager.js';
+
+// Global event delegation for close-dashboard and Escape key
+// This ensures the listeners are always active, even if dashboard is re-rendered
+
+document.addEventListener('click', (e) => {
+    if (e.target.matches('.close-dashboard')) {
+        uiManager.hideAdvancedTelemetry();
+    }
+});
+window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' || e.key === 'Esc') {
+        uiManager.hideAdvancedTelemetry();
+    }
+});
+
+// Listen for close button on the mission dashboard
+// and for Escape key to close the mission dashboard overlay
+
+document.addEventListener('click', (e) => {
+    if (e.target.matches('.close-mission-dashboard')) {
+        const dash = document.getElementById('mission-dashboard');
+        if (dash) dash.classList.replace('visible', 'hidden');
+        // Dispatch event to reset camera
+        window.dispatchEvent(new CustomEvent('missionDashboardClosed'));
+    }
+});
+
+window.addEventListener('keydown', (e) => {
+    if ((e.key === 'Escape' || e.key === 'Esc')) {
+        const dash = document.getElementById('mission-dashboard');
+        if (dash && dash.classList.contains('visible')) {
+            dash.classList.replace('visible', 'hidden');
+            // Dispatch event to reset camera
+            window.dispatchEvent(new CustomEvent('missionDashboardClosed'));
+        }
+    }
+});
+
 // Telemetry dashboard functionality
 function initTelemetryDashboard() {
-    const closeDashboard = document.querySelector('.close-dashboard');
-    const telemetryDashboard = document.getElementById('advanced-telemetry');
-    
-    if (closeDashboard && telemetryDashboard) {
-        closeDashboard.addEventListener('click', () => {
-            hideAdvancedTelemetry();
-        });
-    }
+    // No-op: logic moved to top-level for reliability
 }
 
 // Show/hide loading screen
