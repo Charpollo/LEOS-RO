@@ -15,9 +15,7 @@
         <!-- Loading Screen with Space Facts -->
         <div id="loading-screen">
             <div class="loading-content">
-                <div class="leos-logo">LEOS</div>
-                <h1 class="loading-title">Launching LEOS: First Orbit</h1>
-                <p class="loading-subtitle">Preparing simulation data</p>
+                <div class="leos-logo"><span class="highlight">LEOS</span>: First Orbit</div>
                 <div class="loader">
                     <div class="loader-ring"></div>
                     <div class="loader-ring"></div>
@@ -123,5 +121,23 @@
             <button id="close-mission-dashboard" class="close-mission-dashboard">&times;</button>
         </div>
     </div>
+
+    <script>
+        const facts = [
+            'There are over 34,000 objects larger than 10cm currently orbiting Earth.',
+            'The ISS travels at approximately 7.66 km/s to stay in orbit.',
+            'The Moon drifts away from Earth at about 3.8 cm per year.',
+            'A day on Venus is longer than its year due to its slow rotation.',
+            'Saturn’s rings consist mostly of ice particles mixed with rock.'
+        ];
+        let factIndex = 0;
+        function rotateFact() {
+            factIndex = (factIndex + 1) % facts.length;
+            document.querySelector('#space-fact p').textContent = facts[factIndex];
+        }
+        // Start rotating facts immediately
+        rotateFact();
+        setInterval(rotateFact, 4000);
+    </script>
 </body>
 </html>

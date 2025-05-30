@@ -2,9 +2,19 @@ import { TIME_ACCELERATION } from './constants.js';
 import { updateSatellitePosition } from './satellites.js';
 import { updateTelemetryUI } from './telemetry.js';
 
+let isUTC = true;
+let currentSimTime = null;
+export function toggleTimeMode() {
+    isUTC = !isUTC;
+}
+export function getCurrentSimTime() {
+    return currentSimTime;
+}
+
 export function startSimulationLoop(scene, satelliteData, orbitalElements, simulationStartTime, getTimeMultiplier, advancedTexture, activeSatellite, telemetryData) {
     // Initialize simulation time from start time or use current time
     let simulationTime = simulationStartTime || new Date();
+    currentSimTime = simulationTime;
     updateTimeDisplay(simulationTime);
     
     // Frame counter for performance optimizations
@@ -32,6 +42,7 @@ export function startSimulationLoop(scene, satelliteData, orbitalElements, simul
         // Advance simulation time by real elapsed time * timeMultiplier * TIME_ACCELERATION
         const timeIncrement = timeMultiplier * TIME_ACCELERATION * deltaRealSeconds * 1000; // ms
         simulationTime = new Date(simulationTime.getTime() + timeIncrement);
+        currentSimTime = simulationTime;
         
         // Only process visible satellites or limit to 5 at a time for smoother loading
         const visibleSats = frameCounter < 120 ? 
@@ -46,7 +57,7 @@ export function startSimulationLoop(scene, satelliteData, orbitalElements, simul
         // Only update time display every 30 frames for performance
         if (frameCounter % 30 === 0) {
             updateTimeDisplay(simulationTime);
-            
+
             // Update telemetry UI if a satellite is active
             if (activeSatellite) {
                 updateTelemetryUI(activeSatellite, telemetryData);
@@ -58,19 +69,13 @@ export function startSimulationLoop(scene, satelliteData, orbitalElements, simul
 }
 
 export function updateTimeDisplay(simulationTime) {
-    const timeElement = document.getElementById('current-time');
-    if (timeElement) {
-        // Show date and time in a clean format
-        const options = { 
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false,
-            timeZone: 'UTC'
-        };
-        timeElement.textContent = simulationTime.toLocaleDateString('en-US', options) + ' UTC';
-    }
+    const el = document.getElementById('current-time');
+    if (!el) return;
+    const options = {
+        year: 'numeric', month: 'short', day: 'numeric',
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+    };
+    if (isUTC) { options.timeZone = 'UTC'; }
+    el.textContent = simulationTime.toLocaleDateString('en-US', options)
+                    + (isUTC ? ' UTC' : ' Local');
 }

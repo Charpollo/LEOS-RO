@@ -16,7 +16,7 @@ import { createEarth } from './earth.js';
 import { createMoon } from './moon.js';
 import { createSatellites, getSatelliteMeshes, getTelemetryData, updateSatelliteFromOrbitalElements } from './satellites.js';
 import { updateTelemetryUI } from './telemetry.js';
-import { startSimulationLoop, updateTimeDisplay } from './simulation.js';
+import { startSimulationLoop, updateTimeDisplay, toggleTimeMode, getCurrentSimTime } from './simulation.js';
 import { setupKeyboardControls } from './controls.js';
 
 // Globals
@@ -123,6 +123,15 @@ async function initApp() {
             camera.setTarget(BABYLON.Vector3.Zero());
         }
     });
+    
+    // Wire up click on time display to toggle UTC/local
+    const timeEl = document.getElementById('current-time');
+    if (timeEl) {
+        timeEl.addEventListener('click', () => {
+            toggleTimeMode();
+            updateTimeDisplay(getCurrentSimTime());
+        });
+    }
 }
 
 async function createScene() {

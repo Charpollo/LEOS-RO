@@ -41,27 +41,7 @@ export function setupKeyboardControls(camera, setTimeMultiplier, getTimeMultipli
                 const tm = getTimeMultiplier();
                 setTimeMultiplier(tm !== 0 ? 0 : 0.1);
                 break;
-            case 'Escape':
-            case 'x':
-            case 'X': {
-                const dash = document.getElementById('mission-dashboard');
-                if (dash) dash.classList.replace('visible','hidden');
-                window.dispatchEvent(new Event('missionDashboardClosed'));
-                break;
-            }
             // Add more controls as needed
         }
     });
 }
-
-// Close button click to hide mission dashboard
-window.addEventListener('DOMContentLoaded', () => {
-    const closeBtn = document.getElementById('close-mission-dashboard');
-    if (closeBtn) {
-        closeBtn.addEventListener('click', () => {
-            const dash = document.getElementById('mission-dashboard');
-            if (dash) dash.classList.replace('visible','hidden');
-            window.dispatchEvent(new Event('missionDashboardClosed'));
-        });
-    }
-});

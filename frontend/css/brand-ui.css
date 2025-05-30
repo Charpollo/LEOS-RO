@@ -85,32 +85,48 @@ body {
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: linear-gradient(135deg, #000000 0%, #0a0a0a 100%);
+    background: url('../assets/stars.png') center/cover no-repeat;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: center; /* center content vertically */
     z-index: 1000;
-    backdrop-filter: blur(5px);
+    /* remove dim blur and boost brightness */
+    backdrop-filter: blur(30px); /* more blur to obscure background */
+    background-color: rgba(0, 0, 0, 0.8); /* dark overlay */
+    filter: none; /* remove brightness override */
+    overflow: hidden;
+    padding: var(--spacing-xl) var(--spacing-lg);
+    min-height: 100vh;
 }
 
 .loading-content {
-    text-align: center;
-    animation: fadeInUp 1s ease-out;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-evenly; /* even vertical spacing */
+    height: 80vh; /* fill most viewport */
+    gap: 0;
 }
 
 .leos-logo {
-    font-size: 4rem;
+    font-size: 4rem; /* larger logo */
     font-weight: 700;
-    color: var(--neon-blue);
+    color: var(--text-primary);
     text-shadow: 0 0 20px var(--neon-blue-glow);
-    margin-bottom: var(--spacing-md);
+    margin-top: var(--spacing-lg);
+    margin-bottom: 0;
     letter-spacing: 0.2em;
 }
 
+.leos-logo .highlight {
+    color: var(--neon-blue);
+}
+
 .loading-title {
-    font-size: 2rem;
+    font-size: 1.5rem;
     font-weight: 500;
-    margin-bottom: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
     color: var(--text-primary);
 }
 
@@ -122,45 +138,64 @@ body {
 
 .loader {
     position: relative;
-    width: 80px;
+    width: 80px; /* smaller spinner */
     height: 80px;
-    margin: var(--spacing-xl) auto;
+    margin: var(--spacing-md) auto;
 }
 
 .loader-ring {
     position: absolute;
+    top: 0;
+    left: 0;
+    transform-origin: center center;
+    box-sizing: border-box;
     width: 100%;
     height: 100%;
-    border: 2px solid transparent;
-    border-top: 2px solid var(--neon-blue);
-    border-radius: 50%;
-    animation: spin 1.5s linear infinite;
+    border: none;
+    background: conic-gradient(from 0deg, var(--neon-blue), transparent 70%);
+    box-shadow: 0 0 20px var(--neon-blue-glow);
+    animation: spin 4s linear infinite;
+}
+
+.loader-ring:nth-child(1) {
+    transform: scale(1);
+    animation-duration: 4s;
 }
 
 .loader-ring:nth-child(2) {
-    animation-delay: 0.5s;
-    transform: scale(0.8);
+    transform: scale(0.85);
+    animation: spinReverse 4.5s linear infinite;
 }
 
 .loader-ring:nth-child(3) {
-    animation-delay: 1s;
-    transform: scale(0.6);
+    transform: scale(0.7);
+    animation-duration: 5s;
+}
+
+/* new reverse spin animation for alternate rings */
+@keyframes spinReverse {
+    from { transform: rotate(360deg); }
+    to { transform: rotate(0deg); }
 }
 
 .space-fact {
-    margin-top: var(--spacing-xl);
-    padding: var(--spacing-md);
+    margin-top: var(--spacing-md);
+    padding: var(--spacing-lg) var(--spacing-xl);
     background: rgba(0, 207, 255, 0.1);
-    border: 1px solid var(--border-glow);
+    border: 2px solid var(--neon-blue-glow);
     border-radius: 8px;
-    max-width: 500px;
+    max-width: 80%; /* larger box */
+    margin-bottom: var(--spacing-lg);
     backdrop-filter: blur(10px);
+    color: var(--text-primary);
+    box-shadow: 0 0 20px var(--neon-blue-glow);
 }
 
 .space-fact p {
     color: var(--text-secondary);
     font-style: italic;
     line-height: 1.5;
+    font-size: 1.1rem;
 }
 
 /* =========================================== */
@@ -429,10 +464,11 @@ body {
     z-index: 100;
     box-shadow: 0 0 15px var(--neon-blue-glow);
     transition: all 0.3s ease;
+    cursor: pointer; /* make time display clickable */
 }
 
 .floating-display:hover {
-    transform: translateY(-2px);
+    transform: translateX(-50%) translateY(-2px);
     box-shadow: 0 5px 25px var(--neon-blue-glow);
 }
 
@@ -949,6 +985,21 @@ body {
         left: var(--spacing-md);
         width: 45px;
         height: 45px;
+    }
+}
+
+@media (max-width: 600px) {
+    .loader {
+        width: 250px;
+        height: 250px;
+    }
+    .loader-ring {
+        border: 8px solid transparent;
+        border-top: 8px solid var(--neon-blue);
+    }
+    .space-fact {
+        max-width: 90%;
+        font-size: 0.9rem;
     }
 }
 

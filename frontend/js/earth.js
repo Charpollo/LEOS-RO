@@ -176,11 +176,11 @@ export async function createEarth(scene, getTimeMultiplier, sunDirection) {
         const simSecondsPerFrame = timeMultiplier * TIME_ACCELERATION * (scene.getAnimationRatio() || 1);
         const earthRotationPerSecond = 2 * Math.PI / 86164; // radians per real second
         const rotationStep = earthRotationPerSecond * simSecondsPerFrame;
-        earthMesh.rotation.y += rotationStep;
+        earthMesh.rotation.y -= rotationStep;
         earthRotation += rotationStep;
         
         // Update clouds at slightly different rate, maintaining counterclockwise direction
-        cloudsMesh.rotation.y = earthMesh.rotation.y * 1.1;
+        cloudsMesh.rotation.y = earthMesh.rotation.y * 1.1; // clouds follow reversed earth rotation
 
         // Update atmosphere appearance based on sun position (every 10 frames)
         if (scene.sunLight && frameCount % 10 === 0) {
