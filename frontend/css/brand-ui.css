@@ -797,15 +797,16 @@ body {
 .mission-dashboard-tile.left-tile {
     left: 32px;
     top: 18vh;
-    width: 420px;
-    height: 480px;
+    width: 500px;
+    height: 600px;
     border-left: 8px solid var(--neon-blue);
     justify-content: flex-start;
     background: rgba(10, 20, 40, 0.97); /* more opaque */
 }
 .mission-dashboard-tile.model-tile {
     right: 32px;
-    bottom: 32px;
+    top: 50%;
+    transform: translateY(-50%);
     width: 420px;
     height: 420px;
     border-right: 8px solid #ff6b35;
