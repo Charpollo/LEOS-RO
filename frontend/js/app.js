@@ -148,6 +148,16 @@ async function initApp() {
     });
     // Restore free view when dashboard closes - with enhanced smooth transition
     window.addEventListener('missionDashboardClosed', () => {
+        // Clear model viewer when dashboard is closed
+        if (previewScene && previewMesh) {
+            previewScene.meshes.slice().forEach(mesh => {
+                if (mesh !== previewCamera && !(mesh instanceof BABYLON.Light)) {
+                    mesh.dispose();
+                }
+            });
+            previewMesh = null;
+        }
+        
         if (camera) {
             // Store current position and target
             const currentPos = camera.position.clone();
@@ -363,7 +373,19 @@ async function initModelViewer() {
     // Create engine and scene for preview
     previewEngine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
     previewScene = new BABYLON.Scene(previewEngine);
-    previewScene.clearColor = new BABYLON.Color4(0.05, 0.05, 0.1, 1); // Dark blue background
+    previewScene.clearColor = new BABYLON.Color4(0.02, 0.02, 0.05, 1); // Very dark blue background
+    
+    // Create starfield background
+    const starfieldTexture = new BABYLON.Texture("assets/stars.png", previewScene);
+    const starBackground = BABYLON.MeshBuilder.CreatePlane("starBackground", {
+        size: 100,
+        sideOrientation: BABYLON.Mesh.DOUBLESIDE
+    }, previewScene);
+    starBackground.position = new BABYLON.Vector3(0, 0, -20); // Behind everything
+    const starMaterial = new BABYLON.StandardMaterial("starMaterial", previewScene);
+    starMaterial.emissiveTexture = starfieldTexture;
+    starMaterial.disableLighting = true;
+    starBackground.material = starMaterial;
     
     // Camera setup
     previewCamera = new BABYLON.ArcRotateCamera('previewCam', -Math.PI/2, Math.PI/2, 2, new BABYLON.Vector3(0,0,0), previewScene);
@@ -374,8 +396,37 @@ async function initModelViewer() {
     // Always attach control to the modelCanvas
     previewCamera.attachControl(canvas, true);
 
-    // Light setup and render loop remains
-    new BABYLON.HemisphericLight('previewLight', new BABYLON.Vector3(0,1,0), previewScene).intensity = 1;
+    // Enhance lighting for better model viewing
+    const hemisphericLight = new BABYLON.HemisphericLight('previewLight', new BABYLON.Vector3(0,1,0), previewScene);
+    hemisphericLight.intensity = 0.7;
+    hemisphericLight.diffuse = new BABYLON.Color3(0.9, 0.9, 1.0);
+    hemisphericLight.specular = new BABYLON.Color3(0.5, 0.5, 0.8);
+    
+    // Add subtle particle system for stars in background
+    const particleSystem = new BABYLON.ParticleSystem("stars", 200, previewScene);
+    particleSystem.particleTexture = new BABYLON.Texture("assets/particle_star.png", previewScene);
+    particleSystem.emitter = new BABYLON.Vector3(0, 0, -15); // Position the emitter behind everything
+    particleSystem.minEmitBox = new BABYLON.Vector3(-10, -10, -5); // minimum box dimensions
+    particleSystem.maxEmitBox = new BABYLON.Vector3(10, 10, -5); // maximum box dimensions
+    
+    // Particles configuration
+    particleSystem.color1 = new BABYLON.Color4(0.8, 0.8, 1.0, 0.3);
+    particleSystem.color2 = new BABYLON.Color4(0.7, 0.7, 1.0, 0.3);
+    particleSystem.colorDead = new BABYLON.Color4(0.5, 0.5, 0.7, 0);
+    particleSystem.minSize = 0.05;
+    particleSystem.maxSize = 0.15;
+    particleSystem.minLifeTime = 5.0;
+    particleSystem.maxLifeTime = 10.0;
+    particleSystem.emitRate = 10;
+    particleSystem.blendMode = BABYLON.ParticleSystem.BLENDMODE_ADD;
+    particleSystem.gravity = new BABYLON.Vector3(0, 0, 0);
+    particleSystem.direction1 = new BABYLON.Vector3(-0.01, -0.01, 0);
+    particleSystem.direction2 = new BABYLON.Vector3(0.01, 0.01, 0);
+    particleSystem.minAngularSpeed = -0.01;
+    particleSystem.maxAngularSpeed = 0.01;
+    particleSystem.start();
+    
+    // Engine render loop
     previewEngine.runRenderLoop(() => previewScene.render());
     window.addEventListener('resize', () => previewEngine.resize());
 
@@ -412,7 +463,18 @@ async function initModelViewer() {
             const result = await BABYLON.SceneLoader.ImportMeshAsync('', '', modelFile, previewScene);
             previewMesh = result.meshes[0];
             previewMesh.rotationQuaternion = null;
-            const scaleFactor = 0.5;
+            
+            // Adjust scale factor based on satellite type
+            let scaleFactor = 0.5;
+            if (satName.toUpperCase().includes('CRTS')) {
+                scaleFactor = 0.35; // Smaller scale for CRTS models
+                // Also adjust camera distance for CRTS models
+                previewCamera.radius = 3.0;
+            } else {
+                // Default Bulldog satellite
+                scaleFactor = 0.5;
+                previewCamera.radius = 2.0;
+            }
             previewMesh.scaling = new BABYLON.Vector3(scaleFactor, scaleFactor, scaleFactor);
             
             // Center on origin
@@ -422,7 +484,7 @@ async function initModelViewer() {
             // Add auto-rotation animation for better visual appeal
             previewScene.registerBeforeRender(() => {
                 if (previewMesh) {
-                    previewMesh.rotation.y += 0.005; // Slow steady rotation
+                    previewMesh.rotation.y += 0.0015; // Much slower rotation for better viewing
                 }
             });
             
