@@ -103,8 +103,20 @@
         </div>
         
         <!-- Floating Time Display -->
-        <div id="time-display" class="floating-display">
-            <div id="current-time">00:00:00 UTC</div>
+        <div id="time-display" class="floating-display" style="position:absolute; top:24px; left:50%; transform:translateX(-50%); z-index:3000; min-width:220px; text-align:center;">
+            <div id="current-time" style="font-size:1.18em; font-weight:600; letter-spacing:0.04em; color:#66d9ff; background:rgba(0,23,40,0.92); border-radius:8px; padding:0.5em 1.2em; box-shadow:0 2px 12px #00cfff33; border:1px solid #00cfff; display:inline-block; cursor:pointer;">
+                00:00:00 UTC
+            </div>
+            <div id="time-controls" class="time-controls-panel hidden" style="margin-top:8px;">
+                <button class="time-btn speed-btn" data-mult="0.25">0.25x</button>
+                <button class="time-btn speed-btn" data-mult="0.5">0.5x</button>
+                <button class="time-btn speed-btn" data-mult="1">1x</button>
+                <button class="time-btn speed-btn" data-mult="2">2x</button>
+                <button class="time-btn speed-btn" data-mult="4">4x</button>
+            </div>
+            <div id="time-info-note" style="display:none; position:absolute; left:50%; top:calc(100% + 18px); transform:translateX(-50%); min-width:600px; max-width:900px; background:rgba(10,18,32,0.98); color:#66d9ff; font-size:1em; border-radius:22px; box-shadow:0 8px 36px #00cfff22; padding:1.5em 2.8em 1.5em 2.2em; z-index:3500; text-align:left; border:none; line-height:1.7; pointer-events:auto; outline:none; display:flex; flex-direction:column; gap:0.5em; align-items:flex-start; font-weight:400; opacity:0.97;">
+                <b>Tip:</b> Simulation time runs at a 60:1 ratio (1 real second = 1 simulated minute). The speed you select multiplies this effect.
+            </div>
         </div>
         
         <!-- Mission Dashboard Overlay (hidden by default) -->
@@ -143,6 +155,80 @@
         // Start rotating facts immediately
         rotateFact();
         setInterval(rotateFact, 4000);
+
+        // Show/hide the note and controls only on click, and auto-hide tip after timeout or click-out
+        (function() {
+            const timeDisplay = document.getElementById('time-display');
+            const currentTime = document.getElementById('current-time');
+            const controlsPanel = document.getElementById('time-controls');
+            const note = document.getElementById('time-info-note');
+            let tipTimeout = null;
+            let controlsOpen = false;
+
+            // Ensure tip and controls are hidden on page load
+            controlsPanel.classList.add('hidden');
+            note.style.display = 'none';
+
+            function showControlsAndTip() {
+                controlsPanel.classList.remove('hidden');
+                note.style.display = 'flex';
+                controlsOpen = true;
+                clearTimeout(tipTimeout);
+                tipTimeout = setTimeout(hideTipAndControls, 10000); // auto-hide after 10s
+            }
+            function hideTipAndControls() {
+                controlsPanel.classList.add('hidden');
+                note.style.display = 'none';
+                controlsOpen = false;
+                clearTimeout(tipTimeout);
+            }
+            currentTime.addEventListener('click', function(e) {
+                e.stopPropagation();
+                if (!controlsOpen) {
+                    showControlsAndTip();
+                } else {
+                    hideTipAndControls();
+                }
+            });
+            // Hide when clicking outside
+            document.addEventListener('mousedown', function(e) {
+                if (!timeDisplay.contains(e.target)) {
+                    hideTipAndControls();
+                }
+            });
+            // Hide on ESC
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') hideTipAndControls();
+            });
+            // Prevent accidental close when clicking inside
+            controlsPanel.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+            note.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+        })();
+        // Hide time display during loading screen
+        (function() {
+            const loadingScreen = document.getElementById('loading-screen');
+            const body = document.body;
+            function updateTimeDisplayVisibility() {
+                if (loadingScreen && loadingScreen.style.display !== 'none') {
+                    body.classList.add('hide-time');
+                } else {
+                    body.classList.remove('hide-time');
+                }
+            }
+            // Initial check
+            updateTimeDisplayVisibility();
+            // Observe loading screen visibility changes
+            const observer = new MutationObserver(updateTimeDisplayVisibility);
+            observer.observe(loadingScreen, { attributes: true, attributeFilter: ['style'] });
+        })();
+        // Make time control buttons clickable even when tip/controls are open
+        (function() {
+            const controlsPanel = document.getElementById('time-controls');
+            const timeDisplay = document.getElementById('time-display');
+            // Ensure pointer events are enabled
+            controlsPanel.style.pointerEvents = 'auto';
+            timeDisplay.style.pointerEvents = 'auto';
+        })();
     </script>
 </body>
 </html>

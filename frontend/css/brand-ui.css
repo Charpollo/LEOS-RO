@@ -62,6 +62,10 @@ body {
     font-weight: 400;
 }
 
+body.hide-time #time-display {
+    display: none !important;
+}
+
 #renderCanvas-container {
     position: relative;
     width: 100vw;
@@ -508,7 +512,9 @@ body {
     z-index: 100;
     box-shadow: 0 0 15px var(--neon-blue-glow);
     transition: all 0.3s ease;
-    cursor: pointer; /* make time display clickable */
+    cursor: pointer;
+    min-width: 260px;
+    text-align: center;
 }
 
 .floating-display:hover {
@@ -517,9 +523,132 @@ body {
 }
 
 #current-time {
+    font-size: 1.18em;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: #66d9ff; /* softer blue for numbers */
+    background: rgba(0,18,32,0.98);
+    border-radius: 7px;
+    padding: 0.45em 1.1em;
+    box-shadow: 0 0 16px 2px #00eaff, 0 2px 10px #00cfff22; /* neon glow only on edges */
+    display: inline-block;
+    cursor: pointer;
+    border: none;
+    transition: box-shadow 0.2s, background 0.2s;
+    pointer-events: auto;
+    outline: none;
+    text-shadow: none; /* remove neon from numbers */
+}
+
+#current-time:hover {
+    box-shadow: 0 0 24px 4px #00eaff, 0 4px 18px #00cfff44;
+    background: rgba(0,23,40,1);
+}
+
+#time-display {
+    position: absolute;
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 3000;
+    min-width: 0;
+    text-align: center;
+    pointer-events: none;
+    background: none;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+}
+
+#time-controls {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: row;
+    gap: 1.2em;
+    justify-content: center;
+    align-items: center;
+    background: rgba(0, 23, 40, 0.92);
+    border-radius: 8px;
+    box-shadow: 0 2px 10px #00cfff11;
+    padding: 0.5em 1.2em;
+    transition: opacity 0.2s;
+    opacity: 1;
+    z-index: 1201;
+    position: relative;
+    left: 0;
+    transform: none;
+    min-width: 220px;
+    border: none;
+}
+
+#time-controls.hidden {
+    display: none;
+    opacity: 0;
+}
+
+.time-btn {
+    background: none;
+    color: #66d9ff;
+    border: none;
+    border-radius: 5px;
+    padding: 0.3em 0.9em;
+    font-size: 1rem;
+    font-family: var(--font-mono);
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+    box-shadow: none;
+    min-width: 48px;
+    outline: none;
+}
+
+.time-btn.speed-btn {
+    font-size: 0.95rem;
+    padding: 0.3em 0.7em;
+    margin: 0 0.1em;
+}
+
+.time-btn.active {
+    background: #223344;
+    color: #00cfff;
+    font-weight: bold;
+    border-radius: 5px;
+}
+
+#time-info-note {
+    display: none;
+    position: absolute;
+    left: 50%;
+    top: 260%; /* drop it much further down so never cut off */
+    transform: translateX(-50%);
+    min-width: 380px;
+    max-width: 520px;
+    background: rgba(10,18,32,0.98);
+    color: #66d9ff;
+    font-size: 1em;
+    border-radius: 16px;
+    box-shadow: 0 8px 36px #00cfff22;
+    padding: 1.3em 2.2em 1.3em 1.7em;
+    z-index: 3500;
+    text-align: left;
+    border: none;
+    line-height: 1.7;
+    pointer-events: auto;
+    outline: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5em;
+    align-items: flex-start;
     font-weight: 400;
-    letter-spacing: 0.05em;
-    color: var(--neon-blue);
+    opacity: 0.97;
+}
+
+#time-info-note b {
+    color: #00eaff;
+    font-size: 1.08em;
+    margin-bottom: 0.2em;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    text-shadow: 0 0 8px #00eaff22;
 }
 
 /* =========================================== */
@@ -1134,4 +1263,74 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
     background: var(--neon-blue-light);
+}
+
+.time-controls-panel {
+    display: flex;
+    flex-direction: row;
+    gap: 1.2em;
+    margin-top: 0.7em;
+    justify-content: center;
+    align-items: center;
+    background: rgba(0, 207, 255, 0.08);
+    border: none;
+    border-radius: 8px;
+    box-shadow: none;
+    padding: 0.5em 1.2em;
+    transition: opacity 0.2s;
+    opacity: 1;
+    z-index: 1201;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    min-width: 320px;
+}
+.time-controls-panel.hidden {
+    display: none;
+    opacity: 0;
+}
+.time-btn {
+    background: none;
+    color: var(--neon-blue);
+    border: none;
+    border-radius: 5px;
+    padding: 0.3em 0.9em;
+    font-size: 1rem;
+    font-family: var(--font-mono);
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+    box-shadow: none;
+    min-width: 48px;
+    outline: none;
+}
+.time-btn.speed-btn {
+    font-size: 0.95rem;
+    padding: 0.3em 0.7em;
+    margin: 0 0.1em;
+}
+.time-btn.pause-btn {
+    background: none;
+    color: var(--neon-blue);
+    border-radius: 50%;
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    border: 2px solid transparent;
+    margin: 0 0.5em;
+    padding: 0;
+    box-shadow: none;
+}
+.time-btn.active {
+    background: var(--neon-blue);
+    color: var(--background-black);
+    font-weight: bold;
+    border-radius: 5px;
+}
+#pause-icon {
+    display: inline-block;
+    font-size: 1.2em;
+    line-height: 1;
 }

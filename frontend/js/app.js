@@ -16,7 +16,7 @@ import { createEarth } from './earth.js';
 import { createMoon } from './moon.js';
 import { createSatellites, getSatelliteMeshes, getTelemetryData, updateSatelliteFromOrbitalElements } from './satellites.js';
 import { updateTelemetryUI } from './telemetry.js';
-import { startSimulationLoop, updateTimeDisplay, toggleTimeMode, getCurrentSimTime } from './simulation.js';
+import { startSimulationLoop, updateTimeDisplay, getCurrentSimTime } from './simulation.js';
 import { setupKeyboardControls } from './controls.js';
 
 // Globals
@@ -279,10 +279,61 @@ async function initApp() {
     const timeEl = document.getElementById('current-time');
     if (timeEl) {
         timeEl.addEventListener('click', () => {
-            toggleTimeMode();
             updateTimeDisplay(getCurrentSimTime());
         });
     }
+}
+
+// --- Time Controls UI ---
+function setupTimeControls() {
+    const timeDisplay = document.getElementById('time-display');
+    const controlsPanel = document.getElementById('time-controls');
+    const speedBtns = Array.from(document.querySelectorAll('.time-btn.speed-btn'));
+
+    let controlsVisible = false;
+    function updateSpeedBtns() {
+        speedBtns.forEach(btn => {
+            const mult = parseFloat(btn.getAttribute('data-mult'));
+            if (Math.abs(simState.timeMultiplier - mult) < 0.001) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+    }
+    function updatePanelPosition() {
+        // Center the controls panel below the time display
+        controlsPanel.style.left = '50%';
+        controlsPanel.style.transform = 'translateX(-50%)';
+    }
+    // Show/hide controls panel on time display click
+    timeDisplay.addEventListener('click', (e) => {
+        if (e.target.classList.contains('time-btn')) return;
+        controlsVisible = !controlsVisible;
+        controlsPanel.classList.toggle('hidden', !controlsVisible);
+        updateSpeedBtns();
+        updatePanelPosition();
+    });
+    // Speed button clicks
+    speedBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const mult = parseFloat(btn.getAttribute('data-mult'));
+            if (simState.timeMultiplier !== mult) {
+                simState.timeMultiplier = mult;
+                simState.lastTimeMultiplier = mult;
+            }
+            updateSpeedBtns();
+        });
+    });
+    // Hide controls if clicking outside
+    document.addEventListener('mousedown', (e) => {
+        if (controlsVisible && !timeDisplay.contains(e.target) && !controlsPanel.contains(e.target)) {
+            controlsPanel.classList.add('hidden');
+            controlsVisible = false;
+        }
+    });
+    // Initial highlight
+    updateSpeedBtns();
 }
 
 async function createScene() {
@@ -648,4 +699,7 @@ async function loadSatelliteData() {
 
 // Removed all Brand UI functions since they've been moved
 
-window.addEventListener('DOMContentLoaded', initApp);
+window.addEventListener('DOMContentLoaded', () => {
+    initApp();
+    setupTimeControls();
+});

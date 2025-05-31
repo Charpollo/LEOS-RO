@@ -2,14 +2,7 @@ import { TIME_ACCELERATION } from './constants.js';
 import { updateSatellitePosition } from './satellites.js';
 import { updateTelemetryUI } from './telemetry.js';
 
-// Initialize time mode from localStorage or default to UTC
-let isUTC = (localStorage.getItem('timeMode') || 'UTC') === 'UTC';
 let currentSimTime = null;
-export function toggleTimeMode() {
-    isUTC = !isUTC;
-    // Persist user preference
-    localStorage.setItem('timeMode', isUTC ? 'UTC' : 'Local');
-}
 export function getCurrentSimTime() {
     return currentSimTime;
 }
@@ -47,25 +40,23 @@ export function startSimulationLoop(scene, satelliteData, orbitalElements, simul
         const timeIncrement = timeMultiplier * TIME_ACCELERATION * deltaRealSeconds * 1000; // ms
         simulationTime = new Date(simulationTime.getTime() + timeIncrement);
         currentSimTime = simulationTime;
-        
+
         // Only process visible satellites or limit to 5 at a time for smoother loading
         const visibleSats = frameCounter < 120 ? 
             activeSatelliteList.slice(0, Math.min(Math.floor(frameCounter/12), activeSatelliteList.length)) : 
             activeSatelliteList;
-        
+
         // Update positions
         for (const satName of visibleSats) {
             updateSatellitePosition(satName, 0, orbitalElements, simulationTime, scene, advancedTexture);
         }
-        
-        // Only update time display every 30 frames for performance
-        if (frameCounter % 30 === 0) {
-            updateTimeDisplay(simulationTime);
 
-            // Update telemetry UI if a satellite is active
-            if (activeSatellite) {
-                updateTelemetryUI(activeSatellite, telemetryData);
-            }
+        // Always update time display every simulation frame
+        updateTimeDisplay(simulationTime);
+
+        // Update telemetry UI if a satellite is active (keep this at lower frequency if needed)
+        if (activeSatellite && frameCounter % 30 === 0) {
+            updateTelemetryUI(activeSatellite, telemetryData);
         }
     });
     
@@ -75,16 +66,7 @@ export function startSimulationLoop(scene, satelliteData, orbitalElements, simul
 export function updateTimeDisplay(simulationTime) {
     const el = document.getElementById('current-time');
     if (!el) return;
-    if (isUTC) {
-        // UTC: ISO-style full date + time with seconds
-        const iso = simulationTime.toISOString().replace('T', ' ').substring(0, 19);
-        el.textContent = `${iso} UTC`;
-    } else {
-        // Local: include date and seconds in locale format
-        const options = {
-            year: 'numeric', month: 'short', day: 'numeric',
-            hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
-        };
-        el.textContent = simulationTime.toLocaleString('en-US', options) + ' Local';
-    }
+    // Always show UTC: ISO-style full date + time with seconds
+    const iso = simulationTime.toISOString().replace('T', ' ').substring(0, 19);
+    el.textContent = `${iso} UTC`;
 }
