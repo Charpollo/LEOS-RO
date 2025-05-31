@@ -90,7 +90,7 @@ export async function createEarth(scene, getTimeMultiplier, sunDirection) {
     // Create properly layered and separated clouds
     const cloudsMesh = BABYLON.MeshBuilder.CreateSphere('clouds', {
         segments: 24, // Fewer segments for clouds is fine
-        diameter: 2.015 // Slightly larger than Earth
+        diameter: 2.008 // Closer to Earth (was 2.015)
     }, scene);
     
     // Create standard material for clouds with proper white appearance
@@ -132,7 +132,7 @@ export async function createEarth(scene, getTimeMultiplier, sunDirection) {
     // Create atmospheric scattering effect with proper appearance
     const atmosphereMesh = BABYLON.MeshBuilder.CreateSphere('atmosphere', {
         segments: 24, // Fewer segments for better performance
-        diameter: 2.02 // Atmosphere is 2% larger than Earth
+        diameter: 2.012 // Closer to Earth (was 2.02)
     }, scene);
     
     // Create atmosphere material with enhanced, realistic glow
