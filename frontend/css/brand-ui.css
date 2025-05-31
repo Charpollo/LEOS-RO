@@ -115,7 +115,7 @@ body {
     color: var(--text-primary);
     text-shadow: 0 0 20px var(--neon-blue-glow);
     margin-top: var(--spacing-lg);
-    margin-bottom: 0;
+    margin-bottom: 0.05em; /* even closer to subtitle */
     letter-spacing: 0.2em;
 }
 
@@ -123,17 +123,57 @@ body {
     color: var(--neon-blue);
 }
 
+.loading-subtitle {
+    font-size: 1.5rem;
+    font-weight: 400;
+    color: var(--text-secondary);
+    letter-spacing: 0.1em;
+    margin-top: 0.1em; /* bring closer to title */
+    margin-bottom: 0.7em; /* reduced space below subtitle */
+    text-shadow: 0 0 8px var(--neon-blue-glow);
+    display: flex;
+    gap: 0.5em;
+    justify-content: center;
+}
+
+.subtitle-word {
+    opacity: 0;
+    filter: blur(4px);
+    animation: subtitleFadeIn 1.2s forwards;
+    will-change: opacity, filter;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+}
+.subtitle-word:nth-child(1) {
+    animation-delay: 0.5s;
+}
+.subtitle-word:nth-child(2) {
+    animation-delay: 2.0s;
+}
+.subtitle-word:nth-child(3) {
+    animation-delay: 3.5s;
+}
+
+@keyframes subtitleFadeIn {
+    0% {
+        opacity: 0;
+        filter: blur(4px);
+    }
+    40% {
+        opacity: 1;
+        filter: blur(0);
+    }
+    100% {
+        opacity: 1;
+        filter: blur(0);
+    }
+}
+
 .loading-title {
     font-size: 1.5rem;
     font-weight: 500;
     margin-bottom: var(--spacing-md);
     color: var(--text-primary);
-}
-
-.loading-subtitle {
-    font-size: 1.1rem;
-    color: var(--text-secondary);
-    margin-bottom: var(--spacing-xl);
 }
 
 .loader {
@@ -189,6 +229,10 @@ body {
     backdrop-filter: blur(10px);
     color: var(--text-primary);
     box-shadow: 0 0 20px var(--neon-blue-glow);
+    min-height: 3.5em; /* ensures consistent height, prevents shifting */
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .space-fact p {
