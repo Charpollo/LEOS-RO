@@ -2,10 +2,13 @@ import { TIME_ACCELERATION } from './constants.js';
 import { updateSatellitePosition } from './satellites.js';
 import { updateTelemetryUI } from './telemetry.js';
 
-let isUTC = true;
+// Initialize time mode from localStorage or default to UTC
+let isUTC = (localStorage.getItem('timeMode') || 'UTC') === 'UTC';
 let currentSimTime = null;
 export function toggleTimeMode() {
     isUTC = !isUTC;
+    // Persist user preference
+    localStorage.setItem('timeMode', isUTC ? 'UTC' : 'Local');
 }
 export function getCurrentSimTime() {
     return currentSimTime;
@@ -15,6 +18,7 @@ export function startSimulationLoop(scene, satelliteData, orbitalElements, simul
     // Initialize simulation time from start time or use current time
     let simulationTime = simulationStartTime || new Date();
     currentSimTime = simulationTime;
+    // Update display according to persisted mode
     updateTimeDisplay(simulationTime);
     
     // Frame counter for performance optimizations
@@ -71,11 +75,16 @@ export function startSimulationLoop(scene, satelliteData, orbitalElements, simul
 export function updateTimeDisplay(simulationTime) {
     const el = document.getElementById('current-time');
     if (!el) return;
-    const options = {
-        year: 'numeric', month: 'short', day: 'numeric',
-        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
-    };
-    if (isUTC) { options.timeZone = 'UTC'; }
-    el.textContent = simulationTime.toLocaleDateString('en-US', options)
-                    + (isUTC ? ' UTC' : ' Local');
+    if (isUTC) {
+        // UTC: ISO-style full date + time with seconds
+        const iso = simulationTime.toISOString().replace('T', ' ').substring(0, 19);
+        el.textContent = `${iso} UTC`;
+    } else {
+        // Local: include date and seconds in locale format
+        const options = {
+            year: 'numeric', month: 'short', day: 'numeric',
+            hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+        };
+        el.textContent = simulationTime.toLocaleString('en-US', options) + ' Local';
+    }
 }

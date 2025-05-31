@@ -22,7 +22,7 @@ export function initBrandUI() {
     initPanelToggle();
     initWelcomeModal();
     initInfoPanel();
-    initTimeDisplay();
+    // initTimeDisplay();    // Disabled in favor of simulation-driven clock
     initTelemetryDashboard();
 }
 
@@ -79,22 +79,6 @@ function initInfoPanel() {
             welcomeModal.style.display = 'flex';
         });
     }
-}
-
-// Time display functionality
-function initTimeDisplay() {
-    const timeDisplay = document.getElementById('current-time');
-    
-    function updateTime() {
-        if (timeDisplay) {
-            const now = new Date();
-            const utcTime = now.toUTCString().split(' ')[4]; // Extract time part
-            timeDisplay.textContent = `${utcTime} UTC`;
-        }
-    }
-    
-    updateTime();
-    setInterval(updateTime, 1000);
 }
 
 // Import UIManager
