@@ -49,6 +49,9 @@ async function initApp() {
         initBrandUI();
     }, 100);
     
+    // Initialize 3D model viewer panel
+    initModelViewer();
+    
     // Create scene with performance optimizations
     createScene();
     
@@ -95,6 +98,17 @@ async function initApp() {
     
     // Listen for satellite selection events
     window.addEventListener('satelliteSelected', (event) => {
+        // Show mission dashboard overlay
+        const dash = document.getElementById('mission-dashboard');
+        if (dash) {
+            dash.classList.remove('hidden');
+            dash.classList.add('visible');
+        }
+        // Resize model viewer now that panel is visible
+        if (previewEngine) {
+            previewEngine.resize();
+        }
+
         activeSatellite = event.detail.name;
         updateTelemetryUI(activeSatellite, getTelemetryData());
         // Focus camera on selected satellite
@@ -321,6 +335,108 @@ async function createScene() {
     
     // Finally load satellite data
     await loadSatelliteData();
+}
+
+// Preview model viewer globals
+let previewEngine;
+let previewScene;
+let previewCamera;
+let previewMesh;
+
+async function initModelViewer() {
+    // Get the canvas and ensure it exists
+    const canvas = document.getElementById('modelCanvas');
+    if (!canvas) {
+        console.error('Model viewer canvas not found');
+        return;
+    }
+    
+    // Make sure the canvas style is set correctly
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+    canvas.style.display = 'block';
+    canvas.style.position = 'absolute';
+    canvas.style.top = '0';
+    canvas.style.left = '0';
+    canvas.style.zIndex = '10'; // Make sure canvas is above any potential placeholder text
+    
+    // Create engine and scene for preview
+    previewEngine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+    previewScene = new BABYLON.Scene(previewEngine);
+    previewScene.clearColor = new BABYLON.Color4(0.05, 0.05, 0.1, 1); // Dark blue background
+    
+    // Camera setup
+    previewCamera = new BABYLON.ArcRotateCamera('previewCam', -Math.PI/2, Math.PI/2, 2, new BABYLON.Vector3(0,0,0), previewScene);
+    previewCamera.lowerRadiusLimit = 0.5;
+    previewCamera.upperRadiusLimit = 10;
+    previewCamera.wheelDeltaPercentage = 0.01; // Smoother zoom
+    
+    // Always attach control to the modelCanvas
+    previewCamera.attachControl(canvas, true);
+
+    // Light setup and render loop remains
+    new BABYLON.HemisphericLight('previewLight', new BABYLON.Vector3(0,1,0), previewScene).intensity = 1;
+    previewEngine.runRenderLoop(() => previewScene.render());
+    window.addEventListener('resize', () => previewEngine.resize());
+
+    // Load a model when a satellite is selected
+    window.addEventListener('satelliteSelected', async (e) => {
+        // Make sure the dashboard is fully visible before sizing the canvas
+        setTimeout(() => {
+            // Ensure canvas is sized to its parent tile
+            const canvas = document.getElementById('modelCanvas');
+            if (canvas && canvas.parentElement) {
+                const rect = canvas.parentElement.getBoundingClientRect();
+                canvas.width = rect.width;
+                canvas.height = rect.height;
+                if (previewEngine) previewEngine.resize();
+                console.log('Model viewer canvas resized:', canvas.width, 'x', canvas.height);
+            }
+        }, 100); // Short delay to ensure dashboard is rendered and visible
+
+        // Remove all meshes except the camera and light
+        previewScene.meshes.slice().forEach(mesh => {
+            if (mesh !== previewCamera && !(mesh instanceof BABYLON.Light)) {
+                mesh.dispose();
+            }
+        });
+        previewMesh = null;
+
+        const satName = e.detail.name;
+        if (!satName) return;
+        // Determine model file by name
+        const modelFile = satName.toUpperCase().includes('CRTS')
+            ? 'assets/crts_satellite.glb'
+            : 'assets/bulldog_sat.glb';
+        try {
+            const result = await BABYLON.SceneLoader.ImportMeshAsync('', '', modelFile, previewScene);
+            previewMesh = result.meshes[0];
+            previewMesh.rotationQuaternion = null;
+            const scaleFactor = 0.5;
+            previewMesh.scaling = new BABYLON.Vector3(scaleFactor, scaleFactor, scaleFactor);
+            
+            // Center on origin
+            const center = previewMesh.getBoundingInfo().boundingBox.center;
+            previewMesh.position = center.negate();
+            
+            // Add auto-rotation animation for better visual appeal
+            previewScene.registerBeforeRender(() => {
+                if (previewMesh) {
+                    previewMesh.rotation.y += 0.005; // Slow steady rotation
+                }
+            });
+            
+            // Add a point light to highlight the model better
+            const pointLight = new BABYLON.PointLight("modelSpotlight", 
+                new BABYLON.Vector3(3, 2, 3), previewScene);
+            pointLight.intensity = 0.7;
+            pointLight.diffuse = new BABYLON.Color3(0.9, 0.9, 1.0);
+            
+            console.log(`Model ${modelFile} loaded successfully for satellite ${satName}`);
+        } catch (err) {
+            console.error('Error loading preview model:', err);
+        }
+    });
 }
 
 async function loadSatelliteData() {

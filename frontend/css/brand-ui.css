@@ -816,7 +816,7 @@ body {
     background: none;
 }
 .mission-dashboard-overlay.visible {
-    pointer-events: none !important;
+    pointer-events: none;
 }
 .mission-dashboard-tile {
     position: absolute;
@@ -829,7 +829,7 @@ body {
     backdrop-filter: blur(8px);
     opacity: 0.98;
     transition: box-shadow 0.3s, opacity 0.3s;
-    pointer-events: none; /* allow canvas interaction through tile background */
+    pointer-events: auto; /* allow interactions within the tile */
 }
 .mission-dashboard-tile.left-tile {
     left: 32px;
@@ -877,12 +877,23 @@ body {
     overflow-y: auto;
     color: var(--text-primary);
     background: transparent;
+    position: relative; /* This ensures the canvas can be positioned properly */
 }
-.telemetry-placeholder, .model-placeholder {
+/* Special handling for model content to properly display the canvas */
+#mission-model-content {
+    padding: 0; /* Remove padding for canvas to fill entire space */
+    overflow: hidden; /* No scrollbars needed for 3D view */
+    position: relative; /* For proper canvas positioning */
+}
+.telemetry-placeholder {
     color: var(--text-secondary);
     font-style: italic;
     text-align: center;
     margin-top: 40px;
+}
+/* Model placeholder is now hidden since we're using a proper 3D model viewer */
+.model-placeholder {
+    display: none;
 }
 .close-mission-dashboard {
     pointer-events: auto;

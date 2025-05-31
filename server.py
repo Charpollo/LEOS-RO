@@ -23,7 +23,8 @@ def needs_webpack_rebuild():
     Returns True if js files are newer than bundle.js
     """
     try:
-        bundle_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'frontend', 'bundle.js')
+        # Point to the actual webpack output location
+        bundle_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'frontend', 'dist', 'js', 'bundle.js')
         
         # If bundle.js doesn't exist, definitely need to rebuild
         if not os.path.exists(bundle_path):

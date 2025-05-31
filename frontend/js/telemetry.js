@@ -126,11 +126,7 @@ export function updateTelemetryUI(activeSatellite, telemetryData) {
             `;
          } else if (leftContent) {
              leftContent.innerHTML = '<div class="telemetry-placeholder">No telemetry data available.</div>';
-         }
-         // Populate right tile with 3D model placeholder
-        const rightContent = document.getElementById('mission-model-content');
-         if (rightContent) {
-             rightContent.innerHTML = `<div class="model-placeholder">3D model viewer coming soon.</div>`;
-         }
+         }        // Don't replace the model canvas - it's now handled by the 3D model viewer
+        // The modelCanvas is created in HTML and managed by initModelViewer()
      }
  }
