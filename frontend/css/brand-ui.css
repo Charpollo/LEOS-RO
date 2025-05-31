@@ -814,9 +814,12 @@ body {
     z-index: 1200;
     pointer-events: none;
     background: none;
+    opacity: 0;
+    transition: opacity 0.4s ease-in-out;
 }
 .mission-dashboard-overlay.visible {
     pointer-events: none;
+    opacity: 1;
 }
 .mission-dashboard-tile {
     position: absolute;
@@ -827,9 +830,15 @@ body {
     flex-direction: column;
     overflow: hidden;
     backdrop-filter: blur(8px);
-    opacity: 0.98;
-    transition: box-shadow 0.3s, opacity 0.3s;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: box-shadow 0.3s, opacity 0.5s ease-in-out, transform 0.5s ease-out;
     pointer-events: auto; /* allow interactions within the tile */
+}
+
+.mission-dashboard-overlay.visible .mission-dashboard-tile {
+    opacity: 0.98;
+    transform: translateY(0);
 }
 .mission-dashboard-tile.left-tile {
     left: 32px;
@@ -838,15 +847,24 @@ body {
     height: 600px;
     border-left: 4px solid var(--neon-blue);
     justify-content: flex-start;
+    transition-delay: 0s; /* Appear first */
+    transform: translateY(20px);
 }
 .mission-dashboard-tile.model-tile {
     right: 32px;
     top: 50%;
-    transform: translateY(-50%);
+    transform: translateY(-50%) translateX(20px); /* Initial position offset */
     width: 420px;
     height: 420px;
     border-right: 4px solid #ff6b35;
+    transition-delay: 0.15s; /* Appear slightly later for staggered effect */
     justify-content: flex-end;
+}
+.mission-dashboard-overlay.visible .mission-dashboard-tile.left-tile {
+    transform: translateY(0);
+}
+.mission-dashboard-overlay.visible .mission-dashboard-tile.model-tile {
+    transform: translateY(-50%) translateX(0); /* Final position */
 }
 .mission-dashboard-tile.crts-panel {
     border-left: 4px solid #ff6b35 !important;
@@ -906,11 +924,19 @@ body {
     font-size: 2.2rem;
     cursor: pointer;
     z-index: 1300;
-    transition: color 0.2s;
+    opacity: 0;
+    transform: scale(0.8);
+    transition: color 0.2s, opacity 0.4s ease-in-out, transform 0.4s ease-out;
     text-shadow: 0 0 10px var(--neon-blue-glow);
+    transition-delay: 0.3s; /* Appear last after tiles are visible */
+}
+.mission-dashboard-overlay.visible .close-mission-dashboard {
+    opacity: 1;
+    transform: scale(1);
 }
 .close-mission-dashboard:hover {
     color: var(--neon-blue);
+    transform: scale(1.1);
 }
 .mission-dashboard-overlay.visible ~ .panel-toggle {
     display: none !important;

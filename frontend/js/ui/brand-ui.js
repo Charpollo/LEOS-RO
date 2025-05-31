@@ -104,9 +104,21 @@ window.addEventListener('keydown', (e) => {
 document.addEventListener('click', (e) => {
     if (e.target.matches('.close-mission-dashboard')) {
         const dash = document.getElementById('mission-dashboard');
-        if (dash) dash.classList.replace('visible', 'hidden');
-        // Dispatch event to reset camera
-        window.dispatchEvent(new CustomEvent('missionDashboardClosed'));
+        if (dash) {
+            // Add a fade-out effect
+            dash.style.transition = 'opacity 0.4s ease-in-out';
+            dash.style.opacity = '0';
+            
+            // Wait for the fade animation to complete before hiding
+            setTimeout(() => {
+                dash.classList.replace('visible', 'hidden');
+                // Reset opacity for next time
+                dash.style.opacity = '';
+            }, 400); // Match transition duration
+            
+            // Dispatch event to reset camera - do this immediately for responsive feel
+            window.dispatchEvent(new CustomEvent('missionDashboardClosed'));
+        }
     }
 });
 
@@ -114,8 +126,18 @@ window.addEventListener('keydown', (e) => {
     if ((e.key === 'Escape' || e.key === 'Esc')) {
         const dash = document.getElementById('mission-dashboard');
         if (dash && dash.classList.contains('visible')) {
-            dash.classList.replace('visible', 'hidden');
-            // Dispatch event to reset camera
+            // Add a fade-out effect
+            dash.style.transition = 'opacity 0.4s ease-in-out';
+            dash.style.opacity = '0';
+            
+            // Wait for the fade animation to complete before hiding
+            setTimeout(() => {
+                dash.classList.replace('visible', 'hidden');
+                // Reset opacity for next time
+                dash.style.opacity = '';
+            }, 400); // Match transition duration
+            
+            // Dispatch event to reset camera - do this immediately for responsive feel
             window.dispatchEvent(new CustomEvent('missionDashboardClosed'));
         }
     }

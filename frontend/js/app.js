@@ -98,12 +98,21 @@ async function initApp() {
     
     // Listen for satellite selection events
     window.addEventListener('satelliteSelected', (event) => {
-        // Show mission dashboard overlay
+        // Show mission dashboard overlay with a smooth fade-in effect
         const dash = document.getElementById('mission-dashboard');
         if (dash) {
+            // First make it visible but with opacity 0
+            dash.style.opacity = '0';
             dash.classList.remove('hidden');
             dash.classList.add('visible');
+            
+            // Then animate the fade-in
+            setTimeout(() => {
+                dash.style.transition = 'opacity 0.4s ease-in-out';
+                dash.style.opacity = '1';
+            }, 10);
         }
+        
         // Resize model viewer now that panel is visible
         if (previewEngine) {
             previewEngine.resize();
@@ -139,11 +148,23 @@ async function initApp() {
             }
             
             // Animate camera movement smoothly
-            BABYLON.Animation.CreateAndStartAnimation(
-                'zoomIn', camera, 'radius', 60, 30,
-                currentR, targetR,
-                BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
-            );
+            try {
+                const zoomAnim = BABYLON.Animation.CreateAndStartAnimation(
+                    'zoomIn', camera, 'radius', 60, 30,
+                    currentR, targetR,
+                    BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
+                );
+                // Apply easing if animation was created successfully
+                if (zoomAnim && typeof zoomAnim.setEasingFunction === 'function') {
+                    const easingFunction = new BABYLON.CircleEase();
+                    easingFunction.setEasingMode(BABYLON.EasingFunction.EASINGMODE_EASEINOUT);
+                    zoomAnim.setEasingFunction(easingFunction);
+                }
+            } catch (err) {
+                console.warn("Error creating zoom animation:", err);
+                // Fall back to direct property setting if animation fails
+                camera.radius = targetR;
+            }
         }
     });
     // Restore free view when dashboard closes - with enhanced smooth transition
@@ -170,14 +191,25 @@ async function initApp() {
             const easingFunction = new BABYLON.CircleEase();
             easingFunction.setEasingMode(BABYLON.EasingFunction.EASINGMODE_EASEINOUT);
             
-            // Smoothly move camera target to Earth center with nicer animation timing (45 frames)
-            const targetAnim = BABYLON.Animation.CreateAndStartAnimation(
-                'targetToEarth', camera, 'target', 60, 45,
-                currentTarget, BABYLON.Vector3.Zero(),
-                BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
-            );
-            if (targetAnim) targetAnim.disposeOnEnd = true;
-            targetAnim.setEasingFunction(easingFunction);
+            try {
+                // Smoothly move camera target to Earth center with nicer animation timing (45 frames)
+                const targetAnim = BABYLON.Animation.CreateAndStartAnimation(
+                    'targetToEarth', camera, 'target', 60, 45,
+                    currentTarget, BABYLON.Vector3.Zero(),
+                    BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
+                );
+                
+                // Sometimes animations may not be created successfully
+                if (targetAnim) {
+                    targetAnim.disposeOnEnd = true;
+                    // Only set easing function if animation was created and has this method
+                    if (typeof targetAnim.setEasingFunction === 'function') {
+                        targetAnim.setEasingFunction(easingFunction);
+                    }
+                }
+            } catch (err) {
+                console.warn("Error creating target animation:", err);
+            }
             
             // Reset alpha and beta for a nicer view of Earth
             const targetAlpha = -Math.PI/2; // Nice side view
@@ -185,36 +217,60 @@ async function initApp() {
             
             // Stagger animation timings for a more natural feel
             setTimeout(() => {
-                // Animate rotation parameters smoothly
-                const alphaAnim = BABYLON.Animation.CreateAndStartAnimation(
-                    'alphaReset', camera, 'alpha', 60, 40,
-                    camera.alpha, targetAlpha,
-                    BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
-                );
-                if (alphaAnim) alphaAnim.disposeOnEnd = true;
-                alphaAnim.setEasingFunction(easingFunction);
+                try {
+                    // Animate rotation parameters smoothly
+                    const alphaAnim = BABYLON.Animation.CreateAndStartAnimation(
+                        'alphaReset', camera, 'alpha', 60, 40,
+                        camera.alpha, targetAlpha,
+                        BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
+                    );
+                    if (alphaAnim) {
+                        alphaAnim.disposeOnEnd = true;
+                        if (typeof alphaAnim.setEasingFunction === 'function') {
+                            alphaAnim.setEasingFunction(easingFunction);
+                        }
+                    }
+                } catch (err) {
+                    console.warn("Error creating alpha animation:", err);
+                }
             }, 100);
             
             setTimeout(() => {
-                const betaAnim = BABYLON.Animation.CreateAndStartAnimation(
-                    'betaReset', camera, 'beta', 60, 35,
-                    camera.beta, targetBeta,
-                    BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
-                );
-                if (betaAnim) betaAnim.disposeOnEnd = true;
-                betaAnim.setEasingFunction(easingFunction);
+                try {
+                    const betaAnim = BABYLON.Animation.CreateAndStartAnimation(
+                        'betaReset', camera, 'beta', 60, 35,
+                        camera.beta, targetBeta,
+                        BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
+                    );
+                    if (betaAnim) {
+                        betaAnim.disposeOnEnd = true;
+                        if (typeof betaAnim.setEasingFunction === 'function') {
+                            betaAnim.setEasingFunction(easingFunction);
+                        }
+                    }
+                } catch (err) {
+                    console.warn("Error creating beta animation:", err);
+                }
             }, 150);
             
             // Ensure we're at a safe distance with a slight delay
             setTimeout(() => {
-                const safeRadius = EARTH_RADIUS * EARTH_SCALE * 3.5; // A comfortable viewing distance, slightly farther back
-                const radiusAnim = BABYLON.Animation.CreateAndStartAnimation(
-                    'radiusReset', camera, 'radius', 60, 50, // Longer animation (50 frames)
-                    camera.radius, safeRadius,
-                    BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
-                );
-                if (radiusAnim) radiusAnim.disposeOnEnd = true;
-                radiusAnim.setEasingFunction(easingFunction);
+                try {
+                    const safeRadius = EARTH_RADIUS * EARTH_SCALE * 3.5; // A comfortable viewing distance, slightly farther back
+                    const radiusAnim = BABYLON.Animation.CreateAndStartAnimation(
+                        'radiusReset', camera, 'radius', 60, 50, // Longer animation (50 frames)
+                        camera.radius, safeRadius,
+                        BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
+                    );
+                    if (radiusAnim) {
+                        radiusAnim.disposeOnEnd = true;
+                        if (typeof radiusAnim.setEasingFunction === 'function') {
+                            radiusAnim.setEasingFunction(easingFunction);
+                        }
+                    }
+                } catch (err) {
+                    console.warn("Error creating radius animation:", err);
+                }
             }, 50);
         }
     });
@@ -432,7 +488,8 @@ async function initModelViewer() {
 
     // Load a model when a satellite is selected
     window.addEventListener('satelliteSelected', async (e) => {
-        // Make sure the dashboard is fully visible before sizing the canvas
+        // Make sure the dashboard is fully visible before sizing the canvas and loading model
+        // Use a slightly longer delay to match the CSS transition time
         setTimeout(() => {
             // Ensure canvas is sized to its parent tile
             const canvas = document.getElementById('modelCanvas');
@@ -440,18 +497,62 @@ async function initModelViewer() {
                 const rect = canvas.parentElement.getBoundingClientRect();
                 canvas.width = rect.width;
                 canvas.height = rect.height;
-                if (previewEngine) previewEngine.resize();
-                console.log('Model viewer canvas resized:', canvas.width, 'x', canvas.height);
+                if (previewEngine) {
+                    previewEngine.resize();
+                    console.log('Model viewer canvas resized:', canvas.width, 'x', canvas.height);
+                    
+                    // Fade in the scene with a nice effect
+                    const startingClearColor = previewScene.clearColor.clone();
+                    previewScene.clearColor = new BABYLON.Color4(0, 0, 0, 1); // Start with black
+                    
+                    // Animate the background color back to normal
+                    let colorStep = 0;
+                    const colorAnimation = setInterval(() => {
+                        colorStep += 0.05;
+                        if (colorStep >= 1) {
+                            previewScene.clearColor = startingClearColor;
+                            clearInterval(colorAnimation);
+                        } else {
+                            previewScene.clearColor = BABYLON.Color4.Lerp(
+                                new BABYLON.Color4(0, 0, 0, 1),
+                                startingClearColor,
+                                colorStep
+                            );
+                        }
+                    }, 30);
+                }
             }
-        }, 100); // Short delay to ensure dashboard is rendered and visible
+        }, 250); // Longer delay to ensure dashboard animation is mostly complete
 
-        // Remove all meshes except the camera and light
-        previewScene.meshes.slice().forEach(mesh => {
-            if (mesh !== previewCamera && !(mesh instanceof BABYLON.Light)) {
-                mesh.dispose();
+        // Properly clean up previous scene resources
+        try {
+            // Remove all meshes except the camera
+            previewScene.meshes.slice().forEach(mesh => {
+                if (mesh !== previewCamera) {
+                    mesh.dispose();
+                }
+            });
+            
+            // Clean up lights
+            previewScene.lights.slice().forEach(light => {
+                if (light.name === "previewLight") return; // keep the main hemispheric light
+                light.dispose();
+            });
+            
+            // Clear any existing observers that might be tied to the old mesh
+            previewScene.onBeforeRenderObservable.clear();
+            
+            // Recreate our standard light and starfield after cleanup
+            
+            previewMesh = null;
+            
+            // Force a garbage collection hint
+            if (previewEngine) {
+                previewEngine.wipeCaches(true);
             }
-        });
-        previewMesh = null;
+        } catch (err) {
+            console.warn("Error cleaning up previous model resources:", err);
+        }
 
         const satName = e.detail.name;
         if (!satName) return;
@@ -481,9 +582,9 @@ async function initModelViewer() {
             const center = previewMesh.getBoundingInfo().boundingBox.center;
             previewMesh.position = center.negate();
             
-            // Add auto-rotation animation for better visual appeal
-            previewScene.registerBeforeRender(() => {
-                if (previewMesh) {
+            // Add auto-rotation animation for better visual appeal using a safer approach
+            const rotationObserver = previewScene.onBeforeRenderObservable.add(() => {
+                if (previewMesh && previewMesh.rotation) {
                     previewMesh.rotation.y += 0.0015; // Much slower rotation for better viewing
                 }
             });
