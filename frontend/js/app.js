@@ -44,7 +44,7 @@ let simulationStartTime = new Date();
 let simulationTime = new Date();
 let sunDirection = new BABYLON.Vector3(1, 0, 0);
 
-async function initApp() {
+export async function initApp() {
     // Delay UI initialization until after scene is created for better startup performance
     setTimeout(() => {
         initBrandUI();
@@ -53,11 +53,30 @@ async function initApp() {
     // Initialize 3D model viewer panel
     initModelViewer();
     
-    // Create scene with performance optimizations
-    createScene();
+    // Create scene with performance optimizations and wait until ready
+    await createScene();
 
-    // Create ground stations after Earth is created
-    createGroundStations(scene);
+    // Set up ground station info panel
+    let gsPanel = document.getElementById('ground-station-panel');
+    if (!gsPanel) {
+      gsPanel = document.createElement('div');
+      gsPanel.id = 'ground-station-panel';
+      gsPanel.style.position = 'absolute';
+      gsPanel.style.top = '10px';
+      gsPanel.style.right = '10px';
+      gsPanel.style.padding = '8px';
+      gsPanel.style.background = 'rgba(0,0,0,0.7)';
+      gsPanel.style.color = 'white';
+      gsPanel.style.fontFamily = 'sans-serif';
+      gsPanel.style.zIndex = '1000';
+      document.body.appendChild(gsPanel);
+    }
+    
+    // Listen for ground station selections
+    window.addEventListener('groundStationSelected', (event) => {
+      const station = event.detail;
+      gsPanel.innerHTML = `<strong>${station.name}</strong><br>Lat: ${station.lat.toFixed(4)}°<br>Lon: ${station.lon.toFixed(4)}°<br>Alt: ${station.alt} km`;
+    });
     
     // Use a throttled render loop for better performance
     let lastRender = performance.now();

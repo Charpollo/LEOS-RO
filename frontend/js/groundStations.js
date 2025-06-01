@@ -52,6 +52,7 @@ export function createGroundStations(scene) {
     mesh.position = pos;
     // Parent station to Earth for tilt and rotation alignment
     if (earthMesh) mesh.parent = earthMesh;
+    mesh.isPickable = true; // Enable clicking
     const mat = new BABYLON.StandardMaterial(station.name + '_mat', scene);
     mat.emissiveColor = new BABYLON.Color3(0, 1, 0);
     mesh.material = mat;
@@ -84,6 +85,8 @@ export function createGroundStations(scene) {
   });
 }
 
+let beamGlow = null;
+
 /**
  * Update LOS beams between stations and satellites each frame
  */
@@ -91,35 +94,35 @@ export function updateGroundStationsLOS(scene) {
   const sats = getSatelliteMeshes();
   Object.entries(stationMeshes).forEach(([key, entry]) => {
     const mesh = entry.mesh;
-    let beam = entry.beam;
-    const stationInfo = entry.info;
+    const stationPos = mesh.absolutePosition;
     Object.entries(sats).forEach(([satName, satMesh]) => {
-       // Calculate elevation angle (simple dot product)
-       const stationPos = mesh.absolutePosition;
-       const satPos = satMesh.absolutePosition;
-       const dir = satPos.subtract(stationPos).normalize();
-       const up = stationPos.normalize();
-       const elevation = BABYLON.Vector3.Dot(dir, up);
-       const inLOS = elevation > 0;
+      const satPos = satMesh.absolutePosition;
+      const dir = satPos.subtract(stationPos).normalize();
+      const elevation = BABYLON.Vector3.Dot(dir, mesh.absolutePosition.normalize());
+      const inLOS = elevation > 0;
       const beamKey = `${mesh.name}_${satName}`;
-      if (inLOS) {
-        const points = [stationPos, satPos];
-        if (!beam) {
-          const line = BABYLON.MeshBuilder.CreateLines(beamKey, { points, updatable: true, instance: null }, scene);
-          const glow = new BABYLON.GlowLayer('groundBeamGlow', scene);
-          glow.intensity = 0.5;
-          entry.beam = { line, glow };
-        } else {
-          // update existing line instance
-          BABYLON.MeshBuilder.CreateLines(beamKey, { points, updatable: true, instance: beam.line }, scene);
-        }
-      } else if (beam) {
-        beam.line.dispose();
-        beam.glow.dispose();
+      // dispose old beam if no longer in LOS
+      if (!inLOS && entry.beam) {
+        entry.beam.dispose();
         entry.beam = null;
       }
-     });
-   });
+      if (inLOS) {
+        // recreate beam tube each frame for thickness
+        if (entry.beam) entry.beam.dispose();
+        const tube = BABYLON.MeshBuilder.CreateTube(beamKey, {
+          path: [stationPos, satPos],
+          radius: 0.005,
+          updatable: false,
+          sideOrientation: BABYLON.Mesh.DOUBLESIDE
+        }, scene);
+        const mat = new BABYLON.StandardMaterial(`${beamKey}_mat`, scene);
+        mat.emissiveColor = new BABYLON.Color3(0, 1, 0);
+        mat.alpha = 0.8;
+        tube.material = mat;
+        entry.beam = tube;
+      }
+    });
+  });
 }
 
 /**
