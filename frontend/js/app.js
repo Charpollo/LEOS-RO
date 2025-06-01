@@ -480,6 +480,7 @@ async function initModelViewer() {
     // Create engine and scene for preview
     previewEngine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true, alpha: true });
     previewScene = new BABYLON.Scene(previewEngine);
+    previewScene.collisionsEnabled = true;  // Enable collisions in preview scene
     previewScene.clearColor = new BABYLON.Color4(0.02, 0.02, 0.05, 0.3); // make background semi-transparent
     
     // Create starfield background
@@ -496,12 +497,16 @@ async function initModelViewer() {
     
     // Camera setup
     previewCamera = new BABYLON.ArcRotateCamera('previewCam', -Math.PI/2, Math.PI/2, 2, new BABYLON.Vector3(0,0,0), previewScene);
-    previewCamera.lowerRadiusLimit = 0.5;
+    previewCamera.lowerRadiusLimit = 0.001; // ultra-close zoom
+previewCamera.minZ = 0.0001; // reduce near clipping plane for fine detail
+previewCamera.collisionRadius = new BABYLON.Vector3(0.1, 0.1, 0.1); // tighten collision bounds
     previewCamera.upperRadiusLimit = 10;
     previewCamera.wheelDeltaPercentage = 0.01; // Smoother zoom
     
     // Always attach control to the modelCanvas
     previewCamera.attachControl(canvas, true);
+    previewCamera.checkCollisions = true;    // Prevent camera passing through model
+    previewCamera.collisionRadius = new BABYLON.Vector3(0.2, 0.2, 0.2);
 
     // Enhance lighting for better model viewing
     const hemisphericLight = new BABYLON.HemisphericLight('previewLight', new BABYLON.Vector3(0,1,0), previewScene);
