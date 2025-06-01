@@ -478,9 +478,9 @@ async function initModelViewer() {
     canvas.style.zIndex = '10'; // Make sure canvas is above any potential placeholder text
     
     // Create engine and scene for preview
-    previewEngine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+    previewEngine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true, alpha: true });
     previewScene = new BABYLON.Scene(previewEngine);
-    previewScene.clearColor = new BABYLON.Color4(0.02, 0.02, 0.05, 1); // Very dark blue background
+    previewScene.clearColor = new BABYLON.Color4(0.02, 0.02, 0.05, 0.3); // make background semi-transparent
     
     // Create starfield background
     const starfieldTexture = new BABYLON.Texture("assets/stars.png", previewScene);
@@ -505,7 +505,7 @@ async function initModelViewer() {
 
     // Enhance lighting for better model viewing
     const hemisphericLight = new BABYLON.HemisphericLight('previewLight', new BABYLON.Vector3(0,1,0), previewScene);
-    hemisphericLight.intensity = 0.7;
+    hemisphericLight.intensity = 1.2;
     hemisphericLight.diffuse = new BABYLON.Color3(0.9, 0.9, 1.0);
     hemisphericLight.specular = new BABYLON.Color3(0.5, 0.5, 0.8);
     
@@ -643,7 +643,7 @@ async function initModelViewer() {
             // Add a point light to highlight the model better
             const pointLight = new BABYLON.PointLight("modelSpotlight", 
                 new BABYLON.Vector3(3, 2, 3), previewScene);
-            pointLight.intensity = 0.7;
+            pointLight.intensity = 1.5;
             pointLight.diffuse = new BABYLON.Color3(0.9, 0.9, 1.0);
             
             console.log(`Model ${modelFile} loaded successfully for satellite ${satName}`);
