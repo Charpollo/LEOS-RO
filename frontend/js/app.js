@@ -18,6 +18,7 @@ import { createSatellites, getSatelliteMeshes, getTelemetryData, updateSatellite
 import { updateTelemetryUI } from './telemetry.js';
 import { startSimulationLoop, updateTimeDisplay, getCurrentSimTime } from './simulation.js';
 import { setupKeyboardControls } from './controls.js';
+import { createGroundStations, updateGroundStationsLOS } from './groundStations.js';
 
 // Globals
 let engine;
@@ -54,6 +55,9 @@ async function initApp() {
     
     // Create scene with performance optimizations
     createScene();
+
+    // Create ground stations after Earth is created
+    createGroundStations(scene);
     
     // Use a throttled render loop for better performance
     let lastRender = performance.now();
@@ -85,6 +89,8 @@ async function initApp() {
                 }, 500);
             }
         }
+        // After satellites updated each frame, update LOS beams
+        updateGroundStationsLOS(scene);
     });
     
     // Throttle resize events for better performance
@@ -449,6 +455,8 @@ async function createScene() {
     // Then create Earth and Moon
     earthMesh = await createEarth(scene, () => simState.timeMultiplier, sunDirection);
     moonMesh = await createMoon(scene, () => simState.timeMultiplier);
+    // Create ground stations after Earth is ready so they ride the Earth's rotation
+    createGroundStations(scene);
     
     // Finally load satellite data
     await loadSatelliteData();

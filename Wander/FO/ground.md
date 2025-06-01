@@ -49,12 +49,7 @@ Ground stations are rendered as **green glowing dots** on the surface of the Ear
 
 ---
 
-## Integration with LEOS Dial
-
-- Add new button to LEOS Dial:
-  - **Label**: `Ground Stations`
-  - **Icon**: 🛰️+📡
-- Toggles visibility of all ground stations
+## Integration wit LEOS UI and telem dashboards?
 - Optionally opens a side panel showing:
   - Station name
   - Satellites currently in LOS
