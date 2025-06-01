@@ -95,7 +95,39 @@ export function updateGroundStationsLOS(scene) {
   Object.entries(stationMeshes).forEach(([key, entry]) => {
     const mesh = entry.mesh;
     const stationPos = mesh.absolutePosition;
+    let ring = entry.ring;
     Object.entries(sats).forEach(([satName, satMesh]) => {
+      const satPos = satMesh.absolutePosition;
+      const dir = satPos.subtract(stationPos).normalize();
+      const elevation = BABYLON.Vector3.Dot(dir, mesh.absolutePosition.normalize());
+      const inLOS = elevation > 0;
+      const beamKey = `${mesh.name}_${satName}`;
+
+      if (inLOS) {
+        // Show ground ring if not exists
+        if (!ring) {
+          ring = BABYLON.MeshBuilder.CreateDisc(`${mesh.name}_ring`, { radius: 0.05, tessellation: 64 }, scene);
+          const ringMat = new BABYLON.StandardMaterial(`${mesh.name}_ring_mat`, scene);
+          ringMat.emissiveColor = new BABYLON.Color3(0, 1, 0);
+          ringMat.alpha = 0.5;
+          ring.material = ringMat;
+          ring.rotation.x = Math.PI / 2; // flat on surface
+          ring.parent = mesh;
+          entry.ring = ring;
+        }
+      } else {
+        // Dispose ring when out of LOS
+        if (ring) {
+          ring.dispose();
+          entry.ring = null;
+          ring = null;
+        }
+      }
+    });
+
+    // Existing beam logic follows...
+    const satsInner = getSatelliteMeshes(); // reuse if needed
+    Object.entries(satsInner).forEach(([satName, satMesh]) => {
       const satPos = satMesh.absolutePosition;
       const dir = satPos.subtract(stationPos).normalize();
       const elevation = BABYLON.Vector3.Dot(dir, mesh.absolutePosition.normalize());
@@ -130,4 +162,42 @@ export function updateGroundStationsLOS(scene) {
  */
 export function getGroundStationMeshes() {
   return stationMeshes;
+}
+
+/**
+ * Create static coverage circles on Earth's surface around each station
+ * representing max line-of-sight horizon for satellites up to maxAltKm.
+ * @param {BABYLON.Scene} scene
+ * @param {number} maxAltKm - Maximum satellite altitude in km
+ * @param {number} segments - Number of segments for circle resolution
+ */
+export function createCoverageCircles(scene, maxAltKm = 500, segments = 64) {
+  const re = 6371;
+  // Central angle for horizon
+  const phi = Math.acos(re / (re + maxAltKm));
+  GROUND_STATIONS.forEach(station => {
+    const lat0 = station.lat * Math.PI / 180;
+    const lon0 = station.lon * Math.PI / 180;
+    const path = [];
+    for (let i = 0; i <= segments; i++) {
+      const theta = 2 * Math.PI * i / segments;
+      const lat2 = Math.asin(Math.sin(lat0) * Math.cos(phi) + Math.cos(lat0) * Math.sin(phi) * Math.cos(theta));
+      const lon2 = lon0 + Math.atan2(
+        Math.sin(theta) * Math.sin(phi) * Math.cos(lat0),
+        Math.cos(phi) - Math.sin(lat0) * Math.sin(lat2)
+      );
+      const ecef = geodeticToCartesian(lat2 * 180 / Math.PI, lon2 * 180 / Math.PI, 0);
+      const pos = toBabylonPosition(ecef, EARTH_SCALE);
+      path.push(pos);
+    }
+    const circle = BABYLON.MeshBuilder.CreateLines(
+      `${station.name.replace(/\s+/g, '_')}_coverage`,
+      { points: path, updatable: false },
+      scene
+    );
+    circle.color = new BABYLON.Color3(0, 1, 0);
+    const earthMesh = scene.getMeshByName('earth');
+    if (earthMesh) circle.parent = earthMesh;
+    stationMeshes[station.name.replace(/\s+/g, '_')].coverage = circle;
+  });
 }

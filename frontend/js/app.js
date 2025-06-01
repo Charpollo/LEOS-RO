@@ -18,7 +18,7 @@ import { createSatellites, getSatelliteMeshes, getTelemetryData, updateSatellite
 import { updateTelemetryUI } from './telemetry.js';
 import { startSimulationLoop, updateTimeDisplay, getCurrentSimTime } from './simulation.js';
 import { setupKeyboardControls } from './controls.js';
-import { createGroundStations, updateGroundStationsLOS } from './groundStations.js';
+import { createGroundStations, updateGroundStationsLOS, createCoverageCircles, getGroundStationMeshes } from './groundStations.js';
 
 // Globals
 let engine;
@@ -55,29 +55,36 @@ export async function initApp() {
     
     // Create scene with performance optimizations and wait until ready
     await createScene();
-
-    // Set up ground station info panel
-    let gsPanel = document.getElementById('ground-station-panel');
-    if (!gsPanel) {
-      gsPanel = document.createElement('div');
-      gsPanel.id = 'ground-station-panel';
-      gsPanel.style.position = 'absolute';
-      gsPanel.style.top = '10px';
-      gsPanel.style.right = '10px';
-      gsPanel.style.padding = '8px';
-      gsPanel.style.background = 'rgba(0,0,0,0.7)';
-      gsPanel.style.color = 'white';
-      gsPanel.style.fontFamily = 'sans-serif';
-      gsPanel.style.zIndex = '1000';
-      document.body.appendChild(gsPanel);
+    // Create ground stations and coverage circles
+    createGroundStations(scene);
+    createCoverageCircles(scene, 500, 128);
+    
+    // GUI panel for ground station telemetry anchored to mesh
+    let gsGuiPanel = null;
+    function showGroundStationTelemetry(station) {
+      // remove existing panel
+      if (gsGuiPanel) { advancedTexture.removeControl(gsGuiPanel); gsGuiPanel.dispose(); gsGuiPanel = null; }
+      const meshes = getGroundStationMeshes();
+      const key = station.name.replace(/\s+/g, '_');
+      const meshEntry = meshes[key];
+      if (!meshEntry) return;
+      const mesh = meshEntry.mesh;
+      // create GUI panel
+      const panel = new BABYLON.GUI.Rectangle();
+      panel.width = '180px'; panel.height = '100px';
+      panel.cornerRadius = 8;
+      panel.background = 'rgba(0,80,0,0.7)'; panel.thickness = 1;
+      panel.linkWithMesh(mesh);
+      panel.linkOffsetY = -60;
+      const text = new BABYLON.GUI.TextBlock();
+      text.text = `Lat: ${station.lat.toFixed(4)}°\nLon: ${station.lon.toFixed(4)}°\nAlt: ${station.alt} km`;
+      text.color = 'white'; text.fontSize = 12; text.paddingLeft = 10; text.paddingTop = 10;
+      panel.addControl(text);
+      advancedTexture.addControl(panel);
+      gsGuiPanel = panel;
     }
-    
-    // Listen for ground station selections
-    window.addEventListener('groundStationSelected', (event) => {
-      const station = event.detail;
-      gsPanel.innerHTML = `<strong>${station.name}</strong><br>Lat: ${station.lat.toFixed(4)}°<br>Lon: ${station.lon.toFixed(4)}°<br>Alt: ${station.alt} km`;
-    });
-    
+    window.addEventListener('groundStationSelected', (event) => showGroundStationTelemetry(event.detail));
+
     // Use a throttled render loop for better performance
     let lastRender = performance.now();
     const targetFPS = 30; // Limit to 30 FPS for better performance
@@ -474,8 +481,9 @@ async function createScene() {
     // Then create Earth and Moon
     earthMesh = await createEarth(scene, () => simState.timeMultiplier, sunDirection);
     moonMesh = await createMoon(scene, () => simState.timeMultiplier);
-    // Create ground stations after Earth is ready so they ride the Earth's rotation
+    // Create ground stations and coverage circles
     createGroundStations(scene);
+    createCoverageCircles(scene, 500, 128); // 500 km horizon coverage
     
     // Finally load satellite data
     await loadSatelliteData();
