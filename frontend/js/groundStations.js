@@ -2,6 +2,7 @@ import * as BABYLON from '@babylonjs/core';
 import { EARTH_RADIUS, EARTH_SCALE, LOS_MAX_KM, LOS_MAX_BABYLON, LOS_BEAM_CONFIG } from './constants.js';
 import { toBabylonPosition } from './orbital-mechanics.js';
 import { getSatelliteMeshes } from './satellites.js';
+import { Button } from '@babylonjs/gui';
 
 /**
  * Static ground station definitions (lat, lon in degrees, alt in km)
@@ -39,7 +40,7 @@ function geodeticToCartesian(lat, lon, alt = 0) {
 /**
  * Create ground station meshes on the scene
  */
-export function createGroundStations(scene) {
+export function createGroundStations(scene, advancedTexture = null) {
   const earthMesh = scene.getMeshByName('earth');
   GROUND_STATIONS.forEach(station => {
     // Convert geodetic to Babylon.js coordinate system
@@ -47,7 +48,7 @@ export function createGroundStations(scene) {
     const pos = toBabylonPosition(ecef, EARTH_SCALE);
     const mesh = BABYLON.MeshBuilder.CreateSphere(
       station.name.replace(/\s+/g, '_'),
-      { diameter: 0.015 }, // reduced size for smaller ground station markers
+      { diameter: 0.008 }, // smaller ground station markers for better scale
       scene
     );
     mesh.position = pos;
@@ -57,10 +58,50 @@ export function createGroundStations(scene) {
     const mat = new BABYLON.StandardMaterial(station.name + '_mat', scene);
     mat.emissiveColor = new BABYLON.Color3(0, 1, 0);
     mesh.material = mat;
-    // Use mesh.name as key for consistency
-    stationMeshes[mesh.name] = { mesh, info: station };
 
-    // Tooltip or interactivity
+    // Create a larger invisible collision sphere for easier clicking
+    const clickSphere = BABYLON.MeshBuilder.CreateSphere(
+      station.name.replace(/\s+/g, '_') + '_click',
+      { diameter: 0.025 }, // Much larger for easier clicking
+      scene
+    );
+    clickSphere.position = pos;
+    if (earthMesh) clickSphere.parent = earthMesh;
+    clickSphere.isPickable = true;
+    clickSphere.visibility = 0; // Make it invisible
+    
+    // Apply the same material for consistency (though invisible)
+    const clickMat = new BABYLON.StandardMaterial(station.name + '_click_mat', scene);
+    clickMat.alpha = 0; // Fully transparent
+    clickSphere.material = clickMat;
+    // Use mesh.name as key for consistency, store both visual and click meshes
+    stationMeshes[mesh.name] = { mesh, clickSphere, info: station };
+
+    // Apply interactivity to the larger click sphere for easier interaction
+    clickSphere.actionManager = new BABYLON.ActionManager(scene);
+    clickSphere.actionManager.registerAction(
+      new BABYLON.ExecuteCodeAction(
+        BABYLON.ActionManager.OnPointerOverTrigger,
+        () => { document.getElementById('renderCanvas').style.cursor = 'pointer'; }
+      )
+    );
+    clickSphere.actionManager.registerAction(
+      new BABYLON.ExecuteCodeAction(
+        BABYLON.ActionManager.OnPointerOutTrigger,
+        () => { document.getElementById('renderCanvas').style.cursor = 'default'; }
+      )
+    );
+    // Click handler to dispatch event with station data
+    clickSphere.actionManager.registerAction(
+      new BABYLON.ExecuteCodeAction(
+        BABYLON.ActionManager.OnPickTrigger,
+        () => {
+          window.dispatchEvent(new CustomEvent('groundStationSelected', { detail: station }));
+        }
+      )
+    );
+
+    // Also keep the visual mesh interactive as backup
     mesh.actionManager = new BABYLON.ActionManager(scene);
     mesh.actionManager.registerAction(
       new BABYLON.ExecuteCodeAction(
@@ -74,7 +115,6 @@ export function createGroundStations(scene) {
         () => { document.getElementById('renderCanvas').style.cursor = 'default'; }
       )
     );
-    // Click handler to dispatch event with station data
     mesh.actionManager.registerAction(
       new BABYLON.ExecuteCodeAction(
         BABYLON.ActionManager.OnPickTrigger,
@@ -83,6 +123,89 @@ export function createGroundStations(scene) {
         }
       )
     );
+
+    // Add persistent label for ground station
+    if (advancedTexture) {
+      addGroundStationLabel(station.name, mesh, advancedTexture);
+    }
+  });
+}
+
+/**
+ * Add a persistent label for a ground station
+ */
+function addGroundStationLabel(stationName, mesh, advancedTexture) {
+  // Create a shortened display name for cleaner labels
+  const displayName = stationName.replace(/ (Station|Site|DSN)/g, '').replace(', CA', '').replace(', VA', '');
+  
+  const labelBtn = Button.CreateSimpleButton(`${stationName.replace(/\s+/g, '_')}_label`, displayName);
+  labelBtn.width = "140px";
+  labelBtn.height = "32px";
+  labelBtn.cornerRadius = 6;
+  labelBtn.background = "rgba(0, 20, 0, 0.8)";
+  labelBtn.color = "#00ff64";
+  labelBtn.fontSize = 11;
+  labelBtn.fontWeight = "bold";
+  labelBtn.thickness = 1;
+  labelBtn.alpha = 0.9;
+  labelBtn.zIndex = 1500; // Lower than satellite labels to avoid conflicts
+  labelBtn.isPointerBlocker = true;
+  
+  // Hover effects
+  labelBtn.onPointerEnterObservable.add(() => {
+    labelBtn.background = "rgba(0, 100, 0, 0.9)";
+    labelBtn.alpha = 1.0;
+    labelBtn.color = "#64ff00";
+    document.getElementById('renderCanvas').style.cursor = 'pointer';
+  });
+  
+  labelBtn.onPointerOutObservable.add(() => {
+    labelBtn.background = "rgba(0, 20, 0, 0.8)";
+    labelBtn.alpha = 0.9;
+    labelBtn.color = "#00ff64";
+    document.getElementById('renderCanvas').style.cursor = 'default';
+  });
+  
+  // Click handler - trigger the same event as clicking the station
+  labelBtn.onPointerUpObservable.add(() => {
+    const stationInfo = GROUND_STATIONS.find(s => s.name === stationName);
+    if (stationInfo) {
+      window.dispatchEvent(new CustomEvent('groundStationSelected', { detail: stationInfo }));
+    }
+    // Reset label appearance after click
+    labelBtn.background = "rgba(0, 20, 0, 0.8)";
+    labelBtn.alpha = 0.9;
+    labelBtn.color = "#00ff64";
+  });
+  
+  // Link label to the ground station mesh
+  advancedTexture.addControl(labelBtn);
+  labelBtn.linkWithMesh(mesh);
+  labelBtn.linkOffsetY = -45; // Position above the station
+  labelBtn.isVisible = true;
+  
+  // Scale label based on camera distance
+  const scene = mesh.getScene();
+  scene.onBeforeRenderObservable.add(() => {
+    const camera = scene.activeCamera;
+    if (!camera) return;
+    
+    const dist = BABYLON.Vector3.Distance(camera.position, mesh.position);
+    
+    // Ground stations are smaller and closer to Earth, so adjust scaling
+    let scale = 1.0;
+    if (dist > 1.5) {
+      scale = Math.max(0.4, 2.0 / dist); // Scale down less aggressively than satellites
+    }
+    
+    // Fade out when very far to reduce clutter
+    if (dist > 8) {
+      labelBtn.alpha = Math.max(0.2, 0.9 * (10 - dist) / 2);
+    } else {
+      labelBtn.alpha = 0.9;
+    }
+    
+    labelBtn.scaleX = labelBtn.scaleY = scale;
   });
 }
 

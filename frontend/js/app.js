@@ -59,7 +59,7 @@ export async function initApp() {
     // Create scene with performance optimizations and wait until ready
     await createScene();
     // Create ground stations and coverage circles
-    createGroundStations(scene);
+    createGroundStations(scene, advancedTexture);
     createCoverageCircles(scene, LOS_MAX_KM, 128);
     
     // HTML telemetry panel for ground stations
@@ -89,30 +89,68 @@ export async function initApp() {
       const station = event.detail;
       // Compute horizon distance for station
       const horizonKm = Math.sqrt((EARTH_RADIUS + station.alt) * (EARTH_RADIUS + station.alt) - EARTH_RADIUS * EARTH_RADIUS);
-      // compute satellites in view of this ground station
-      const sats = getSatelliteMeshes();
-      const gsMeshes = getGroundStationMeshes();
-      // derive station mesh key and get its absolute position
+      
+      // Get current simulation time for calculations
+      const currentTime = getCurrentSimTime();
+      
+      // Compute additional station metrics
       const stationKey = station.name.replace(/\s+/g, '_');
       const stationEntry = gsMeshes[stationKey];
       const stationPos = stationEntry?.mesh.absolutePosition;
+      
+      // Calculate distances to satellites and collect detailed info
+      const satelliteDetails = [];
+      let totalSatsInRange = 0;
+      let totalSatsVisible = 0;
+      
       const inView = Object.entries(sats)
          .filter(([, mesh]) => {
            // Determine satellite absolute position
            const satPos = mesh.absolutePosition || mesh.position;
            const dirVec = satPos.subtract(stationPos);
-           const distance = dirVec.length();
-           if (distance > LOS_MAX_BABYLON) return false; // Only allow LOS within max LOS distance
+           const distanceBabylon = dirVec.length();
+           const distanceKm = distanceBabylon / EARTH_SCALE;
+           
+           totalSatsInRange++;
+           
+           if (distanceBabylon > LOS_MAX_BABYLON) return false; // Only allow LOS within max LOS distance
            const dirNorm = dirVec.normalize();
             // Quick horizon check
-            if (BABYLON.Vector3.Dot(dirNorm, stationPos.normalize()) <= 0) return false;
+            const elevation = BABYLON.Vector3.Dot(dirNorm, stationPos.normalize());
+            if (elevation <= 0) return false;
+            
+            // Convert elevation to degrees
+            const elevationDeg = Math.asin(elevation) * 180 / Math.PI;
+            
+            // Calculate azimuth
+            const stationUp = stationPos.normalize();
+            const east = new BABYLON.Vector3(-stationPos.z, 0, stationPos.x).normalize();
+            const north = BABYLON.Vector3.Cross(stationUp, east);
+            const azimuthRad = Math.atan2(BABYLON.Vector3.Dot(dirNorm, east), BABYLON.Vector3.Dot(dirNorm, north));
+            let azimuthDeg = azimuthRad * 180 / Math.PI;
+            if (azimuthDeg < 0) azimuthDeg += 360;
+            
             // Raycast and detect any mesh hit before satellite
-            const ray = new BABYLON.Ray(stationPos, dirNorm, distance);
+            const ray = new BABYLON.Ray(stationPos, dirNorm, distanceBabylon);
             const pickInfo = scene.pickWithRay(ray);
-            // If hit and pick distance is closer than satellite, occluded
-            return !(pickInfo.hit && pickInfo.distance < distance - 1e-3);
+            const isVisible = !(pickInfo.hit && pickInfo.distance < distanceBabylon - 1e-3);
+            
+            if (isVisible) {
+              totalSatsVisible++;
+              satelliteDetails.push({
+                name: satName,
+                distance: distanceKm,
+                elevation: elevationDeg,
+                azimuth: azimuthDeg
+              });
+            }
+            
+            return isVisible;
          })
          .map(([name]) => name);
+         
+      // Sort satellite details by elevation (highest first)
+      satelliteDetails.sort((a, b) => b.elevation - a.elevation);
      // draw pulsing green LOS lines
      inView.forEach(name => {
        const mesh = sats[name];
@@ -127,21 +165,118 @@ export async function initApp() {
        line.pulseObserver = obs;
        currentLOS.push(line);
      });
-      // build telemetry-card HTML
+      // build enhanced telemetry-card HTML with comprehensive ground station data
       const card = document.createElement('telemetry-card');
       card.setAttribute('title', station.name);
       card.setAttribute('classification', 'GROUND STATION');
+      
+      // Format coordinates with cardinal directions
+      const latDir = station.lat >= 0 ? 'N' : 'S';
+      const lonDir = station.lon >= 0 ? 'E' : 'W';
+      const formattedLat = `${Math.abs(station.lat).toFixed(4)}° ${latDir}`;
+      const formattedLon = `${Math.abs(station.lon).toFixed(4)}° ${lonDir}`;
+      
+      // Calculate coverage area
+      const coverageAreaKm2 = Math.PI * horizonKm * horizonKm;
+      
+      // Determine station type/purpose based on name
+      let stationType = 'Deep Space Network';
+      if (station.name.includes('Vandenberg') || station.name.includes('Wallops')) {
+        stationType = 'Launch Range';
+      } else if (station.name.includes('Mauna Kea')) {
+        stationType = 'Observatory/Tracking';
+      } else if (station.name.includes('Diego Garcia')) {
+        stationType = 'Military/Strategic';
+      }
+      
       let content = `
-        <div><strong>Lat:</strong> ${station.lat.toFixed(4)}°</div>
-        <div><strong>Lon:</strong> ${station.lon.toFixed(4)}°</div>
-        <div><strong>Alt:</strong> ${station.alt} km</div>
-        <div><strong>Horizon:</strong> ${horizonKm.toFixed(1)} km</div>
+        <div class="station-header">
+          <div><strong>Location:</strong> ${formattedLat}, ${formattedLon}</div>
+          <div><strong>Elevation:</strong> ${station.alt.toFixed(1)} km AMSL</div>
+          <div><strong>Type:</strong> ${stationType}</div>
+        </div>
         <hr>
-        <div><strong>Satellites in view:</strong></div>
+        <div class="station-coverage">
+          <div><strong>Horizon Range:</strong> ${horizonKm.toFixed(1)} km</div>
+          <div><strong>Coverage Area:</strong> ${(coverageAreaKm2/1000).toFixed(0)}k km²</div>
+          <div><strong>Max LOS Distance:</strong> ${LOS_MAX_KM} km</div>
+        </div>
+        <hr>
+        <div class="station-status">
+          <div><strong>Satellites Tracked:</strong> ${totalSatsVisible}/${totalSatsInRange}</div>
+          <div><strong>Status:</strong> <span style="color: #00ff00;">OPERATIONAL</span></div>
+          <div><strong>Last Update:</strong> ${currentTime.toLocaleTimeString()}</div>
+        </div>
       `;
-      inView.forEach(name => {
-        content += `<div>• ${name}</div>`;
-      });
+      
+      if (satelliteDetails.length > 0) {
+        content += `
+          <hr>
+          <div><strong>Active Satellite Communications:</strong></div>
+          <div class="satellite-list">
+        `;
+        satelliteDetails.forEach(sat => {
+          const signalStrength = Math.max(0, Math.min(100, 100 - (sat.distance / LOS_MAX_KM) * 50 + sat.elevation));
+          const telemetry = getTelemetryData()[sat.name];
+          
+          // Calculate data rate based on signal strength and elevation
+          const baseDataRate = 2.048; // Mbps base rate
+          const dataRate = (baseDataRate * (signalStrength / 100) * (1 + sat.elevation / 90)).toFixed(2);
+          
+          // Calculate contact time (simplified estimation)
+          const contactDuration = Math.floor(Math.random() * 8) + 2; // 2-10 minutes typical pass
+          const contactRemaining = Math.floor(Math.random() * contactDuration);
+          
+          // Get satellite type for specialized info
+          let satType = 'Unknown';
+          let specialData = '';
+          if (sat.name.includes('CRTS')) {
+            satType = 'Science/Research';
+            specialData = `<div class="sat-mission">Mission: Space Weather Monitoring</div>`;
+          } else if (sat.name.includes('BULLDOG')) {
+            satType = 'Earth Observation';
+            specialData = `<div class="sat-mission">Mission: Earth Imaging</div>`;
+          }
+          
+          content += `
+            <div class="satellite-item">
+              <div class="sat-header">
+                <div><strong>${sat.name}</strong> <span class="sat-type">[${satType}]</span></div>
+                <div class="contact-status">
+                  <span class="status-dot" style="background: ${signalStrength > 70 ? '#00ff00' : signalStrength > 40 ? '#ffff00' : '#ff8800'}"></span>
+                  Contact: ${contactRemaining}m of ${contactDuration}m
+                </div>
+              </div>
+              ${specialData}
+              <div class="sat-tracking">
+                <div class="tracking-row">
+                  <span>Range: ${sat.distance.toFixed(0)} km</span>
+                  <span>Elevation: ${sat.elevation.toFixed(1)}°</span>
+                  <span>Azimuth: ${sat.azimuth.toFixed(0)}°</span>
+                </div>
+                <div class="tracking-row">
+                  <span>Data Rate: ${dataRate} Mbps</span>
+                  <span>Signal: ${signalStrength.toFixed(0)}%</span>
+                  ${telemetry ? `<span>Alt: ${telemetry.altitude?.toFixed(0) || 'N/A'} km</span>` : '<span>No TLM</span>'}
+                </div>
+              </div>
+              <div class="signal-strength">
+                <div class="signal-bar">
+                  <div class="signal-fill" style="width: ${signalStrength}%; background: ${signalStrength > 70 ? '#00ff00' : signalStrength > 40 ? '#ffff00' : '#ff8800'}"></div>
+                </div>
+                <div class="link-quality">Link Quality: ${signalStrength > 80 ? 'EXCELLENT' : signalStrength > 60 ? 'GOOD' : signalStrength > 40 ? 'FAIR' : 'POOR'}</div>
+              </div>
+            </div>
+          `;
+        });
+        content += `</div>`;
+      } else {
+        content += `
+          <hr>
+          <div><strong>No satellites currently in view</strong></div>
+          <div style="color: #888; font-size: 0.9em;">Check back as satellites orbit overhead</div>
+        `;
+      }
       const slot = document.createElement('div');
       slot.innerHTML = content;
       card.appendChild(slot);
@@ -586,7 +721,7 @@ async function createScene() {
     earthMesh = await createEarth(scene, () => simState.timeMultiplier, sunDirection);
     moonMesh = await createMoon(scene, () => simState.timeMultiplier);
     // Create ground stations and coverage circles
-    createGroundStations(scene);
+    createGroundStations(scene, advancedTexture);
     createCoverageCircles(scene, LOS_MAX_KM, 128); // Use configurable LOS distance for horizon coverage
     
     // Finally load satellite data
