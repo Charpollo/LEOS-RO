@@ -1,5 +1,5 @@
 import * as BABYLON from '@babylonjs/core';
-import { EARTH_RADIUS, EARTH_SCALE, LOS_MAX_KM, LOS_MAX_BABYLON, LOS_BEAM_CONFIG } from './constants.js';
+import { EARTH_RADIUS, EARTH_SCALE, LOS_DEFAULT_KM, LOS_DEFAULT_BABYLON, LOS_BEAM_CONFIG, calculateHorizonDistance } from './constants.js';
 import { toBabylonPosition } from './orbital-mechanics.js';
 import { getSatelliteMeshes } from './satellites.js';
 import { Button } from '@babylonjs/gui';
@@ -74,8 +74,19 @@ export function createGroundStations(scene, advancedTexture = null) {
     const clickMat = new BABYLON.StandardMaterial(station.name + '_click_mat', scene);
     clickMat.alpha = 0; // Fully transparent
     clickSphere.material = clickMat;
-    // Use mesh.name as key for consistency, store both visual and click meshes
-    stationMeshes[mesh.name] = { mesh, clickSphere, info: station };
+    // Calculate horizon distance for this station based on its elevation
+    const horizonDistanceKm = calculateHorizonDistance(station.alt);
+    const horizonDistanceBabylon = horizonDistanceKm * EARTH_SCALE;
+    
+    // Store station info with horizon calculations
+    const stationInfo = {
+      ...station,
+      horizonDistanceKm,
+      horizonDistanceBabylon
+    };
+    
+    // Use mesh.name as key for consistency, store both visual and click meshes with extended info
+    stationMeshes[mesh.name] = { mesh, clickSphere, info: stationInfo };
 
     // Apply interactivity to the larger click sphere for easier interaction
     clickSphere.actionManager = new BABYLON.ActionManager(scene);
@@ -210,6 +221,7 @@ function addGroundStationLabel(stationName, mesh, advancedTexture) {
 }
 
 let beamGlow = null;
+let currentConnections = new Set(); // Track active connections for dashboard updates
 
 /**
  * Update LOS beams between stations and satellites each frame
@@ -217,9 +229,26 @@ let beamGlow = null;
 export function updateGroundStationsLOS(scene) {
   const sats = getSatelliteMeshes();
   
+  // Track new connections for dashboard updates
+  const newConnections = new Set();
+  
+  // Debug: Log function call every 60 frames (about once per 2 seconds at 30fps)
+  // (Disabled for performance)
+  // if (typeof updateGroundStationsLOS.frameCount === 'undefined') {
+  //   updateGroundStationsLOS.frameCount = 0;
+  // }
+  // updateGroundStationsLOS.frameCount++;
+  // if (updateGroundStationsLOS.frameCount % 60 === 0) {
+  //   console.log(`[DEBUG] updateGroundStationsLOS called - Frame ${updateGroundStationsLOS.frameCount}, Satellites: ${Object.keys(sats).length}, Stations: ${Object.keys(stationMeshes).length}`);
+  // }
+  
   // First, clean up all existing beams
   Object.values(losBeams).forEach(beam => {
     if (beam) {
+      // Clean up pulse observer if it exists
+      if (beam.pulseObserver) {
+        scene.onBeforeRenderObservable.remove(beam.pulseObserver);
+      }
       beam.dispose();
     }
   });
@@ -233,15 +262,20 @@ export function updateGroundStationsLOS(scene) {
   Object.entries(stationMeshes).forEach(([stationKey, stationEntry]) => {
     const stationMesh = stationEntry.mesh;
     const stationPos = stationMesh.absolutePosition;
+    const stationInfo = stationEntry.info;
+    
+    // Use station-specific horizon distance instead of global constant
+    const stationLosMaxBabylon = stationInfo.horizonDistanceBabylon;
     
     Object.entries(sats).forEach(([satName, satMesh]) => {
       const satPos = satMesh.absolutePosition;
       const dirVec = satPos.subtract(stationPos);
       const distanceBabylon = dirVec.length();
+      const distanceKm = distanceBabylon / EARTH_SCALE;
       
-      // Check distance limit (convert to proper units)
-      if (distanceBabylon > LOS_MAX_BABYLON) {
-        return; // Skip this satellite, too far
+      // Check distance limit using station-specific horizon distance
+      if (distanceBabylon > stationLosMaxBabylon) {
+        return; // Skip this satellite, too far for this station's horizon
       }
       
       // Check elevation (satellite above horizon)
@@ -250,39 +284,240 @@ export function updateGroundStationsLOS(scene) {
       const elevation = BABYLON.Vector3.Dot(dir, stationUp);
       
       if (elevation > 0) {
-        // Satellite is in LOS, create beam
+        // Satellite is in LOS, create enhanced connection line
         const beamKey = `${stationKey}_${satName}`;
-        const tube = BABYLON.MeshBuilder.CreateTube(beamKey, {
-          path: [stationPos, satPos],
-          radius: LOS_BEAM_CONFIG.auto.radius,
-          updatable: false,
-          sideOrientation: BABYLON.Mesh.DOUBLESIDE
-        }, scene);
+        newConnections.add(beamKey);
         
-        const mat = new BABYLON.StandardMaterial(`${beamKey}_mat`, scene);
-        mat.emissiveColor = new BABYLON.Color3(
-          LOS_BEAM_CONFIG.auto.color.r, 
-          LOS_BEAM_CONFIG.auto.color.g, 
-          LOS_BEAM_CONFIG.auto.color.b
-        );
-        mat.alpha = LOS_BEAM_CONFIG.auto.alpha;
-        tube.material = mat;
+        // Debug: Log new connections
+        // if (updateGroundStationsLOS.frameCount % 30 === 0) {
+        //   console.log(`[DEBUG] LOS Connection: ${stationKey} <-> ${satName}, Distance: ${distanceKm.toFixed(1)}km, Elevation: ${(elevation * 180 / Math.PI).toFixed(1)}°`);
+        // }
         
-        // Store the beam
-        losBeams[beamKey] = tube;
+        // Create dotted line instead of solid tube for better visual effect
+        const connectionLine = createEnhancedConnectionLine(stationPos, satPos, beamKey, scene, elevation, distanceBabylon);
+        
+        // Store the beam with its metadata
+        losBeams[beamKey] = connectionLine;
       }
     });
   });
+  
+  // Check if connections have changed and update dashboard if needed
+  if (!setsEqual(currentConnections, newConnections)) {
+    currentConnections = newConnections;
+    
+    // Debug: Log connection changes
+    // console.log(`[DEBUG] Connection changes detected. New connections: ${Array.from(newConnections).join(', ')}`);
+    
+    // Trigger dashboard update if open
+    updateActiveDashboard();
+  }
+}
+
+/**
+ * Create enhanced connection line with improved dotted effect and better visibility
+ */
+function createEnhancedConnectionLine(stationPos, satPos, beamKey, scene, elevation, distance) {
+  // Calculate signal strength based on elevation and distance
+  const elevationFactor = Math.sin(elevation); // 0 to 1
+  const distanceFactor = Math.max(0.3, 1 - (distance / LOS_MAX_BABYLON)); // 0.3 to 1
+  const signalStrength = elevationFactor * distanceFactor;
+  
+  // Debug: log line creation
+  // console.log(`[DEBUG] Creating enhanced connection line: ${beamKey}, signal strength: ${signalStrength.toFixed(2)}`);
+  
+  // Use configuration from constants
+  const config = LOS_BEAM_CONFIG.auto;
+  const segmentCount = config.segmentCount || 16;
+  const segmentGap = config.segmentGap || 0.3;
+  const lineWidth = config.lineWidth || 3.0;
+  const minVisibility = config.minVisibility || 0.4;
+  
+  // Create enhanced dotted line segments
+  const points = [];
+  const totalDistance = BABYLON.Vector3.Distance(stationPos, satPos);
+  
+  for (let i = 0; i <= segmentCount * 2; i++) {
+    const t = i / (segmentCount * 2);
+    const point = BABYLON.Vector3.Lerp(stationPos, satPos, t);
+    points.push(point);
+  }
+  
+  // Create dotted lines with better visibility
+  const lines = [];
+  for (let i = 0; i < segmentCount; i++) {
+    const startIdx = i * 2;
+    const endIdx = Math.min(startIdx + 1, points.length - 1);
+    
+    if (startIdx < points.length && endIdx < points.length) {
+      const lineSegment = BABYLON.MeshBuilder.CreateLines(
+        `${beamKey}_segment_${i}`,
+        { 
+          points: [points[startIdx], points[endIdx]],
+          updatable: true
+        },
+        scene
+      );
+      
+      // Enhanced material with improved visibility
+      const baseIntensity = Math.max(minVisibility, 0.6 + (signalStrength * 0.4));
+      lineSegment.color = new BABYLON.Color3(0, baseIntensity, baseIntensity * 0.3);
+      
+      // Set line width if supported
+      if (lineSegment.material) {
+        lineSegment.material.lineWidth = lineWidth;
+      }
+      
+      // console.log(`[DEBUG] Created enhanced line segment ${i} for ${beamKey} with intensity ${baseIntensity.toFixed(2)}`);
+      
+      lines.push(lineSegment);
+    }
+  }
+  
+  // Create enhanced data transmission particle
+  const dataParticle = createEnhancedDataParticle(stationPos, satPos, beamKey, scene, signalStrength);
+  
+  // Combine all elements into a connection object
+  const connection = {
+    lines: lines,
+    dataParticle: dataParticle,
+    signalStrength: signalStrength,
+    config: config,
+    dispose: function() {
+      this.lines.forEach(line => line.dispose());
+      if (this.dataParticle) this.dataParticle.dispose();
+      if (this.pulseObserver) {
+        scene.onBeforeRenderObservable.remove(this.pulseObserver);
+      }
+    }
+  };
+  
+  // Add enhanced pulsing effect with better visibility
+  connection.pulseObserver = scene.onBeforeRenderObservable.add(() => {
+    const time = performance.now() * (config.pulseSpeed || 0.004);
+    const basePulse = 0.7 + 0.3 * Math.sin(time + signalStrength * 8);
+    const dataRate = 0.8 + 0.2 * Math.sin(time * 1.5);
+    
+    // Enhanced pulse effect for connection lines
+    connection.lines.forEach((line, index) => {
+      const phaseOffset = index * 0.2;
+      const linePulse = 0.6 + 0.4 * Math.sin(time * 1.2 + phaseOffset);
+      const intensity = Math.max(minVisibility, signalStrength * linePulse * basePulse);
+      
+      // More vibrant green coloring with cyan highlights
+      line.color = new BABYLON.Color3(
+        intensity * 0.1, // Very slight red for warmth
+        intensity, // Full green intensity
+        intensity * 0.6 // Cyan component for modern look
+      );
+    });
+    
+    // Enhanced data transmission particle animation
+    if (connection.dataParticle) {
+      const t = (time * dataRate * 0.8) % 1;
+      const currentPos = BABYLON.Vector3.Lerp(stationPos, satPos, t);
+      connection.dataParticle.position = currentPos;
+      
+      // Improved fade in/out effect
+      const fadeDistance = 0.15;
+      let alpha = 1.0;
+      if (t < fadeDistance) {
+        alpha = t / fadeDistance;
+      } else if (t > 1 - fadeDistance) {
+        alpha = (1 - t) / fadeDistance;
+      }
+      
+      // Add pulsing to the data particle
+      const particlePulse = 0.7 + 0.3 * Math.sin(time * 3);
+      
+      if (connection.dataParticle.material) {
+        connection.dataParticle.material.alpha = alpha * signalStrength * particlePulse;
+        // Add glow effect
+        connection.dataParticle.material.emissiveColor = new BABYLON.Color3(
+          0, 
+          alpha * signalStrength * particlePulse, 
+          alpha * signalStrength * particlePulse * 0.8
+        );
+      }
+    }
+  });
+
+  // console.log(`[DEBUG] Enhanced connection line created for ${beamKey}: ${lines.length} line segments, data particle: ${!!dataParticle}`);
+  
+  return connection;
+}
+
+/**
+ * Create enhanced data transmission effect with improved visibility
+ */
+function createEnhancedDataParticle(stationPos, satPos, beamKey, scene, signalStrength) {
+  const config = LOS_BEAM_CONFIG.auto;
+  const particleSize = config.particleSize || 0.003;
+  
+  const particle = BABYLON.MeshBuilder.CreateSphere(
+    `${beamKey}_data`,
+    { diameter: particleSize * 2 }, // Larger particle for better visibility
+    scene
+  );
+  
+  const mat = new BABYLON.StandardMaterial(`${beamKey}_data_mat`, scene);
+  
+  // Enhanced cyan color with emissive properties
+  mat.emissiveColor = new BABYLON.Color3(0, 0.9, 1); // Bright cyan
+  mat.diffuseColor = new BABYLON.Color3(0, 0.7, 0.9); // Cyan diffuse
+  mat.specularColor = new BABYLON.Color3(0.8, 0.8, 1); // White-cyan specular
+  
+  // Make it glow
+  mat.alpha = Math.max(0.7, signalStrength);
+  mat.disableLighting = false; // Enable lighting for better depth perception
+  
+  particle.material = mat;
+  
+  // console.log(`[DEBUG] Created enhanced data transmission particle for ${beamKey} with alpha ${mat.alpha.toFixed(2)}`);
+  
+  return particle;
+}
+
+/**
+ * Utility function to compare sets
+ */
+function setsEqual(set1, set2) {
+  if (set1.size !== set2.size) return false;
+  for (let item of set1) {
+    if (!set2.has(item)) return false;
+  }
+  return true;
+}
+
+/**
+ * Update active dashboard with current connections
+ */
+function updateActiveDashboard() {
+  // Dispatch event to trigger dashboard refresh
+  window.dispatchEvent(new CustomEvent('groundStationConnectionsChanged', {
+    detail: { activeConnections: Array.from(currentConnections) }
+  }));
+}
+
+/**
+ * Get current active connections for external access
+ */
+export function getCurrentConnections() {
+  return Array.from(currentConnections);
 }
 
 /**
  * Clear all automatic LOS beams (useful when switching to dashboard mode)
  */
 export function clearAutoLOSBeams() {
-  // Clean up all existing beams
+  // Clean up all existing beams with enhanced disposal
   Object.values(losBeams).forEach(beam => {
     if (beam) {
-      beam.dispose();
+      if (typeof beam.dispose === 'function') {
+        beam.dispose(); // For enhanced connections
+      } else {
+        beam.dispose(); // For legacy beams
+      }
     }
   });
   
@@ -290,6 +525,9 @@ export function clearAutoLOSBeams() {
   for (const key in losBeams) {
     delete losBeams[key];
   }
+  
+  // Clear connection tracking
+  currentConnections.clear();
 }
 
 /**
@@ -300,17 +538,35 @@ export function getGroundStationMeshes() {
 }
 
 /**
+ * Get ground station definitions
+ */
+export function getGroundStationDefinitions() {
+  return GROUND_STATIONS;
+}
+
+/**
  * Create static coverage circles on Earth's surface around each station
- * representing max line-of-sight horizon for satellites up to maxAltKm.
+ * representing max line-of-sight horizon based on each station's elevation.
  * @param {BABYLON.Scene} scene
- * @param {number} maxAltKm - Maximum satellite altitude in km
+ * @param {number} maxSatAltKm - Maximum satellite altitude in km (for optional limit)
  * @param {number} segments - Number of segments for circle resolution
  */
-export function createCoverageCircles(scene, maxAltKm = LOS_MAX_KM, segments = 64) {
+export function createCoverageCircles(scene, maxSatAltKm = 2000, segments = 64) {
   const re = EARTH_RADIUS; // Use EARTH_RADIUS constant
-  // Central angle for horizon
-  const phi = Math.acos(re / (re + maxAltKm));
+  
   GROUND_STATIONS.forEach(station => {
+    // Calculate horizon distance for this specific station based on its elevation
+    let stationHorizonKm = calculateHorizonDistance(station.alt);
+    // If station at sea level or missing elevation, ensure a minimum coverage radius
+    if (stationHorizonKm <= 0) {
+      stationHorizonKm = LOS_DEFAULT_KM;
+    }
+    // Use the smaller of station horizon or max satellite communications range
+    const effectiveRangeKm = Math.min(stationHorizonKm, maxSatAltKm);
+    
+    // Central angle for this station's coverage
+    const phi = Math.acos(re / (re + effectiveRangeKm));
+    
     const lat0 = station.lat * Math.PI / 180;
     const lon0 = station.lon * Math.PI / 180;
     const path = [];
@@ -335,4 +591,65 @@ export function createCoverageCircles(scene, maxAltKm = LOS_MAX_KM, segments = 6
     if (earthMesh) circle.parent = earthMesh;
     stationMeshes[station.name.replace(/\s+/g, '_')].coverage = circle;
   });
+}
+
+/**
+ * Create a simple test connection line for debugging
+ */
+function createTestConnectionLine(scene) {
+  // Get first ground station and first satellite for testing
+  const stationEntries = Object.entries(stationMeshes);
+  const satEntries = Object.entries(getSatelliteMeshes());
+  
+  if (stationEntries.length === 0 || satEntries.length === 0) {
+    // console.log('[DEBUG] No stations or satellites available for test');
+    return;
+  }
+  
+  const [stationKey, stationEntry] = stationEntries[0];
+  const [satName, satMesh] = satEntries[0];
+  
+  const stationPos = stationEntry.mesh.absolutePosition;
+  const satPos = satMesh.absolutePosition;
+  
+  // console.log(`[DEBUG] Creating test connection between ${stationKey} and ${satName}`);
+  // console.log(`[DEBUG] Station pos: ${stationPos.x.toFixed(3)}, ${stationPos.y.toFixed(3)}, ${stationPos.z.toFixed(3)}`);
+  // console.log(`[DEBUG] Satellite pos: ${satPos.x.toFixed(3)}, ${satPos.y.toFixed(3)}, ${satPos.z.toFixed(3)}`);
+  
+  // Create a simple bright line for testing
+  const testLine = BABYLON.MeshBuilder.CreateLines(
+    'test_connection',
+    { points: [stationPos, satPos] },
+    scene
+  );
+  testLine.color = new BABYLON.Color3(1, 1, 0); // Bright yellow for visibility
+  
+  // Make it pulse for easy identification
+  const observer = scene.onBeforeRenderObservable.add(() => {
+    const time = performance.now() * 0.005;
+    const intensity = 0.5 + 0.5 * Math.sin(time);
+    testLine.color = new BABYLON.Color3(intensity, intensity, 0);
+  });
+  
+  // Store for cleanup
+  testLine.testObserver = observer;
+  
+  // console.log('[DEBUG] Test connection line created');
+  
+  // Clean up after 10 seconds
+  setTimeout(() => {
+    scene.onBeforeRenderObservable.remove(observer);
+    testLine.dispose();
+    // console.log('[DEBUG] Test connection line cleaned up');
+  }, 10000);
+}
+
+/**
+ * Add test connection functionality
+ */
+export function createTestConnection(scene) {
+  // Wait a bit for everything to load, then create test connection
+  setTimeout(() => {
+    createTestConnectionLine(scene);
+  }, 3000);
 }

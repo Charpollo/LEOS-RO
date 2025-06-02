@@ -10,7 +10,7 @@ import { initBrandUI, hideLoadingScreen, showWelcomeModal } from './ui/brand-ui.
 import { createTelemetryItem } from './ui/template-manager.js';
 
 // Import our modular components
-import { EARTH_RADIUS, EARTH_SCALE, MIN_LEO_ALTITUDE_KM, MOON_DISTANCE, MOON_SCALE, LOS_MAX_KM, LOS_MAX_BABYLON } from './constants.js';
+import { EARTH_RADIUS, EARTH_SCALE, MIN_LEO_ALTITUDE_KM, MOON_DISTANCE, MOON_SCALE, LOS_DEFAULT_KM, LOS_DEFAULT_BABYLON, calculateHorizonDistance } from './constants.js';
 import { createSkybox } from './skybox.js';
 import { createEarth } from './earth.js';
 import { createMoon } from './moon.js';
@@ -18,7 +18,7 @@ import { createSatellites, getSatelliteMeshes, getTelemetryData, updateSatellite
 import { updateTelemetryUI } from './telemetry.js';
 import { startSimulationLoop, updateTimeDisplay, getCurrentSimTime } from './simulation.js';
 import { setupKeyboardControls } from './controls.js';
-import { createGroundStations, updateGroundStationsLOS, createCoverageCircles, getGroundStationMeshes, clearAutoLOSBeams } from './groundStations.js';
+import { createGroundStations, updateGroundStationsLOS, createCoverageCircles, getGroundStationMeshes, clearAutoLOSBeams, getGroundStationDefinitions, createTestConnection } from './groundStations.js';
 
 // Globals
 let engine;
@@ -60,7 +60,7 @@ export async function initApp() {
     await createScene();
     // Create ground stations and coverage circles
     createGroundStations(scene, advancedTexture);
-    createCoverageCircles(scene, LOS_MAX_KM, 128);
+    createCoverageCircles(scene, LOS_DEFAULT_KM, 128); // Use default LOS distance for fallback
     
     // HTML telemetry panel for ground stations
     let groundDash = document.getElementById('ground-dashboard');
@@ -87,16 +87,27 @@ export async function initApp() {
      });
      currentLOS = [];
       const station = event.detail;
-      // Compute horizon distance for station
-      const horizonKm = Math.sqrt((EARTH_RADIUS + station.alt) * (EARTH_RADIUS + station.alt) - EARTH_RADIUS * EARTH_RADIUS);
+      
+      // Get station info including pre-calculated horizon distance
+      const stationKey = station.name.replace(/\s+/g, '_');
+      const groundStationMeshes = getGroundStationMeshes();
+      const stationEntry = groundStationMeshes[stationKey];
+      if (!stationEntry) {
+        console.warn('Ground station mesh not found for key:', stationKey, 'Available keys:', Object.keys(groundStationMeshes));
+      }
+      const stationInfo = stationEntry?.info || station;
+      
+      // Use pre-calculated horizon distance or calculate if not available
+      // Patch: If alt is 0 or missing, use a minimum elevation of 0.1 km (100 meters, like Vandenberg)
+      const minElevationKm = 0.1;
+      const stationAlt = (typeof station.alt === 'number' && station.alt > 0) ? station.alt : minElevationKm;
+      const horizonKm = stationInfo.horizonDistanceKm || 
+        Math.sqrt((EARTH_RADIUS + stationAlt) * (EARTH_RADIUS + stationAlt) - EARTH_RADIUS * EARTH_RADIUS);
       
       // Get current simulation time for calculations
       const currentTime = getCurrentSimTime();
       
-      // Compute additional station metrics
-      const stationKey = station.name.replace(/\s+/g, '_');
-      const groundStationMeshes = getGroundStationMeshes();
-      const stationEntry = groundStationMeshes[stationKey];
+      // Get station position for calculations
       const stationPos = stationEntry?.mesh.absolutePosition;
       
       // Calculate distances to satellites and collect detailed info
@@ -113,17 +124,33 @@ export async function initApp() {
            const distanceBabylon = dirVec.length();
            const distanceKm = distanceBabylon / EARTH_SCALE;
            
+           // Debug: Log LOS calculation for Wallops and Diego Garcia
+           if (station.name.includes('Wallops') || station.name.includes('Diego Garcia')) {
+             console.log('[LOS DEBUG]', station.name, 'StationPos:', stationPos?.toString(), 'Sat:', satName, 'SatPos:', satPos?.toString(), 'DirVec:', dirVec?.toString(), 'DistKm:', distanceKm);
+           }
            totalSatsInRange++;
-           
-           if (distanceBabylon > LOS_MAX_BABYLON) return false; // Only allow LOS within max LOS distance
+           // Use station-specific horizon distance instead of global constant
+           // const stationLosMaxBabylon = stationInfo.horizonDistanceBabylon || (horizonKm * EARTH_SCALE);
+           // if (distanceBabylon > stationLosMaxBabylon) {
+           //   if (station.name.includes('Wallops') || station.name.includes('Diego Garcia')) {
+           //     console.log('[LOS DEBUG]', station.name, satName, 'filtered out: beyond horizon', distanceBabylon, '>', stationLosMaxBabylon);
+           //   }
+           //   return false; // Only allow LOS within station's horizon (disabled for satellites)
+           // }
            const dirNorm = dirVec.normalize();
             // Quick horizon check
             const elevation = BABYLON.Vector3.Dot(dirNorm, stationPos.normalize());
-            if (elevation <= 0) return false;
-            
+            if (station.name.includes('Wallops') || station.name.includes('Diego Garcia')) {
+              console.log('[LOS DEBUG]', station.name, satName, 'elevation:', elevation);
+            }
+            if (elevation <= 0) {
+              if (station.name.includes('Wallops') || station.name.includes('Diego Garcia')) {
+                console.log('[LOS DEBUG]', station.name, satName, 'filtered out: elevation <= 0');
+              }
+              return false;
+            }
             // Convert elevation to degrees
             const elevationDeg = Math.asin(elevation) * 180 / Math.PI;
-            
             // Calculate azimuth
             const stationUp = stationPos.normalize();
             const east = new BABYLON.Vector3(-stationPos.z, 0, stationPos.x).normalize();
@@ -131,12 +158,13 @@ export async function initApp() {
             const azimuthRad = Math.atan2(BABYLON.Vector3.Dot(dirNorm, east), BABYLON.Vector3.Dot(dirNorm, north));
             let azimuthDeg = azimuthRad * 180 / Math.PI;
             if (azimuthDeg < 0) azimuthDeg += 360;
-            
             // Raycast and detect any mesh hit before satellite
             const ray = new BABYLON.Ray(stationPos, dirNorm, distanceBabylon);
             const pickInfo = scene.pickWithRay(ray);
             const isVisible = !(pickInfo.hit && pickInfo.distance < distanceBabylon - 1e-3);
-            
+            if (station.name.includes('Wallops') || station.name.includes('Diego Garcia')) {
+              console.log('[LOS DEBUG]', station.name, satName, 'raycast hit:', pickInfo.hit, 'pickDist:', pickInfo.distance, 'satDist:', distanceBabylon, 'isVisible:', isVisible);
+            }
             if (isVisible) {
               totalSatsVisible++;
               satelliteDetails.push({
@@ -146,7 +174,6 @@ export async function initApp() {
                 azimuth: azimuthDeg
               });
             }
-            
             return isVisible;
          })
          .map(([name]) => name);
@@ -194,14 +221,14 @@ export async function initApp() {
       let content = `
         <div class="station-header">
           <div><strong>Location:</strong> ${formattedLat}, ${formattedLon}</div>
-          <div><strong>Elevation:</strong> ${station.alt.toFixed(1)} km AMSL</div>
+          <div><strong>Elevation:</strong> ${stationAlt.toFixed(1)} km AMSL</div>
           <div><strong>Type:</strong> ${stationType}</div>
         </div>
         <hr>
         <div class="station-coverage">
           <div><strong>Horizon Range:</strong> ${horizonKm.toFixed(1)} km</div>
           <div><strong>Coverage Area:</strong> ${(coverageAreaKm2/1000).toFixed(0)}k km²</div>
-          <div><strong>Max LOS Distance:</strong> ${LOS_MAX_KM} km</div>
+          <div><strong>Max LOS Distance:</strong> ${horizonKm.toFixed(1)} km</div>
         </div>
         <hr>
         <div class="station-status">
@@ -218,7 +245,7 @@ export async function initApp() {
           <div class="satellite-list">
         `;
         satelliteDetails.forEach(sat => {
-          const signalStrength = Math.max(0, Math.min(100, 100 - (sat.distance / LOS_MAX_KM) * 50 + sat.elevation));
+          const signalStrength = Math.max(0, Math.min(100, 100 - (sat.distance / horizonKm) * 50 + sat.elevation));
           const telemetry = getTelemetryData()[sat.name];
           
           // Calculate data rate based on signal strength and elevation
@@ -284,9 +311,19 @@ export async function initApp() {
       card.appendChild(slot);
       groundDash.innerHTML = '';
       groundDash.appendChild(card);
+      
+      // Store current station for real-time updates
+      groundDash.dataset.currentStation = station.name;
+      
       // Show panel
       groundDash.classList.remove('hidden');
       groundDash.classList.add('visible');
+      
+      // Start auto-refresh for real-time updates (unless this is a silent refresh)
+      if (!station.silentRefresh) {
+        startDashboardAutoRefresh();
+      }
+      
       // disable satellite picking to prevent conflicts when ground-station UI is open
       const satMeshes = getSatelliteMeshes();
       Object.values(satMeshes).forEach(mesh => mesh.isPickable = false);
@@ -296,6 +333,7 @@ export async function initApp() {
       closeBtn.textContent = '×';
       closeBtn.addEventListener('click', () => {
         groundStationDashboardOpen = false; // Re-enable automatic LOS beams
+        stopDashboardAutoRefresh(); // Stop auto-refresh
         groundDash.classList.remove('visible');
         groundDash.classList.add('hidden');
         Object.values(getSatelliteMeshes()).forEach(mesh => mesh.isPickable = true);
@@ -312,6 +350,7 @@ export async function initApp() {
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && groundDash.classList.contains('visible')) {
         groundStationDashboardOpen = false; // Re-enable automatic LOS beams
+        stopDashboardAutoRefresh(); // Stop auto-refresh
         Object.values(getSatelliteMeshes()).forEach(mesh => mesh.isPickable = true);
         groundDash.classList.remove('visible');
         groundDash.classList.add('hidden');
@@ -324,35 +363,79 @@ export async function initApp() {
       }
     });
 
-    // Use a throttled render loop for better performance
-    let lastRender = performance.now();
-    const targetFPS = 30; // Limit to 30 FPS for better performance
-    const frameTime = 1000 / targetFPS;
+    // Listen for ground station connection changes for real-time dashboard updates
+    window.addEventListener('groundStationConnectionsChanged', (event) => {
+        // Only update if ground station dashboard is currently open
+        if (groundStationDashboardOpen && groundDash.classList.contains('visible')) {
+            // Get the currently selected station from the dashboard
+            const currentStationName = groundDash.dataset.currentStation;
+            if (currentStationName) {
+                // Find the station info and refresh the dashboard
+                const station = getGroundStationDefinitions().find(s => s.name === currentStationName);
+                if (station) {
+                    // Trigger a refresh by dispatching the selection event again
+                    setTimeout(() => {
+                        window.dispatchEvent(new CustomEvent('groundStationSelected', { detail: station }));
+                    }, 100);
+                }
+            }
+        }
+    });
+
+    // Auto-refresh dashboard every 5 seconds when open
+    let dashboardRefreshInterval = null;
     
+    function startDashboardAutoRefresh() {
+        if (dashboardRefreshInterval) {
+            clearInterval(dashboardRefreshInterval);
+        }
+        
+        dashboardRefreshInterval = setInterval(() => {
+            if (groundStationDashboardOpen && groundDash.classList.contains('visible')) {
+                const currentStationName = groundDash.dataset.currentStation;
+                if (currentStationName) {
+                    const station = getGroundStationDefinitions().find(s => s.name === currentStationName);
+                    if (station) {
+                        // Silently refresh the dashboard
+                        window.dispatchEvent(new CustomEvent('groundStationSelected', { 
+                            detail: { ...station, silentRefresh: true } 
+                        }));
+                    }
+                }
+            }
+        }, 5000); // Refresh every 5 seconds
+    }
+    
+    function stopDashboardAutoRefresh() {
+        if (dashboardRefreshInterval) {
+            clearInterval(dashboardRefreshInterval);
+            dashboardRefreshInterval = null;
+        }
+    }
+
+    // Use unlimited render loop for smooth LOS visualization
+    let lastFrameTime = 0;
+    const maxFPS = 60;
     engine.runRenderLoop(() => {
         const now = performance.now();
-        const delta = now - lastRender;
+        if (now - lastFrameTime < 1000 / maxFPS) return;
+        lastFrameTime = now;
+        scene.render();
         
-        // Throttle rendering to target FPS
-        if (delta > frameTime) {
-            scene.render();
-            lastRender = now - (delta % frameTime);
+        if (scene.isReady() && !sceneLoaded) {
+            hideLoadingScreen();
+            sceneLoaded = true;
+            // Initialize keyboard controls once the scene is loaded
+            setupKeyboardControls(
+                camera,
+                (v) => { simState.lastTimeMultiplier = simState.timeMultiplier; simState.timeMultiplier = v; },
+                () => simState.timeMultiplier
+            );
             
-            if (scene.isReady() && !sceneLoaded) {
-                hideLoadingScreen();
-                sceneLoaded = true;
-                // Initialize keyboard controls once the scene is loaded
-                setupKeyboardControls(
-                    camera,
-                    (v) => { simState.lastTimeMultiplier = simState.timeMultiplier; simState.timeMultiplier = v; },
-                    () => simState.timeMultiplier
-                );
-                
-                // Show welcome modal after a slight delay
-                setTimeout(() => {
-                    showWelcomeModal();
-                }, 500);
-            }
+            // Show welcome modal after a slight delay
+            setTimeout(() => {
+                showWelcomeModal();
+            }, 500);
         }
         // Only update automatic LOS beams when ground station dashboard is NOT open
         if (!groundStationDashboardOpen) {
@@ -724,10 +807,13 @@ async function createScene() {
     moonMesh = await createMoon(scene, () => simState.timeMultiplier);
     // Create ground stations and coverage circles
     createGroundStations(scene, advancedTexture);
-    createCoverageCircles(scene, LOS_MAX_KM, 128); // Use configurable LOS distance for horizon coverage
+    createCoverageCircles(scene, LOS_DEFAULT_KM, 128); // Use default LOS distance for fallback
     
     // Finally load satellite data
     await loadSatelliteData();
+    
+    // Add test connection for debugging LOS system
+    createTestConnection(scene);
 }
 
 // Preview model viewer globals

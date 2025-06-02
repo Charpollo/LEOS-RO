@@ -238,6 +238,103 @@ h4 {
     100% { opacity: 1; }
 }
 
+/* Enhanced ground station connection visualization */
+.connection-indicator {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(0, 255, 0, 0.1);
+  border: 1px solid #00ff00;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 10px;
+  animation: pulse-indicator 2s infinite;
+}
+
+@keyframes pulse-indicator {
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.05); }
+}
+
+.data-transmission-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8em;
+  color: #00ffff;
+  margin-top: 4px;
+}
+
+.signal-strength {
+  margin-top: 8px;
+}
+
+.signal-bar {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.signal-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease, background 0.3s ease;
+}
+
+.link-quality {
+  font-size: 0.75em;
+  text-align: center;
+  font-weight: bold;
+}
+
+.contact-status {
+  font-size: 0.8em;
+  color: #00ffff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  animation: pulse-dot 1.5s infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.tracking-row {
+  display: flex;
+  justify-content: space-between;
+  margin: 2px 0;
+  font-size: 0.85em;
+}
+
+.tracking-row span {
+  flex: 1;
+  text-align: center;
+}
+
+.sat-type {
+  color: #ffaa00;
+  font-size: 0.8em;
+  font-weight: normal;
+}
+
+.sat-mission {
+  color: #888;
+  font-size: 0.8em;
+  font-style: italic;
+  margin: 2px 0;
+}
+
 /* Ground Station Panel Enhancements */
 .dashboard-section {
     margin-bottom: 15px;
