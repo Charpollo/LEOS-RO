@@ -95,7 +95,8 @@ export async function initApp() {
       
       // Compute additional station metrics
       const stationKey = station.name.replace(/\s+/g, '_');
-      const stationEntry = gsMeshes[stationKey];
+      const groundStationMeshes = getGroundStationMeshes();
+      const stationEntry = groundStationMeshes[stationKey];
       const stationPos = stationEntry?.mesh.absolutePosition;
       
       // Calculate distances to satellites and collect detailed info
@@ -103,8 +104,9 @@ export async function initApp() {
       let totalSatsInRange = 0;
       let totalSatsVisible = 0;
       
-      const inView = Object.entries(sats)
-         .filter(([, mesh]) => {
+      const satelliteMeshes = getSatelliteMeshes();
+      const inView = Object.entries(satelliteMeshes)
+         .filter(([satName, mesh]) => {
            // Determine satellite absolute position
            const satPos = mesh.absolutePosition || mesh.position;
            const dirVec = satPos.subtract(stationPos);
@@ -153,7 +155,7 @@ export async function initApp() {
       satelliteDetails.sort((a, b) => b.elevation - a.elevation);
      // draw pulsing green LOS lines
      inView.forEach(name => {
-       const mesh = sats[name];
+       const mesh = satelliteMeshes[name];
        const satPos = mesh.absolutePosition || mesh.position;
        const line = BABYLON.MeshBuilder.CreateLines(`los_${stationKey}_${name}`, { points: [stationPos, satPos] }, scene);
        line.color = new BABYLON.Color3(0,1,0);
