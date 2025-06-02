@@ -59,31 +59,79 @@ export async function initApp() {
     createGroundStations(scene);
     createCoverageCircles(scene, 500, 128);
     
-    // GUI panel for ground station telemetry anchored to mesh
-    let gsGuiPanel = null;
-    function showGroundStationTelemetry(station) {
-      // remove existing panel
-      if (gsGuiPanel) { advancedTexture.removeControl(gsGuiPanel); gsGuiPanel.dispose(); gsGuiPanel = null; }
-      const meshes = getGroundStationMeshes();
-      const key = station.name.replace(/\s+/g, '_');
-      const meshEntry = meshes[key];
-      if (!meshEntry) return;
-      const mesh = meshEntry.mesh;
-      // create GUI panel
-      const panel = new BABYLON.GUI.Rectangle();
-      panel.width = '180px'; panel.height = '100px';
-      panel.cornerRadius = 8;
-      panel.background = 'rgba(0,80,0,0.7)'; panel.thickness = 1;
-      panel.linkWithMesh(mesh);
-      panel.linkOffsetY = -60;
-      const text = new BABYLON.GUI.TextBlock();
-      text.text = `Lat: ${station.lat.toFixed(4)}°\nLon: ${station.lon.toFixed(4)}°\nAlt: ${station.alt} km`;
-      text.color = 'white'; text.fontSize = 12; text.paddingLeft = 10; text.paddingTop = 10;
-      panel.addControl(text);
-      advancedTexture.addControl(panel);
-      gsGuiPanel = panel;
+    // HTML telemetry panel for ground stations
+    let groundDash = document.getElementById('ground-dashboard');
+    if (!groundDash) {
+      groundDash = document.createElement('div');
+      groundDash.id = 'ground-dashboard';
+      // Use telemetry-dashboard style for a compact tile
+      groundDash.className = 'telemetry-dashboard hidden';
+      document.body.appendChild(groundDash);
     }
-    window.addEventListener('groundStationSelected', (event) => showGroundStationTelemetry(event.detail));
+    window.addEventListener('groundStationSelected', (event) => {
+      const station = event.detail;
+      // Compute horizon distance for station
+      const R = 6371; // Earth radius in km
+      const horizonKm = Math.sqrt((R + station.alt) * (R + station.alt) - R * R);
+      // compute satellites in view of this ground station
+      const sats = getSatelliteMeshes();
+      const gsMeshes = getGroundStationMeshes();
+      // derive station mesh key and get its absolute position
+      const stationKey = station.name.replace(/\s+/g, '_');
+      const stationEntry = gsMeshes[stationKey];
+      const stationPos = stationEntry?.mesh.absolutePosition;
+      const inView = Object.entries(sats)
+        .filter(([, mesh]) => {
+          const dir = mesh.position.subtract(stationPos).normalize();
+          const up = stationPos.normalize();
+          return BABYLON.Vector3.Dot(dir, up) > 0;
+        })
+        .map(([name]) => name);
+      // build telemetry-card HTML
+      const card = document.createElement('telemetry-card');
+      card.setAttribute('title', station.name);
+      card.setAttribute('classification', 'GROUND STATION');
+      let content = `
+        <div><strong>Lat:</strong> ${station.lat.toFixed(4)}°</div>
+        <div><strong>Lon:</strong> ${station.lon.toFixed(4)}°</div>
+        <div><strong>Alt:</strong> ${station.alt} km</div>
+        <div><strong>Horizon:</strong> ${horizonKm.toFixed(1)} km</div>
+        <hr>
+        <div><strong>Satellites in view:</strong></div>
+      `;
+      inView.forEach(name => {
+        content += `<div>• ${name}</div>`;
+      });
+      const slot = document.createElement('div');
+      slot.innerHTML = content;
+      card.appendChild(slot);
+      groundDash.innerHTML = '';
+      groundDash.appendChild(card);
+      // Show panel
+      groundDash.classList.remove('hidden');
+      groundDash.classList.add('visible');
+      // disable satellite picking to prevent conflicts when ground-station UI is open
+      const satMeshes = getSatelliteMeshes();
+      Object.values(satMeshes).forEach(mesh => mesh.isPickable = false);
+      // add close button to panel
+      const closeBtn = document.createElement('button');
+      closeBtn.className = 'close-dashboard';
+      closeBtn.textContent = '×';
+      closeBtn.addEventListener('click', () => {
+        groundDash.classList.remove('visible');
+        groundDash.classList.add('hidden');
+        Object.values(getSatelliteMeshes()).forEach(mesh => mesh.isPickable = true);
+      });
+      groundDash.appendChild(closeBtn);
+    });
+    // close ground dashboard on Escape key
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && groundDash.classList.contains('visible')) {
+        Object.values(getSatelliteMeshes()).forEach(mesh => mesh.isPickable = true);
+        groundDash.classList.remove('visible');
+        groundDash.classList.add('hidden');
+      }
+    });
 
     // Use a throttled render loop for better performance
     let lastRender = performance.now();

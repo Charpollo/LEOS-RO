@@ -172,3 +172,34 @@ export function showWelcomeModal() {
         }, 1000);
     }
 }
+
+// Make the ground station dashboard draggable
+function makeDraggable(el) {
+    let isDown = false;
+    let offsetX = 0;
+    let offsetY = 0;
+    el.style.cursor = 'move';
+    el.addEventListener('mousedown', (e) => {
+        if (e.target.classList.contains('close-dashboard')) return;
+        isDown = true;
+        const rect = el.getBoundingClientRect();
+        offsetX = e.clientX - rect.left;
+        offsetY = e.clientY - rect.top;
+        e.preventDefault();
+    });
+    document.addEventListener('mousemove', (e) => {
+        if (!isDown) return;
+        el.style.left = e.clientX - offsetX + 'px';
+        el.style.top = e.clientY - offsetY + 'px';
+        el.style.transform = 'none';
+    });
+    document.addEventListener('mouseup', () => { isDown = false; });
+}
+
+// Initialize draggable behavior once DOM is ready
+window.addEventListener('DOMContentLoaded', () => {
+    const dash = document.getElementById('ground-dashboard');
+    if (dash) {
+        makeDraggable(dash);
+    }
+});

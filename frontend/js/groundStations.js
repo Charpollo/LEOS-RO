@@ -46,7 +46,7 @@ export function createGroundStations(scene) {
     const pos = toBabylonPosition(ecef, EARTH_SCALE);
     const mesh = BABYLON.MeshBuilder.CreateSphere(
       station.name.replace(/\s+/g, '_'),
-      { diameter: 0.02 },
+      { diameter: 0.015 }, // reduced size for smaller ground station markers
       scene
     );
     mesh.position = pos;
