@@ -1,5 +1,5 @@
 import * as BABYLON from '@babylonjs/core';
-import { EARTH_SCALE } from './constants.js';
+import { EARTH_RADIUS, EARTH_SCALE, LOS_MAX_KM, LOS_MAX_BABYLON, LOS_BEAM_CONFIG } from './constants.js';
 import { toBabylonPosition } from './orbital-mechanics.js';
 import { getSatelliteMeshes } from './satellites.js';
 
@@ -16,6 +16,7 @@ const GROUND_STATIONS = [
 
 // Storage for station meshes and LOS beam meshes
 const stationMeshes = {};
+const losBeams = {}; // Store beams by "stationName_satelliteName" key
 
 function toRadians(deg) {
   return deg * Math.PI / 180;
@@ -27,7 +28,7 @@ function toRadians(deg) {
 function geodeticToCartesian(lat, lon, alt = 0) {
   const phi = toRadians(lat);
   const lambda = toRadians(lon);
-  const radius = 6371 + alt; // Earth radius km + alt
+  const radius = EARTH_RADIUS + alt; // Use EARTH_RADIUS constant + alt
   const x = radius * Math.cos(phi) * Math.cos(lambda);
   const y = radius * Math.cos(phi) * Math.sin(lambda);
   const z = radius * Math.sin(phi);
@@ -57,7 +58,7 @@ export function createGroundStations(scene) {
     mat.emissiveColor = new BABYLON.Color3(0, 1, 0);
     mesh.material = mat;
     // Use mesh.name as key for consistency
-    stationMeshes[mesh.name] = { mesh, beam: null, info: station };
+    stationMeshes[mesh.name] = { mesh, info: station };
 
     // Tooltip or interactivity
     mesh.actionManager = new BABYLON.ActionManager(scene);
@@ -92,69 +93,80 @@ let beamGlow = null;
  */
 export function updateGroundStationsLOS(scene) {
   const sats = getSatelliteMeshes();
-  Object.entries(stationMeshes).forEach(([key, entry]) => {
-    const mesh = entry.mesh;
-    const stationPos = mesh.absolutePosition;
-    let ring = entry.ring;
+  
+  // First, clean up all existing beams
+  Object.values(losBeams).forEach(beam => {
+    if (beam) {
+      beam.dispose();
+    }
+  });
+  
+  // Clear the beam storage
+  for (const key in losBeams) {
+    delete losBeams[key];
+  }
+  
+  // Now check each station-satellite pair for LOS
+  Object.entries(stationMeshes).forEach(([stationKey, stationEntry]) => {
+    const stationMesh = stationEntry.mesh;
+    const stationPos = stationMesh.absolutePosition;
+    
     Object.entries(sats).forEach(([satName, satMesh]) => {
       const satPos = satMesh.absolutePosition;
-      const dir = satPos.subtract(stationPos).normalize();
-      const elevation = BABYLON.Vector3.Dot(dir, mesh.absolutePosition.normalize());
-      const inLOS = elevation > 0;
-      const beamKey = `${mesh.name}_${satName}`;
-
-      if (inLOS) {
-        // Show ground ring if not exists
-        if (!ring) {
-          ring = BABYLON.MeshBuilder.CreateDisc(`${mesh.name}_ring`, { radius: 0.05, tessellation: 64 }, scene);
-          const ringMat = new BABYLON.StandardMaterial(`${mesh.name}_ring_mat`, scene);
-          ringMat.emissiveColor = new BABYLON.Color3(0, 1, 0);
-          ringMat.alpha = 0.5;
-          ring.material = ringMat;
-          ring.rotation.x = Math.PI / 2; // flat on surface
-          ring.parent = mesh;
-          entry.ring = ring;
-        }
-      } else {
-        // Dispose ring when out of LOS
-        if (ring) {
-          ring.dispose();
-          entry.ring = null;
-          ring = null;
-        }
+      const dirVec = satPos.subtract(stationPos);
+      const distanceBabylon = dirVec.length();
+      
+      // Check distance limit (convert to proper units)
+      if (distanceBabylon > LOS_MAX_BABYLON) {
+        return; // Skip this satellite, too far
       }
-    });
-
-    // Existing beam logic follows...
-    const satsInner = getSatelliteMeshes(); // reuse if needed
-    Object.entries(satsInner).forEach(([satName, satMesh]) => {
-      const satPos = satMesh.absolutePosition;
-      const dir = satPos.subtract(stationPos).normalize();
-      const elevation = BABYLON.Vector3.Dot(dir, mesh.absolutePosition.normalize());
-      const inLOS = elevation > 0;
-      const beamKey = `${mesh.name}_${satName}`;
-      // dispose old beam if no longer in LOS
-      if (!inLOS && entry.beam) {
-        entry.beam.dispose();
-        entry.beam = null;
-      }
-      if (inLOS) {
-        // recreate beam tube each frame for thickness
-        if (entry.beam) entry.beam.dispose();
+      
+      // Check elevation (satellite above horizon)
+      const dir = dirVec.normalize();
+      const stationUp = stationPos.normalize();
+      const elevation = BABYLON.Vector3.Dot(dir, stationUp);
+      
+      if (elevation > 0) {
+        // Satellite is in LOS, create beam
+        const beamKey = `${stationKey}_${satName}`;
         const tube = BABYLON.MeshBuilder.CreateTube(beamKey, {
           path: [stationPos, satPos],
-          radius: 0.005,
+          radius: LOS_BEAM_CONFIG.auto.radius,
           updatable: false,
           sideOrientation: BABYLON.Mesh.DOUBLESIDE
         }, scene);
+        
         const mat = new BABYLON.StandardMaterial(`${beamKey}_mat`, scene);
-        mat.emissiveColor = new BABYLON.Color3(0, 1, 0);
-        mat.alpha = 0.8;
+        mat.emissiveColor = new BABYLON.Color3(
+          LOS_BEAM_CONFIG.auto.color.r, 
+          LOS_BEAM_CONFIG.auto.color.g, 
+          LOS_BEAM_CONFIG.auto.color.b
+        );
+        mat.alpha = LOS_BEAM_CONFIG.auto.alpha;
         tube.material = mat;
-        entry.beam = tube;
+        
+        // Store the beam
+        losBeams[beamKey] = tube;
       }
     });
   });
+}
+
+/**
+ * Clear all automatic LOS beams (useful when switching to dashboard mode)
+ */
+export function clearAutoLOSBeams() {
+  // Clean up all existing beams
+  Object.values(losBeams).forEach(beam => {
+    if (beam) {
+      beam.dispose();
+    }
+  });
+  
+  // Clear the beam storage
+  for (const key in losBeams) {
+    delete losBeams[key];
+  }
 }
 
 /**
@@ -171,8 +183,8 @@ export function getGroundStationMeshes() {
  * @param {number} maxAltKm - Maximum satellite altitude in km
  * @param {number} segments - Number of segments for circle resolution
  */
-export function createCoverageCircles(scene, maxAltKm = 500, segments = 64) {
-  const re = 6371;
+export function createCoverageCircles(scene, maxAltKm = LOS_MAX_KM, segments = 64) {
+  const re = EARTH_RADIUS; // Use EARTH_RADIUS constant
   // Central angle for horizon
   const phi = Math.acos(re / (re + maxAltKm));
   GROUND_STATIONS.forEach(station => {

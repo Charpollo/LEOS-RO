@@ -10,7 +10,7 @@ import { initBrandUI, hideLoadingScreen, showWelcomeModal } from './ui/brand-ui.
 import { createTelemetryItem } from './ui/template-manager.js';
 
 // Import our modular components
-import { EARTH_RADIUS, EARTH_SCALE, MIN_LEO_ALTITUDE_KM, MOON_DISTANCE, MOON_SCALE } from './constants.js';
+import { EARTH_RADIUS, EARTH_SCALE, MIN_LEO_ALTITUDE_KM, MOON_DISTANCE, MOON_SCALE, LOS_MAX_KM, LOS_MAX_BABYLON } from './constants.js';
 import { createSkybox } from './skybox.js';
 import { createEarth } from './earth.js';
 import { createMoon } from './moon.js';
@@ -18,7 +18,7 @@ import { createSatellites, getSatelliteMeshes, getTelemetryData, updateSatellite
 import { updateTelemetryUI } from './telemetry.js';
 import { startSimulationLoop, updateTimeDisplay, getCurrentSimTime } from './simulation.js';
 import { setupKeyboardControls } from './controls.js';
-import { createGroundStations, updateGroundStationsLOS, createCoverageCircles, getGroundStationMeshes } from './groundStations.js';
+import { createGroundStations, updateGroundStationsLOS, createCoverageCircles, getGroundStationMeshes, clearAutoLOSBeams } from './groundStations.js';
 
 // Globals
 let engine;
@@ -44,6 +44,9 @@ let simulationStartTime = new Date();
 let simulationTime = new Date();
 let sunDirection = new BABYLON.Vector3(1, 0, 0);
 
+// Ground station dashboard state
+let groundStationDashboardOpen = false;
+
 export async function initApp() {
     // Delay UI initialization until after scene is created for better startup performance
     setTimeout(() => {
@@ -57,7 +60,7 @@ export async function initApp() {
     await createScene();
     // Create ground stations and coverage circles
     createGroundStations(scene);
-    createCoverageCircles(scene, 500, 128);
+    createCoverageCircles(scene, LOS_MAX_KM, 128);
     
     // HTML telemetry panel for ground stations
     let groundDash = document.getElementById('ground-dashboard');
@@ -71,6 +74,12 @@ export async function initApp() {
       document.body.appendChild(groundDash);
     }
     window.addEventListener('groundStationSelected', (event) => {
+     // Set flag to disable automatic LOS beams
+     groundStationDashboardOpen = true;
+     
+     // Clear any existing automatic LOS beams
+     clearAutoLOSBeams();
+     
      // clear previous LOS lines
      currentLOS.forEach(line => {
        scene.onBeforeRenderObservable.remove(line.pulseObserver);
@@ -79,8 +88,7 @@ export async function initApp() {
      currentLOS = [];
       const station = event.detail;
       // Compute horizon distance for station
-      const R = 6371; // Earth radius in km
-      const horizonKm = Math.sqrt((R + station.alt) * (R + station.alt) - R * R);
+      const horizonKm = Math.sqrt((EARTH_RADIUS + station.alt) * (EARTH_RADIUS + station.alt) - EARTH_RADIUS * EARTH_RADIUS);
       // compute satellites in view of this ground station
       const sats = getSatelliteMeshes();
       const gsMeshes = getGroundStationMeshes();
@@ -90,11 +98,12 @@ export async function initApp() {
       const stationPos = stationEntry?.mesh.absolutePosition;
       const inView = Object.entries(sats)
          .filter(([, mesh]) => {
-            // Determine satellite absolute position
-            const satPos = mesh.absolutePosition || mesh.position;
-            const dirVec = satPos.subtract(stationPos);
-            const distance = dirVec.length();
-            const dirNorm = dirVec.normalize();
+           // Determine satellite absolute position
+           const satPos = mesh.absolutePosition || mesh.position;
+           const dirVec = satPos.subtract(stationPos);
+           const distance = dirVec.length();
+           if (distance > LOS_MAX_BABYLON) return false; // Only allow LOS within max LOS distance
+           const dirNorm = dirVec.normalize();
             // Quick horizon check
             if (BABYLON.Vector3.Dot(dirNorm, stationPos.normalize()) <= 0) return false;
             // Raycast and detect any mesh hit before satellite
@@ -149,18 +158,32 @@ export async function initApp() {
       closeBtn.className = 'close-dashboard';
       closeBtn.textContent = '×';
       closeBtn.addEventListener('click', () => {
+        groundStationDashboardOpen = false; // Re-enable automatic LOS beams
         groundDash.classList.remove('visible');
         groundDash.classList.add('hidden');
         Object.values(getSatelliteMeshes()).forEach(mesh => mesh.isPickable = true);
+        // Clear dashboard LOS lines
+        currentLOS.forEach(line => {
+          scene.onBeforeRenderObservable.remove(line.pulseObserver);
+          line.dispose();
+        });
+        currentLOS = [];
       });
       groundDash.appendChild(closeBtn);
     });
     // close ground dashboard on Escape key
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && groundDash.classList.contains('visible')) {
+        groundStationDashboardOpen = false; // Re-enable automatic LOS beams
         Object.values(getSatelliteMeshes()).forEach(mesh => mesh.isPickable = true);
         groundDash.classList.remove('visible');
         groundDash.classList.add('hidden');
+        // Clear dashboard LOS lines
+        currentLOS.forEach(line => {
+          scene.onBeforeRenderObservable.remove(line.pulseObserver);
+          line.dispose();
+        });
+        currentLOS = [];
       }
     });
 
@@ -194,8 +217,10 @@ export async function initApp() {
                 }, 500);
             }
         }
-        // After satellites updated each frame, update LOS beams
-        updateGroundStationsLOS(scene);
+        // Only update automatic LOS beams when ground station dashboard is NOT open
+        if (!groundStationDashboardOpen) {
+            updateGroundStationsLOS(scene);
+        }
     });
     
     // Throttle resize events for better performance
@@ -562,7 +587,7 @@ async function createScene() {
     moonMesh = await createMoon(scene, () => simState.timeMultiplier);
     // Create ground stations and coverage circles
     createGroundStations(scene);
-    createCoverageCircles(scene, 500, 128); // 500 km horizon coverage
+    createCoverageCircles(scene, LOS_MAX_KM, 128); // Use configurable LOS distance for horizon coverage
     
     // Finally load satellite data
     await loadSatelliteData();
