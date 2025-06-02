@@ -1157,33 +1157,50 @@ body.hide-time #time-display {
 
 /* GROUND STATION TILE OVERRIDE */
 #ground-dashboard.telemetry-dashboard {
-    /* Position at bottom center with buffer */
+    /* Position at bottom center with proper buffer */
     top: auto !important;
-    bottom: 32px !important;    /* buffer from bottom */
+    bottom: 80px !important;    /* More buffer from bottom to ensure full visibility */
     left: 50% !important;
     transform: translateX(-50%) !important;
     /* Wider size */
     width: 400px !important;
     max-width: 400px !important;
     height: auto !important;
-    background: var(--background-panel) !important;
+    max-height: 60vh !important; /* Limit height to 60% of viewport */
+    overflow-y: auto !important; /* Enable scrolling if content is too tall */
+    background: rgba(0, 0, 0, 0.98) !important; /* Almost fully opaque for excellent readability */
+    backdrop-filter: blur(25px) !important; /* Maximum blur for background separation */
     /* Green border and glow */
     border: 2px solid #00ff00 !important;
     box-shadow: 0 0 15px rgba(0,255,0,0.6) !important;
     /* Ensure visible above earth manipulations */
     z-index: 900 !important;
+    position: fixed !important; /* Ensure fixed positioning relative to viewport */
 }
 
 /* Style close button in ground station tile */
 #ground-dashboard.telemetry-dashboard .close-dashboard {
-    position: absolute;
-    top: 4px !important;
-    right: 4px !important;
-    font-size: 1.2rem;
-    background: none;
-    color: #ffffff;
-    border: none;
-    cursor: pointer;
+    position: absolute !important;
+    top: 8px !important;
+    right: 8px !important;
+    width: 24px !important;
+    height: 24px !important;
+    font-size: 16px !important;
+    background: rgba(255, 0, 0, 0.2) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255, 0, 0, 0.5) !important;
+    border-radius: 4px !important;
+    cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: all 0.2s ease !important;
+}
+
+#ground-dashboard.telemetry-dashboard .close-dashboard:hover {
+    background: rgba(255, 0, 0, 0.4) !important;
+    border-color: rgba(255, 0, 0, 0.8) !important;
+    transform: scale(1.1) !important;
 }
 
 /* =========================================== */
