@@ -61,6 +61,8 @@ export async function initApp() {
     
     // HTML telemetry panel for ground stations
     let groundDash = document.getElementById('ground-dashboard');
+    // Store LOS lines to clear and animate
+    let currentLOS = [];
     if (!groundDash) {
       groundDash = document.createElement('div');
       groundDash.id = 'ground-dashboard';
@@ -69,6 +71,12 @@ export async function initApp() {
       document.body.appendChild(groundDash);
     }
     window.addEventListener('groundStationSelected', (event) => {
+     // clear previous LOS lines
+     currentLOS.forEach(line => {
+       scene.onBeforeRenderObservable.remove(line.pulseObserver);
+       line.dispose();
+     });
+     currentLOS = [];
       const station = event.detail;
       // Compute horizon distance for station
       const R = 6371; // Earth radius in km
@@ -81,12 +89,35 @@ export async function initApp() {
       const stationEntry = gsMeshes[stationKey];
       const stationPos = stationEntry?.mesh.absolutePosition;
       const inView = Object.entries(sats)
-        .filter(([, mesh]) => {
-          const dir = mesh.position.subtract(stationPos).normalize();
-          const up = stationPos.normalize();
-          return BABYLON.Vector3.Dot(dir, up) > 0;
-        })
-        .map(([name]) => name);
+         .filter(([, mesh]) => {
+            // Determine satellite absolute position
+            const satPos = mesh.absolutePosition || mesh.position;
+            const dirVec = satPos.subtract(stationPos);
+            const distance = dirVec.length();
+            const dirNorm = dirVec.normalize();
+            // Quick horizon check
+            if (BABYLON.Vector3.Dot(dirNorm, stationPos.normalize()) <= 0) return false;
+            // Raycast and detect any mesh hit before satellite
+            const ray = new BABYLON.Ray(stationPos, dirNorm, distance);
+            const pickInfo = scene.pickWithRay(ray);
+            // If hit and pick distance is closer than satellite, occluded
+            return !(pickInfo.hit && pickInfo.distance < distance - 1e-3);
+         })
+         .map(([name]) => name);
+     // draw pulsing green LOS lines
+     inView.forEach(name => {
+       const mesh = sats[name];
+       const satPos = mesh.absolutePosition || mesh.position;
+       const line = BABYLON.MeshBuilder.CreateLines(`los_${stationKey}_${name}`, { points: [stationPos, satPos] }, scene);
+       line.color = new BABYLON.Color3(0,1,0);
+       const obs = scene.onBeforeRenderObservable.add(() => {
+         const t = performance.now() * 0.005;
+         const strength = 0.5 + 0.5 * Math.sin(t);
+         line.color = new BABYLON.Color3(0, strength, 0);
+       });
+       line.pulseObserver = obs;
+       currentLOS.push(line);
+     });
       // build telemetry-card HTML
       const card = document.createElement('telemetry-card');
       card.setAttribute('title', station.name);

@@ -1163,8 +1163,8 @@ body.hide-time #time-display {
     left: 50% !important;
     transform: translateX(-50%) !important;
     /* Wider size */
-    width: 320px !important;
-    max-width: 320px !important;
+    width: 400px !important;
+    max-width: 400px !important;
     height: auto !important;
     background: var(--background-panel) !important;
     /* Green border and glow */
