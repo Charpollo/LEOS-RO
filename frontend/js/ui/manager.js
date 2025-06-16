@@ -94,6 +94,7 @@ class UIManager {
             { id: 'position-card', data: telemetry },
             { id: 'velocity-card', data: telemetry },
             { id: 'mission-card', data: telemetry.missionParameters },
+            { id: 'subsystems-card', data: telemetry.subsystems },
             { id: 'graph-card', data: { graphData: telemetry.graphData } }
         ];
 

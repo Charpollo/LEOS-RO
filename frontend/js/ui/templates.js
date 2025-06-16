@@ -174,6 +174,75 @@ export const templates = {
     },
 
     /**
+     * Generate CRTS-1 subsystems card
+     * @param {Object} subsystemsData - Subsystems telemetry data
+     * @returns {string} HTML string
+     */
+    subsystemsCard(subsystemsData) {
+        return `
+            <telemetry-card 
+                title="Subsystems Status"
+                classification="CRTS-1">
+                <telemetry-item
+                    label="Solar Arrays"
+                    value="${subsystemsData.solarArrays || '1200'}"
+                    unit="W">
+                </telemetry-item>
+                <telemetry-item
+                    label="Power Subsystem"
+                    value="${subsystemsData.powerSubsystem || '78'}"
+                    unit="%">
+                </telemetry-item>
+                <telemetry-item
+                    label="Telescope"
+                    value="${subsystemsData.telescope || 'Idle'}"
+                    unit="STATUS">
+                </telemetry-item>
+                <telemetry-item
+                    label="L-Band Antennas"
+                    value="${subsystemsData.lBandAntennas || '-82'}"
+                    unit="dBm">
+                </telemetry-item>
+                <telemetry-item
+                    label="Ku-Band Antenna"
+                    value="${subsystemsData.kuBandAntenna || '120'}"
+                    unit="Mbps">
+                </telemetry-item>
+                <telemetry-item
+                    label="Slotted Waveguide Array"
+                    value="${subsystemsData.slottedWaveguide || '45'}"
+                    unit="DEG">
+                </telemetry-item>
+                <telemetry-item
+                    label="Low Gain Antennas"
+                    value="${subsystemsData.lowGainAntennas || 'Standby'}"
+                    unit="STATUS">
+                </telemetry-item>
+                <telemetry-item
+                    label="Cold Gas Thrusters"
+                    value="${subsystemsData.coldGasThrusters || '85'}"
+                    unit="%">
+                </telemetry-item>
+                <telemetry-item
+                    label="Magnetometer"
+                    value="${subsystemsData.magnetometer || '45.3'}"
+                    unit="µT">
+                </telemetry-item>
+                <telemetry-item
+                    label="Star Trackers"
+                    value="${subsystemsData.starTrackers || '0.02'}"
+                    unit="ARCSEC">
+                </telemetry-item>
+                <telemetry-item
+                    label="Sun Sensor"
+                    value="${subsystemsData.sunSensor || '23'}"
+                    unit="DEG">
+                </telemetry-item>
+            </telemetry-card>
+        `;
+    },
+
+    /**
      * Generate telemetry graph placeholder
      * @returns {string} HTML string
      */

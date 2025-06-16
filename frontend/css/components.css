@@ -10,7 +10,7 @@
     background: rgba(0, 20, 40, 0.8);
     border: 1px solid rgba(0, 150, 255, 0.3);
     border-radius: 8px;
-    margin: 10px;
+    margin: 10px 0;
     padding: 15px;
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
@@ -24,9 +24,11 @@
 }
 
 h4 {
-    margin: 0;
+    margin: 0 0 15px 0;
     color: #00a8ff;
     font-size: 1.1em;
+    border-bottom: 1px solid rgba(0, 150, 255, 0.3);
+    padding-bottom: 8px;
 }
 
 .classification {
@@ -44,14 +46,11 @@ h4 {
 
 /* Telemetry Item Styles */
 :host(.telemetry-item) {
-    display: grid;
-    grid-template-columns: 1fr auto auto;
-    gap: 10px;
+    display: flex;
+    justify-content: space-between;
     align-items: center;
-    padding: 5px;
-    border-radius: 4px;
-    background: transparent;
-    transition: background-color 0.3s ease;
+    padding: 5px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 :host(.telemetry-item[highlight]) {
@@ -74,6 +73,67 @@ h4 {
     color: #888888;
     font-size: 0.8em;
     min-width: 40px;
+}
+
+/* Additional Telemetry Styles */
+.telemetry-card {
+    background: rgba(0, 20, 40, 0.8);
+    border: 1px solid rgba(0, 150, 255, 0.3);
+    border-radius: 8px;
+    margin: 10px 0;
+    padding: 15px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.telemetry-card h4 {
+    margin: 0 0 15px 0;
+    color: #00a8ff;
+    font-size: 1.1em;
+    border-bottom: 1px solid rgba(0, 150, 255, 0.3);
+    padding-bottom: 8px;
+}
+
+.telemetry-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.telemetry-item:last-child {
+    border-bottom: none;
+}
+
+.telemetry-item span:first-child {
+    color: #cccccc;
+    font-weight: 500;
+}
+
+.telemetry-item span:last-child {
+    color: #00ff88;
+    font-weight: bold;
+    font-family: 'Courier New', monospace;
+}
+
+.telemetry-section {
+    color: #00a8ff;
+    font-weight: bold;
+    font-size: 0.95em;
+    margin: 15px 0 8px 0;
+    padding: 5px 0;
+    border-bottom: 1px solid rgba(0, 168, 255, 0.3);
+}
+
+.telemetry-note {
+    font-size: 0.9em;
+    color: #cccccc;
+    font-style: italic;
+}
+
+.telemetry-note strong {
+    color: #00a8ff;
 }
 
 /* Graph Card Styles */

@@ -54,6 +54,23 @@
     </telemetry-card>
 </template>
 
+<!-- CRTS-1 Subsystems Card Template -->
+<template id="subsystems-card">
+    <telemetry-card title="Subsystems Status" classification="CRTS-1">
+        <telemetry-item label="Solar Arrays" unit="W"></telemetry-item>
+        <telemetry-item label="Power Subsystem" unit="%"></telemetry-item>
+        <telemetry-item label="Telescope" unit="STATUS"></telemetry-item>
+        <telemetry-item label="L-Band Antennas" unit="dBm"></telemetry-item>
+        <telemetry-item label="Ku-Band Antenna" unit="Mbps"></telemetry-item>
+        <telemetry-item label="Slotted Waveguide Array" unit="DEG"></telemetry-item>
+        <telemetry-item label="Low Gain Antennas" unit="STATUS"></telemetry-item>
+        <telemetry-item label="Cold Gas Thrusters" unit="%"></telemetry-item>
+        <telemetry-item label="Magnetometer" unit="µT"></telemetry-item>
+        <telemetry-item label="Star Trackers" unit="ARCSEC"></telemetry-item>
+        <telemetry-item label="Sun Sensor" unit="DEG"></telemetry-item>
+    </telemetry-card>
+</template>
+
 <!-- Telemetry Graph Card Template -->
 <template id="graph-card">
     <telemetry-card title="Telemetry Trends">
