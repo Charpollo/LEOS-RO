@@ -839,42 +839,81 @@ async function initModelViewer() {
     canvas.style.left = '0';
     canvas.style.zIndex = '10'; // Make sure canvas is above any potential placeholder text
     
-    // Create engine and scene for preview
-    previewEngine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true, alpha: true });
+    // Create engine and scene for preview with optimized settings
+    previewEngine = new BABYLON.Engine(canvas, true, { 
+        preserveDrawingBuffer: true, 
+        stencil: true, 
+        alpha: true,
+        antialias: true, // Enable antialiasing for smoother rendering
+        powerPreference: "high-performance", // Use high performance GPU if available
+        depth: true, // Ensure depth buffer is properly configured
+        premultipliedAlpha: false // Better alpha handling
+    });
+    previewEngine.setHardwareScalingLevel(1); // Full resolution rendering
+    previewEngine.enableOfflineSupport = false; // Disable for better performance
+    
     previewScene = new BABYLON.Scene(previewEngine);
-    previewScene.collisionsEnabled = true;  // Enable collisions in preview scene
-    previewScene.clearColor = new BABYLON.Color4(0.02, 0.02, 0.05, 0.3); // make background semi-transparent
+    previewScene.collisionsEnabled = true;
+    previewScene.clearColor = new BABYLON.Color4(0.02, 0.02, 0.05, 0.3);
     
-    // Create starfield background
-    const starfieldTexture = new BABYLON.Texture("assets/stars.png", previewScene);
-    const starBackground = BABYLON.MeshBuilder.CreatePlane("starBackground", {
-        size: 100,
-        sideOrientation: BABYLON.Mesh.DOUBLESIDE
-    }, previewScene);
-    starBackground.position = new BABYLON.Vector3(0, 0, -20); // Behind everything
-    const starMaterial = new BABYLON.StandardMaterial("starMaterial", previewScene);
-    starMaterial.emissiveTexture = starfieldTexture;
-    starMaterial.disableLighting = true;
-    starBackground.material = starMaterial;
+    // Enable scene optimizations and fix depth precision
+    previewScene.freezeActiveMeshes(); // Will unfreeze when loading new models
+    previewScene.setRenderingAutoClearDepthStencil(0, true, true, true); // Optimize rendering
+    previewScene.getEngine().setDepthFunction(BABYLON.Engine.LEQUAL); // Better depth testing
     
-    // Camera setup
-    previewCamera = new BABYLON.ArcRotateCamera('previewCam', -Math.PI/2, Math.PI/2, 2, new BABYLON.Vector3(0,0,0), previewScene);
-    previewCamera.lowerRadiusLimit = 0.001; // ultra-close zoom
-previewCamera.minZ = 0.0001; // reduce near clipping plane for fine detail
-previewCamera.collisionRadius = new BABYLON.Vector3(0.1, 0.1, 0.1); // tighten collision bounds
-    previewCamera.upperRadiusLimit = 10;
-    previewCamera.wheelDeltaPercentage = 0.01; // Smoother zoom
+    // Create simplified starfield background that won't interfere
+    try {
+        const starfieldTexture = new BABYLON.Texture("assets/stars.png", previewScene);
+        starfieldTexture.onLoadObservable.add(() => {
+            console.log("Starfield texture loaded successfully");
+        });
+        starfieldTexture.onErrorObservable.add(() => {
+            console.warn("Starfield texture failed to load, using fallback");
+        });
+        
+        const starBackground = BABYLON.MeshBuilder.CreateSphere("starBackground", {
+            diameter: 200,
+            sideOrientation: BABYLON.Mesh.BACKSIDE // Show inside of sphere
+        }, previewScene);
+        starBackground.position = new BABYLON.Vector3(0, 0, 0);
+        starBackground.infiniteDistance = true; // Always render behind everything
+        
+        const starMaterial = new BABYLON.StandardMaterial("starMaterial", previewScene);
+        starMaterial.diffuseTexture = starfieldTexture;
+        starMaterial.disableLighting = true;
+        starMaterial.backFaceCulling = false;
+        starBackground.material = starMaterial;
+    } catch (error) {
+        console.warn("Starfield setup failed, using simple background:", error);
+        // Fallback to just the clear color if starfield fails
+    }
+    
+    // Camera setup with improved settings for smooth interaction
+    previewCamera = new BABYLON.ArcRotateCamera('previewCam', -Math.PI/2, Math.PI/2, 3, new BABYLON.Vector3(0,0,0), previewScene);
+    previewCamera.lowerRadiusLimit = 0.5; // Prevent getting too close to avoid clipping
+    previewCamera.upperRadiusLimit = 15; // Allow more zoom out
+    previewCamera.minZ = 0.01; // Better near clipping plane
+    previewCamera.maxZ = 1000; // Far clipping plane
+    
+    // Smooth camera controls
+    previewCamera.wheelDeltaPercentage = 0.005; // Much smoother zoom
+    previewCamera.pinchDeltaPercentage = 0.005; // Smooth pinch zoom
+    previewCamera.panningSensibility = 50; // Smooth panning
+    previewCamera.angularSensibilityX = 1000; // Smooth rotation
+    previewCamera.angularSensibilityY = 1000; // Smooth rotation
+    
+    // Collision settings
+    previewCamera.checkCollisions = true;
+    previewCamera.collisionRadius = new BABYLON.Vector3(0.3, 0.3, 0.3);
     
     // Always attach control to the modelCanvas
     previewCamera.attachControl(canvas, true);
-    previewCamera.checkCollisions = true;    // Prevent camera passing through model
-    previewCamera.collisionRadius = new BABYLON.Vector3(0.2, 0.2, 0.2);
 
-    // Enhance lighting for better model viewing
+    // Enhance lighting for better model viewing with reduced reflections
     const hemisphericLight = new BABYLON.HemisphericLight('previewLight', new BABYLON.Vector3(0,1,0), previewScene);
-    hemisphericLight.intensity = 1.2;
+    hemisphericLight.intensity = 0.8; // Reduced intensity to minimize harsh reflections
     hemisphericLight.diffuse = new BABYLON.Color3(0.9, 0.9, 1.0);
-    hemisphericLight.specular = new BABYLON.Color3(0.5, 0.5, 0.8);
+    hemisphericLight.specular = new BABYLON.Color3(0.2, 0.2, 0.3); // Much lower specular to reduce reflective "static"
     
     // Add subtle particle system for stars in background
     const particleSystem = new BABYLON.ParticleSystem("stars", 200, previewScene);
@@ -900,9 +939,23 @@ previewCamera.collisionRadius = new BABYLON.Vector3(0.1, 0.1, 0.1); // tighten c
     particleSystem.maxAngularSpeed = 0.01;
     particleSystem.start();
     
-    // Engine render loop
-    previewEngine.runRenderLoop(() => previewScene.render());
-    window.addEventListener('resize', () => previewEngine.resize());
+    // Optimized engine render loop with frame rate control
+    previewEngine.runRenderLoop(() => {
+        if (previewScene && previewScene.activeCamera) {
+            previewScene.render();
+        }
+    });
+    
+    // Handle resize with debouncing for better performance
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+            if (previewEngine) {
+                previewEngine.resize();
+            }
+        }, 100);
+    });
 
     // Load a model when a satellite is selected
     window.addEventListener('satelliteSelected', async (e) => {
@@ -944,14 +997,50 @@ previewCamera.collisionRadius = new BABYLON.Vector3(0.1, 0.1, 0.1); // tighten c
 
         // Properly clean up previous scene resources
         try {
-            // Remove all meshes except the camera
-            previewScene.meshes.slice().forEach(mesh => {
-                if (mesh !== previewCamera) {
-                    mesh.dispose();
+            // Stop and dispose of any running animations from previous models
+            if (previewScene.animationGroups && previewScene.animationGroups.length > 0) {
+                console.log(`Cleaning up ${previewScene.animationGroups.length} previous animations`);
+                previewScene.animationGroups.slice().forEach(animationGroup => {
+                    animationGroup.stop();
+                    animationGroup.dispose();
+                });
+            }
+            
+            // More selective mesh cleanup - preserve GLB hierarchy
+            const meshesToRemove = [];
+            previewScene.meshes.forEach(mesh => {
+                // Keep camera, starfield background, and particle system meshes
+                // Remove any imported model meshes (they'll have materials or be part of GLB)
+                if (mesh !== previewCamera && 
+                    !mesh.name.includes("star") && 
+                    !mesh.name.includes("particle") &&
+                    !mesh.name.includes("Background") &&
+                    mesh.name !== "starBackground") {
+                    
+                    // Check if this mesh is from a loaded model (has material or geometry)
+                    if (mesh.material || mesh.geometry || mesh.name.includes("satellite") || mesh.name === "__root__") {
+                        meshesToRemove.push(mesh);
+                    }
                 }
             });
             
-            // Clean up lights
+            // Clean up satellite meshes and their observers
+            meshesToRemove.forEach(mesh => {
+                // Clean up any stored observers
+                if (mesh.userData && mesh.userData.rotationObserver) {
+                    previewScene.onBeforeRenderObservable.remove(mesh.userData.rotationObserver);
+                }
+                mesh.dispose();
+            });
+            
+            // Clean up any leftover transform nodes from previous loads
+            previewScene.transformNodes.slice().forEach(node => {
+                if (node.name !== "previewCam" && !node.name.includes("star") && !node.name.includes("particle")) {
+                    node.dispose();
+                }
+            });
+            
+            // Clean up lights (except the main hemispheric light)
             previewScene.lights.slice().forEach(light => {
                 if (light.name === "previewLight") return; // keep the main hemispheric light
                 light.dispose();
@@ -960,11 +1049,12 @@ previewCamera.collisionRadius = new BABYLON.Vector3(0.1, 0.1, 0.1); // tighten c
             // Clear any existing observers that might be tied to the old mesh
             previewScene.onBeforeRenderObservable.clear();
             
-            // Recreate our standard light and starfield after cleanup
+            // Unfreeze meshes for new model loading
+            previewScene.unfreezeActiveMeshes();
             
             previewMesh = null;
             
-            // Force a garbage collection hint
+            // Force a garbage collection hint and clear caches
             if (previewEngine) {
                 previewEngine.wipeCaches(true);
             }
@@ -979,39 +1069,116 @@ previewCamera.collisionRadius = new BABYLON.Vector3(0.1, 0.1, 0.1); // tighten c
             ? 'assets/crts_satellite.glb'
             : 'assets/bulldog_sat.glb';
         try {
-            const result = await BABYLON.SceneLoader.ImportMeshAsync('', '', modelFile, previewScene);
-            previewMesh = result.meshes[0];
-            previewMesh.rotationQuaternion = null;
+            // Unfreeze active meshes before loading new model
+            previewScene.unfreezeActiveMeshes();
             
-            // Adjust scale factor based on satellite type
+            const result = await BABYLON.SceneLoader.ImportMeshAsync('', '', modelFile, previewScene);
+            
+            // Find the root mesh or create a reference to all imported meshes
+            // Don't disrupt the original GLB hierarchy - it knows how to position its parts
+            const rootMesh = result.meshes.find(mesh => mesh.name === "__root__") || result.meshes[0];
+            previewMesh = rootMesh;
+            
+            // Clear rotation quaternion only on the root to allow manual rotation
+            if (previewMesh.rotationQuaternion) {
+                previewMesh.rotationQuaternion = null;
+            }
+            
+            // Check for and start any built-in animations (like solar panel movements)
+            console.log(`Checking for animations in ${modelFile}...`);
+            console.log(`Animation groups found:`, result.animationGroups ? result.animationGroups.length : 0);
+            console.log(`Scene animation groups total:`, previewScene.animationGroups.length);
+            
+            if (result.animationGroups && result.animationGroups.length > 0) {
+                console.log(`Found ${result.animationGroups.length} animation(s) in ${modelFile}`);
+                result.animationGroups.forEach((animationGroup, index) => {
+                    console.log(`Animation ${index}:`, {
+                        name: animationGroup.name,
+                        from: animationGroup.from,
+                        to: animationGroup.to,
+                        targetedAnimations: animationGroup.targetedAnimations.length
+                    });
+                    
+                    try {
+                        // Reset animation to beginning
+                        animationGroup.reset();
+                        // Start with looping enabled
+                        animationGroup.start(true, 1.0, animationGroup.from, animationGroup.to, false);
+                        console.log(`✓ Started animation: ${animationGroup.name}`);
+                    } catch (error) {
+                        console.error(`✗ Failed to start animation ${animationGroup.name}:`, error);
+                    }
+                });
+            } else {
+                console.log(`No built-in animations found in ${modelFile}`);
+                // Also check if there are any animations in the scene that might have been imported
+                if (previewScene.animationGroups.length > 0) {
+                    console.log(`But found ${previewScene.animationGroups.length} animations in scene:`, 
+                        previewScene.animationGroups.map(ag => ag.name));
+                }
+            }
+            
+            // Don't reparent individual meshes - let GLB maintain its own hierarchy
+            console.log(`Loaded ${result.meshes.length} meshes for ${satName}:`, result.meshes.map(m => m.name));
+            
+            // Check for and start any built-in animations (like solar panel movements)
+            if (result.animationGroups && result.animationGroups.length > 0) {
+                console.log(`Found ${result.animationGroups.length} animation(s) in ${modelFile}`);
+                result.animationGroups.forEach((animationGroup, index) => {
+                    console.log(`Starting animation ${index}: ${animationGroup.name}`);
+                    animationGroup.start(true); // true = loop the animation
+                });
+            } else {
+                console.log(`No built-in animations found in ${modelFile}`);
+            }
+            
+            // Adjust scale factor and positioning based on satellite type
             let scaleFactor = 0.5;
             if (satName.toUpperCase().includes('CRTS')) {
                 scaleFactor = 0.35; // Smaller scale for CRTS models
-                // Also adjust camera distance for CRTS models
-                previewCamera.radius = 3.0;
+                previewCamera.radius = 3.5; // Better viewing distance for CRTS
+                // CRTS models stay in default orientation
             } else {
-                // Default Bulldog satellite
+                // BULLDOG satellite - keep in default orientation (no rotation to prevent floating pieces)
                 scaleFactor = 0.5;
-                previewCamera.radius = 2.0;
+                previewCamera.radius = 3.0; // Better viewing distance for BULLDOG
+                // Removed the 180-degree rotation that was causing floating pieces
             }
             previewMesh.scaling = new BABYLON.Vector3(scaleFactor, scaleFactor, scaleFactor);
             
-            // Center on origin
-            const center = previewMesh.getBoundingInfo().boundingBox.center;
+            // Center the model on origin with better positioning
+            const boundingInfo = previewMesh.getBoundingInfo();
+            const center = boundingInfo.boundingBox.center;
             previewMesh.position = center.negate();
             
-            // Add auto-rotation animation for better visual appeal using a safer approach
+            // Add smooth auto-rotation animation with proper cleanup
             const rotationObserver = previewScene.onBeforeRenderObservable.add(() => {
                 if (previewMesh && previewMesh.rotation) {
-                    previewMesh.rotation.y += 0.0015; // Much slower rotation for better viewing
+                    previewMesh.rotation.y += 0.002; // Much slower rotation for better viewing
                 }
             });
             
-            // Add a point light to highlight the model better
+            // Store the observer for cleanup
+            previewMesh.userData = { rotationObserver };
+            
+            // Add enhanced lighting for better model visibility with reduced reflections
             const pointLight = new BABYLON.PointLight("modelSpotlight", 
-                new BABYLON.Vector3(3, 2, 3), previewScene);
-            pointLight.intensity = 1.5;
-            pointLight.diffuse = new BABYLON.Color3(0.9, 0.9, 1.0);
+                new BABYLON.Vector3(4, 3, 4), previewScene);
+            pointLight.intensity = 1.2; // Reduced from 2.0 to minimize harsh reflections
+            pointLight.diffuse = new BABYLON.Color3(1.0, 1.0, 1.0);
+            pointLight.specular = new BABYLON.Color3(0.3, 0.3, 0.4); // Much lower specular to reduce static-like reflections
+            
+            // Add softer rim lighting for better definition without harsh reflections
+            const rimLight = new BABYLON.DirectionalLight("rimLight", 
+                new BABYLON.Vector3(-1, -1, -1), previewScene);
+            rimLight.intensity = 0.4; // Reduced from 0.8 for softer lighting
+            rimLight.diffuse = new BABYLON.Color3(0.6, 0.8, 1.0);
+            rimLight.specular = new BABYLON.Color3(0.1, 0.1, 0.2); // Very low specular to prevent reflective artifacts
+            
+            // Freeze meshes again for performance after loading
+            setTimeout(() => {
+                previewScene.freezeActiveMeshes();
+            }, 100);
             
             console.log(`Model ${modelFile} loaded successfully for satellite ${satName}`);
         } catch (err) {
