@@ -7,9 +7,54 @@
     <link rel="stylesheet" href="css/brand-ui.css">
     <!-- Load the bundled JavaScript only once -->
     <script defer src="dist/js/bundle.js"></script>
+    <style>
+      /* Help modal side panel */
+      #help-modal {
+        pointer-events: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100%;
+        width: 420px;
+        background: rgba(0,23,40,0.95);
+        color: #66d9ff;
+        box-shadow: 2px 0 12px rgba(0,0,0,0.6);
+        z-index: 4500;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        display: flex;
+        flex-direction: column;
+        padding: 1.5em;
+      }
+      #help-modal.open { 
+        pointer-events: auto;
+        transform: translateX(0); }
+      /* Ensure base modal-overlay background is transparent */
+      #help-modal.modal-overlay { background: none; }
+      /* Pulsing glow for help sphere */
+      @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(0,204,255,0.7); }
+        70% { box-shadow: 0 0 0 12px rgba(0,204,255,0); }
+        100% { box-shadow: 0 0 0 0 rgba(0,204,255,0); }
+      }
+      #help-sphere-btn {
+        pointer-events: auto;
+        animation: pulse 3s ease-in-out infinite;
+        color: #fff;
+        font-size: 1.2em;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #help-sphere-btn:hover {
+        background: rgba(102,217,255,0.9);
+      }
+    </style>
 </head>
 <body>
     <div id="renderCanvas-container">
+        <!-- Help Sphere Button (hidden until simulation starts) -->
+        <button id="help-sphere-btn" title="Help" style="position:absolute; top:16px; left:16px; width:36px; height:36px; border-radius:50%; background:rgba(102,217,255,0.7); border:2px solid #00cfff; cursor:pointer; z-index:5000; display:none;"></button>
         <canvas id="renderCanvas" touch-action="none"></canvas>
         
         <!-- Loading Screen with Space Facts -->
@@ -17,9 +62,9 @@
             <div class="loading-content">
                 <div class="leos-logo"><span class="highlight">LEOS</span>: First Orbit</div>
                 <div class="loading-subtitle">
-                  <span class="subtitle-word">Navigate.</span>
-                  <span class="subtitle-word">Educate.</span>
-                  <span class="subtitle-word">Operate.</span>
+                    <span class="subtitle-word">Discover.</span>
+                    <span class="subtitle-word">Engage.</span>
+                    <span class="subtitle-word">Explore.</span>
                 </div>
                 <div class="loader">
                     <div class="loader-ring"></div>
@@ -58,8 +103,35 @@
                         <span class="control-key">Space Key</span>
                         <span class="control-desc">Pause/Resume</span>
                     </div>
+                    <div class="control-item">
+                        <span class="control-key">Click Ground Station</span>
+                        <span class="control-desc">View ground station info</span>
+                    </div>
+                    <div class="control-item">
+                        <span class="control-key">Click Time Display</span>
+                        <span class="control-desc">Open time controls</span>
+                    </div>
                 </div>
                 <button id="got-it-btn" class="primary-button">Got it!</button>
+            </div>
+        </div>
+
+        <!-- Help Info Panel -->
+        <div id="help-modal">
+            <div class="modal-content">
+                <h2 class="modal-title">Welcome to LEOS: First Orbit</h2>
+                <div class="modal-subtitle" style="margin:0.5em 0; font-style:italic;">Discover. Engage. Explore.</div>
+                <p class="section-content">LEOS: First Orbit places you in the heart of real-time space operations. Track CRTS-1 and Bulldog as they move through Low Earth Orbit, observe orbital mechanics in action, and explore a fully interactive 3D view of Earth, the Moon, and surrounding space.</p>
+                <div class="section-content" style="margin-top:1em;">
+                    <p>🛰 <strong>CRTS-1</strong> captures Earth imagery with advanced optical sensors</p>
+                    <p>🛰 <strong>Bulldog</strong> functions as an experimental support and research platform</p>
+                </div>
+                <p class="section-content" style="margin-top:1em;">Rotate the planet, zoom through space, follow satellite paths, and uncover the dynamics of orbit in motion. From launch to passover, LEOS invites you to experience the flow of space like never before.</p>
+                <p class="section-content" style="margin-top:1em; font-weight:bold;">Your simulation has started. The orbit is live.</p>
+                <div class="modal-actions" style="margin-top:auto;">
+                    <button id="help-show-tutorial" class="primary-button">Show Tutorial</button>
+                    <button id="help-close-btn" class="secondary-button">Close</button>
+                </div>
             </div>
         </div>
 
@@ -228,6 +300,43 @@
             // Ensure pointer events are enabled
             controlsPanel.style.pointerEvents = 'auto';
             timeDisplay.style.pointerEvents = 'auto';
+        })();
+        // Toggle help sphere visibility with loading screen
+        (function() {
+            const loadingScreen = document.getElementById('loading-screen');
+            const helpBtn = document.getElementById('help-sphere-btn');
+            function updateHelpVisibility() {
+                if (loadingScreen.style.display === 'none') {
+                    helpBtn.style.display = 'block';
+                } else {
+                    helpBtn.style.display = 'none';
+                }
+            }
+            // Observe loading screen hiding
+            const observer = new MutationObserver(updateHelpVisibility);
+            observer.observe(loadingScreen, { attributes: true, attributeFilter: ['style'] });
+            // Initial check
+            updateHelpVisibility();
+        })();
+        // Help sphere toggle and close on canvas click
+        (function() {
+            const helpBtn = document.getElementById('help-sphere-btn');
+            const helpModal = document.getElementById('help-modal');
+            const tutorialModal = document.getElementById('welcome-modal');
+            const showTutorialBtn = document.getElementById('help-show-tutorial');
+            const closeHelpBtn = document.getElementById('help-close-btn');
+            const canvas = document.getElementById('renderCanvas');
+            // Toggle panel on sphere click
+            helpBtn.addEventListener('click', () => helpModal.classList.toggle('open'));
+            // Close panel via close button
+            closeHelpBtn.addEventListener('click', () => helpModal.classList.remove('open'));
+            // Open full tutorial
+            showTutorialBtn.addEventListener('click', () => {
+                helpModal.classList.remove('open');
+                tutorialModal.style.display = 'flex';
+            });
+            // Close panel when clicking on simulation canvas
+            canvas.addEventListener('click', () => helpModal.classList.remove('open'));
         })();
     </script>
 </body>
