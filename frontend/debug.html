@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LEOS Debug Page</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+        .pass { background-color: #d4edda; }
+        .fail { background-color: #f8d7da; }
+        .info { background-color: #d1ecf1; }
+        #console-output { 
+            background: #000; 
+            color: #0f0; 
+            padding: 10px; 
+            height: 200px; 
+            overflow-y: auto; 
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>LEOS Browser Compatibility Debug</h1>
+    
+    <div id="browser-info" class="test info">
+        <h3>Browser Information</h3>
+        <p>User Agent: <span id="user-agent"></span></p>
+        <p>Platform: <span id="platform"></span></p>
+        <p>Language: <span id="language"></span></p>
+    </div>
+
+    <div id="webgl-test" class="test">
+        <h3>WebGL Support Test</h3>
+        <p id="webgl-result">Testing...</p>
+        <canvas id="webgl-canvas" width="100" height="100" style="border: 1px solid #000;"></canvas>
+    </div>
+
+    <div id="babylon-test" class="test">
+        <h3>Babylon.js Loading Test</h3>
+        <p id="babylon-result">Testing...</p>
+    </div>
+
+    <div id="bundle-test" class="test">
+        <h3>Bundle.js Loading Test</h3>
+        <p id="bundle-result">Testing...</p>
+    </div>
+
+    <div id="network-test" class="test">
+        <h3>Network Requests Test</h3>
+        <p id="network-result">Testing...</p>
+    </div>
+
+    <div class="test">
+        <h3>Console Output</h3>
+        <div id="console-output"></div>
+    </div>
+
+    <script>
+        // Capture console output
+        const consoleOutput = document.getElementById('console-output');
+        const originalLog = console.log;
+        const originalError = console.error;
+        const originalWarn = console.warn;
+
+        function addToConsole(type, ...args) {
+            const timestamp = new Date().toLocaleTimeString();
+            const message = args.map(arg => 
+                typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+            ).join(' ');
+            consoleOutput.innerHTML += `[${timestamp}] ${type.toUpperCase()}: ${message}\n`;
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        }
+
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            addToConsole('log', ...args);
+        };
+
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            addToConsole('error', ...args);
+        };
+
+        console.warn = function(...args) {
+            originalWarn.apply(console, args);
+            addToConsole('warn', ...args);
+        };
+
+        // Capture unhandled errors
+        window.addEventListener('error', function(event) {
+            addToConsole('error', 'Unhandled Error:', event.error?.message || event.message);
+        });
+
+        window.addEventListener('unhandledrejection', function(event) {
+            addToConsole('error', 'Unhandled Promise Rejection:', event.reason);
+        });
+
+        // Browser info
+        document.getElementById('user-agent').textContent = navigator.userAgent;
+        document.getElementById('platform').textContent = navigator.platform;
+        document.getElementById('language').textContent = navigator.language;
+
+        // WebGL test
+        function testWebGL() {
+            const canvas = document.getElementById('webgl-canvas');
+            const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+            
+            if (gl) {
+                const ext = gl.getExtension('WEBGL_debug_renderer_info');
+                const renderer = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : 'Unknown';
+                const vendor = ext ? gl.getParameter(ext.UNMASKED_VENDOR_WEBGL) : 'Unknown';
+                
+                document.getElementById('webgl-result').innerHTML = `
+                    ✅ WebGL Supported<br>
+                    Renderer: ${renderer}<br>
+                    Vendor: ${vendor}
+                `;
+                document.getElementById('webgl-test').className = 'test pass';
+                
+                // Try to create a simple triangle
+                const vertexShader = gl.createShader(gl.VERTEX_SHADER);
+                gl.shaderSource(vertexShader, `
+                    attribute vec2 position;
+                    void main() {
+                        gl_Position = vec4(position, 0.0, 1.0);
+                    }
+                `);
+                gl.compileShader(vertexShader);
+                
+                if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
+                    console.error('Vertex shader compilation failed');
+                }
+                
+                return true;
+            } else {
+                document.getElementById('webgl-result').textContent = '❌ WebGL Not Supported';
+                document.getElementById('webgl-test').className = 'test fail';
+                return false;
+            }
+        }
+
+        // Test network requests
+        async function testNetwork() {
+            try {
+                const response = await fetch('/api/simulation/status');
+                const data = await response.json();
+                document.getElementById('network-result').innerHTML = `
+                    ✅ API Accessible<br>
+                    Status: ${JSON.stringify(data)}
+                `;
+                document.getElementById('network-test').className = 'test pass';
+            } catch (error) {
+                document.getElementById('network-result').textContent = `❌ API Error: ${error.message}`;
+                document.getElementById('network-test').className = 'test fail';
+            }
+        }
+
+        // Test bundle.js loading
+        function testBundle() {
+            const script = document.createElement('script');
+            script.src = '/dist/js/bundle.js';
+            script.onload = function() {
+                document.getElementById('bundle-result').textContent = '✅ Bundle.js loaded successfully';
+                document.getElementById('bundle-test').className = 'test pass';
+                testBabylon();
+            };
+            script.onerror = function() {
+                document.getElementById('bundle-result').textContent = '❌ Bundle.js failed to load';
+                document.getElementById('bundle-test').className = 'test fail';
+            };
+            document.head.appendChild(script);
+        }
+
+        // Test Babylon.js
+        function testBabylon() {
+            setTimeout(() => {
+                if (typeof BABYLON !== 'undefined') {
+                    try {
+                        const canvas = document.createElement('canvas');
+                        const engine = new BABYLON.Engine(canvas, true);
+                        const scene = new BABYLON.Scene(engine);
+                        
+                        document.getElementById('babylon-result').textContent = '✅ Babylon.js working correctly';
+                        document.getElementById('babylon-test').className = 'test pass';
+                        
+                        engine.dispose();
+                    } catch (error) {
+                        document.getElementById('babylon-result').textContent = `❌ Babylon.js error: ${error.message}`;
+                        document.getElementById('babylon-test').className = 'test fail';
+                    }
+                } else {
+                    document.getElementById('babylon-result').textContent = '❌ Babylon.js not available';
+                    document.getElementById('babylon-test').className = 'test fail';
+                }
+            }, 1000);
+        }
+
+        // Run tests
+        console.log('Starting browser compatibility tests...');
+        testWebGL();
+        testNetwork();
+        testBundle();
+    </script>
+</body>
+</html>

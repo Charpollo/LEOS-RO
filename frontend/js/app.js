@@ -6,7 +6,7 @@ import { AdvancedDynamicTexture, TextBlock, Rectangle } from '@babylonjs/gui';
 import './components/telemetry-card.js';
 import './components/telemetry-item.js';
 import { uiManager } from './ui/manager.js';
-import { initBrandUI, hideLoadingScreen, showWelcomeModal } from './ui/brand-ui.js';
+import { initBrandUI, hideLoadingScreen, showWelcomeModal, showHelpButton } from './ui/brand-ui.js';
 import { createTelemetryItem } from './ui/template-manager.js';
 
 // Import our modular components
@@ -425,6 +425,8 @@ export async function initApp() {
         if (scene.isReady() && !sceneLoaded) {
             hideLoadingScreen();
             sceneLoaded = true;
+            // Show help button now that simulation is loaded
+            showHelpButton();
             // Initialize keyboard controls once the scene is loaded
             setupKeyboardControls(
                 camera,
@@ -710,7 +712,7 @@ async function createScene() {
     
     // Create scene with optimized parameters
     scene = new BABYLON.Scene(engine);
-    scene.clearColor = new BABYLON.Color4(0, 0, 0, 1); // Pure black background
+    scene.clearColor = new BABYLON.Color4(0.02, 0.02, 0.05, 1); // Cinematic deep blue background
     scene.skipPointerMovePicking = true; // Skip pointer move picking for better performance
     scene.autoClear = true; // Enable auto clear to prevent dark artifacts
     scene.autoClearDepthAndStencil = true;
@@ -764,7 +766,7 @@ async function createScene() {
 
     // Almost entirely eliminate ambient light for a realistic hard terminator
     const ambientLight = new BABYLON.HemisphericLight("ambientLight", new BABYLON.Vector3(0, 1, 0), scene);
-    ambientLight.intensity = 0.01; // Extremely low - just enough to avoid complete black
+    ambientLight.intensity = 0.15; // Increased ambient for brighter scene
     ambientLight.diffuse = new BABYLON.Color3(0.2, 0.2, 0.4); // Slight blue tint for space-scattered light
     ambientLight.groundColor = new BABYLON.Color3(0.05, 0.05, 0.05);
     scene.ambientLight = ambientLight;
@@ -780,20 +782,20 @@ async function createScene() {
         [camera] // Pass initialized camera
     );
     
-    // Disable bloom and tone mapping to prevent color shifts and blur
-    renderingPipeline.bloomEnabled = false;
+    // Enable bloom and tone mapping for cinematic glow
+    renderingPipeline.bloomEnabled = true;
+    renderingPipeline.bloomThreshold = 0.8;
+    renderingPipeline.bloomWeight = 0.3;
+    renderingPipeline.bloomKernel = 64;
+    renderingPipeline.bloomScale = 0.5;
+    renderingPipeline.imageProcessingEnabled = true;
+    renderingPipeline.imageProcessing.toneMappingEnabled = true;
+    renderingPipeline.imageProcessing.exposure = 1.2;
     
-    // Disable image processing to prevent tone mapping artifacts
-    renderingPipeline.imageProcessingEnabled = false;
-    
-    // Disable chroma shift to prevent edge artifacts
-    renderingPipeline.chromaticAberrationEnabled = false;
-    
-    // Disable grain for cleaner image
-    renderingPipeline.grainEnabled = false;
-
-    // Disable depth of field to prevent blur
-    renderingPipeline.depthOfFieldEnabled = false;
+    // Keep chromatic aberration and grain off for clarity
+     renderingPipeline.chromaticAberrationEnabled = false;
+     renderingPipeline.grainEnabled = false;
+     renderingPipeline.depthOfFieldEnabled = false;
     
     // Initialize the advanced texture for satellite labels
     advancedTexture = AdvancedDynamicTexture.CreateFullscreenUI("UI", true, scene);
@@ -864,12 +866,14 @@ async function initModelViewer() {
     // Create simplified starfield background that won't interfere
     try {
         const starfieldTexture = new BABYLON.Texture("assets/stars.png", previewScene);
-        starfieldTexture.onLoadObservable.add(() => {
+        starfieldTexture.onLoadObservable?.add(() => {
             console.log("Starfield texture loaded successfully");
         });
-        starfieldTexture.onErrorObservable.add(() => {
-            console.warn("Starfield texture failed to load, using fallback");
-        });
+        if (starfieldTexture.onErrorObservable) {
+            starfieldTexture.onErrorObservable.add(() => {
+                console.warn("Starfield texture failed to load, using fallback");
+            });
+        }
         
         const starBackground = BABYLON.MeshBuilder.CreateSphere("starBackground", {
             diameter: 200,

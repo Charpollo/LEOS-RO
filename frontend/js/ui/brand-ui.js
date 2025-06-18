@@ -24,6 +24,7 @@ export function initBrandUI() {
     initInfoPanel();
     // initTimeDisplay();    // Disabled in favor of simulation-driven clock
     initTelemetryDashboard();
+    initHelpModal();
 }
 
 // Panel toggle functionality
@@ -203,3 +204,38 @@ window.addEventListener('DOMContentLoaded', () => {
         makeDraggable(dash);
     }
 });
+
+// Help modal toggle and keyboard shortcut (Q key)
+function initHelpModal() {
+    const helpBtn = document.getElementById('help-sphere-btn');
+    const helpModal = document.getElementById('help-modal');
+    const helpClose = document.getElementById('help-close-btn');
+    if (helpBtn && helpModal) {
+        // Don't show help button initially - only after scene loads
+        helpBtn.style.display = 'none';
+        // Open modal helper function (no toggle, just open)
+        const openHelp = () => helpModal.classList.add('open');
+        // Open modal on click (simpler approach)
+        helpBtn.addEventListener('click', openHelp);
+        // Close modal on close button click
+        if (helpClose) {
+            helpClose.addEventListener('click', () => {
+                helpModal.classList.remove('open');
+            });
+        }
+        // Toggle modal on 'q' key press
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'q' || e.key === 'Q') {
+                helpModal.classList.toggle('open');
+            }
+        });
+    }
+}
+
+// Show help button after scene loads
+export function showHelpButton() {
+    const helpBtn = document.getElementById('help-sphere-btn');
+    if (helpBtn) {
+        helpBtn.style.display = 'flex';
+    }
+}

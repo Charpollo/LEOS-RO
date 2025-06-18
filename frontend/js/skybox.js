@@ -14,7 +14,7 @@ export function createSkybox(scene) {
         const cubeTexture = new BABYLON.CubeTexture("assets/starfield/stars", scene);
         cubeTexture.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
         skyboxMaterial.reflectionTexture = cubeTexture;
-        cubeTexture.level = 1.2;
+        cubeTexture.level = 1.5; // brighten starfield
     } catch (e) {
         skyboxMaterial.diffuseColor = new BABYLON.Color3(0,0,0);
         skyboxMaterial.emissiveColor = new BABYLON.Color3(0,0,0);
@@ -27,8 +27,9 @@ export function createSkybox(scene) {
     const starsParticles = new BABYLON.ParticleSystem("stars", 8000, scene);
     const particleTexture = new BABYLON.Texture("assets/particle_star.png", scene);
     starsParticles.particleTexture = particleTexture;
-    starsParticles.minSize = 0.18;
-    starsParticles.maxSize = 0.7;
+    starsParticles.emitRate = 10000; // more stars
+    starsParticles.minSize = 0.3; // larger, brighter stars
+    starsParticles.maxSize = 1.0;
     starsParticles.minLifeTime = Number.MAX_SAFE_INTEGER;
     starsParticles.maxLifeTime = Number.MAX_SAFE_INTEGER;
     starsParticles.emitRate = 8000;
