@@ -57,9 +57,10 @@
         <!-- Help Sphere Button (hidden until simulation starts) -->
         <button id="help-sphere-btn" title="Help" style="position:absolute; top:16px; left:16px; width:36px; height:36px; border-radius:50%; background:rgba(102,217,255,0.7); border:2px solid #00cfff; cursor:pointer; z-index:5000; display:none;"></button>
         <canvas id="renderCanvas" touch-action="none"></canvas>
-        
-        <!-- Loading Screen with Space Facts -->
+         <!-- Loading Screen with Space Facts -->
         <div id="loading-screen">
+            <!-- Aurora Background Canvas -->
+            <canvas id="aurora-canvas" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1001;"></canvas>
             <div class="loading-content">
                 <div class="leos-logo"><span class="highlight">LEOS</span>: First Orbit</div>
                 <div class="loading-subtitle">
@@ -67,11 +68,7 @@
                     <span class="subtitle-word">Engage.</span>
                     <span class="subtitle-word">Explore.</span>
                 </div>
-                <div class="loader">
-                    <div class="loader-ring"></div>
-                    <div class="loader-ring"></div>
-                    <div class="loader-ring"></div>
-                </div>
+                <div id="loadingWave" class="loading-wave">Launching...</div>
                 <div class="space-fact" id="space-fact">
                     <p>Did you know? There are over 34,000 objects larger than 10cm currently orbiting Earth.</p>
                 </div>

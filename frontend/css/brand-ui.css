@@ -89,16 +89,12 @@ body.hide-time #time-display {
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: url('../assets/stars.png') center/cover no-repeat;
+    background: #000000; /* Solid black background for aurora canvas */
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center; /* center content vertically */
     z-index: 1000;
-    /* remove dim blur and boost brightness */
-    backdrop-filter: blur(30px); /* more blur to obscure background */
-    background-color: rgba(0, 0, 0, 0.8); /* dark overlay */
-    filter: none; /* remove brightness override */
     overflow: hidden;
     padding: var(--spacing-xl) var(--spacing-lg);
     min-height: 100vh;
@@ -111,6 +107,8 @@ body.hide-time #time-display {
     justify-content: space-evenly; /* even vertical spacing */
     height: 80vh; /* fill most viewport */
     gap: 0;
+    position: relative;
+    z-index: 1002; /* Above aurora canvas */
 }
 
 .leos-logo {
@@ -130,7 +128,7 @@ body.hide-time #time-display {
 .loading-subtitle {
     font-size: 1.5rem;
     font-weight: 400;
-    color: var(--text-secondary);
+    color: var(--neon-blue); /* Changed to neon blue */
     letter-spacing: 0.1em;
     margin-top: 0.1em; /* bring closer to title */
     margin-bottom: 0.7em; /* reduced space below subtitle */
@@ -142,11 +140,10 @@ body.hide-time #time-display {
 
 .subtitle-word {
     opacity: 0;
-    filter: blur(4px);
+    transform: translateY(10px); /* Simpler transform instead of blur */
     animation: subtitleFadeIn 1.2s forwards;
-    will-change: opacity, filter;
+    will-change: opacity, transform; /* Performance hint */
     backface-visibility: hidden;
-    transform: translateZ(0);
 }
 .subtitle-word:nth-child(1) {
     animation-delay: 0.5s;
@@ -161,15 +158,15 @@ body.hide-time #time-display {
 @keyframes subtitleFadeIn {
     0% {
         opacity: 0;
-        filter: blur(4px);
+        transform: translateY(10px); /* Simpler transform instead of blur */
     }
     40% {
         opacity: 1;
-        filter: blur(0);
+        transform: translateY(0);
     }
     100% {
         opacity: 1;
-        filter: blur(0);
+        transform: translateY(0);
     }
 }
 
@@ -178,6 +175,100 @@ body.hide-time #time-display {
     font-weight: 500;
     margin-bottom: var(--spacing-md);
     color: var(--text-primary);
+}
+
+/* =========================================== */
+/* LOADING WAVE ANIMATION                     */
+/* =========================================== */
+
+.loading-wave {
+    font-size: 48px;
+    font-family: var(--font-primary);
+    font-weight: 300;
+    perspective: 80px;
+    transform-style: preserve-3d;
+    text-align: center;
+    letter-spacing: -0.02em;
+    margin: var(--spacing-md) auto;
+}
+
+.loading-wave span {
+    position: relative;
+    transition: all .3s ease;
+    display: inline-block;
+    animation: loadingWave 2.4s ease infinite;
+    letter-spacing: -0.02em;
+    transform-origin: 100% 50%;
+    transform-style: preserve-3d;
+    will-change: transform, color;
+}
+
+.loading-wave span:nth-child(1) { animation-delay: 0s; }
+.loading-wave span:nth-child(2) { animation-delay: 0.05s; }
+.loading-wave span:nth-child(3) { animation-delay: 0.1s; }
+.loading-wave span:nth-child(4) { animation-delay: 0.15s; }
+.loading-wave span:nth-child(5) { animation-delay: 0.2s; }
+.loading-wave span:nth-child(6) { animation-delay: 0.25s; }
+.loading-wave span:nth-child(7) { animation-delay: 0.3s; }
+.loading-wave span:nth-child(8) { animation-delay: 0.35s; }
+.loading-wave span:nth-child(9) { animation-delay: 0.4s; }
+.loading-wave span:nth-child(10) { animation-delay: 0.45s; }
+
+@keyframes loadingWave {
+    0% {
+        transform: translate3D(0,0,0) scale(1) rotateY(0);
+        color: var(--neon-blue);
+        text-shadow: 0 0 10px var(--neon-blue-glow);
+    }
+    12% {
+        transform: translate3D(2px,-1px,2px) scale(1.18) rotateY(6deg);
+        color: var(--neon-blue-light);
+        text-shadow: 0 0 20px rgba(102, 217, 255, 0.8), 0 0 40px rgba(102, 217, 255, 0.4);
+    }
+    24% {
+        transform: translate3D(0,0,0) scale(1) rotateY(0);
+        color: #ffffff;
+        text-shadow: 0 0 20px rgba(255, 255, 255, 0.7), 0 0 40px var(--neon-blue-glow);
+        opacity: 1;
+    }
+    36% {
+        color: var(--neon-blue-light);
+        text-shadow: 0 0 15px rgba(102, 217, 255, 0.6), 0 0 30px rgba(102, 217, 255, 0.2);
+    }
+    48% {
+        color: var(--neon-blue);
+        text-shadow: 0 0 12px var(--neon-blue-glow), 0 0 25px rgba(0, 207, 255, 0.2);
+    }
+    60% {
+        color: #4080ff;
+        text-shadow: 0 0 10px rgba(64, 128, 255, 0.4), 0 0 20px rgba(64, 128, 255, 0.2);
+    }
+    72% {
+        color: var(--neon-blue-dark);
+        text-shadow: 0 0 8px rgba(0, 153, 204, 0.3), 0 0 15px rgba(0, 153, 204, 0.15);
+    }
+    84% {
+        color: var(--neon-blue);
+        text-shadow: 0 0 6px var(--neon-blue-glow), 0 0 12px rgba(0, 207, 255, 0.1);
+    }
+    100% {
+        transform: scale(1);
+        color: var(--neon-blue);
+        text-shadow: 0 0 5px var(--neon-blue-glow);
+        opacity: 0.8;
+    }
+}
+
+@media (max-width: 768px) {
+    .loading-wave {
+        font-size: 32px;
+    }
+}
+
+@media (max-width: 480px) {
+    .loading-wave {
+        font-size: 24px;
+    }
 }
 
 .loader {
@@ -199,21 +290,25 @@ body.hide-time #time-display {
     background: conic-gradient(from 0deg, var(--neon-blue), transparent 70%);
     box-shadow: 0 0 20px var(--neon-blue-glow);
     animation: spin 4s linear infinite;
+    /* Performance optimizations */
+    will-change: transform;
+    backface-visibility: hidden;
+    transform: translateZ(0); /* Force hardware acceleration */
 }
 
 .loader-ring:nth-child(1) {
-    transform: scale(1);
-    animation-duration: 4s;
+    transform: scale(1) translateZ(0);
+    animation-duration: 6s; /* Slower for less CPU usage */
 }
 
 .loader-ring:nth-child(2) {
-    transform: scale(0.85);
-    animation: spinReverse 4.5s linear infinite;
+    transform: scale(0.85) translateZ(0);
+    animation: spinReverse 7s linear infinite; /* Slower for less CPU usage */
 }
 
 .loader-ring:nth-child(3) {
-    transform: scale(0.7);
-    animation-duration: 5s;
+    transform: scale(0.7) translateZ(0);
+    animation-duration: 8s; /* Slower for less CPU usage */
 }
 
 /* new reverse spin animation for alternate rings */

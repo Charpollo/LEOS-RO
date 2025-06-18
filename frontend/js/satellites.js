@@ -40,12 +40,12 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
             satelliteMesh.name = `${satName}_mesh`;
             // Set mesh scaling based on new Earth scale
             // Make satellites smaller for better zoom-in experience
-            const SATELLITE_VISUAL_SCALE = 0.001; // Smaller for more realistic appearance
-            satelliteMesh.scaling = new BABYLON.Vector3(SATELLITE_VISUAL_SCALE, SATELLITE_VISUAL_SCALE, SATELLITE_VISUAL_SCALE);
-            // Set mesh color by satellite type
             const isCRTS = satName.toUpperCase().includes('CRTS');
             const isBulldog = satName.toUpperCase().includes('BULLDOG');
-            const meshColor = isCRTS ? new BABYLON.Color3(1, 0.5, 0) : isBulldog ? new BABYLON.Color3(0, 1, 1) : new BABYLON.Color3(0.1, 0.4, 0.8);
+            const SATELLITE_VISUAL_SCALE = isBulldog ? 0.0005 : 0.001; // BULLDOG is half the size
+            satelliteMesh.scaling = new BABYLON.Vector3(SATELLITE_VISUAL_SCALE, SATELLITE_VISUAL_SCALE, SATELLITE_VISUAL_SCALE);
+            // Set mesh color by satellite type
+            const meshColor = isCRTS ? new BABYLON.Color3(0.8, 0.35, 0) : isBulldog ? new BABYLON.Color3(0, 1, 1) : new BABYLON.Color3(0.1, 0.4, 0.8);
             // Do NOT set child.material.emissiveColor here; let the model use its own appearance
             // satelliteMesh.getChildMeshes().forEach(child => {
             //     if (child.material) {

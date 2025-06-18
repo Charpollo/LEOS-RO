@@ -19,6 +19,9 @@ export function initBrandUI() {
         spaceFactElement.querySelector('p').textContent = randomFact;
     }
     
+    // Initialize loading wave animation
+    initLoadingWave();
+    
     initPanelToggle();
     initWelcomeModal();
     initInfoPanel();
@@ -158,6 +161,12 @@ export function hideLoadingScreen() {
         
         setTimeout(() => {
             loadingScreen.style.display = 'none';
+            // Clean up aurora background when loading screen is hidden
+            import('../aurora-background.js').then(module => {
+                if (module.cleanupAuroraBackground) {
+                    module.cleanupAuroraBackground();
+                }
+            }).catch(() => {}); // Ignore errors if module doesn't exist yet
         }, 500);
     }
 }
@@ -237,5 +246,23 @@ export function showHelpButton() {
     const helpBtn = document.getElementById('help-sphere-btn');
     if (helpBtn) {
         helpBtn.style.display = 'flex';
+    }
+}
+
+// Initialize loading wave animation by splitting text into spans
+function initLoadingWave() {
+    const target = document.getElementById('loadingWave');
+    if (target) {
+        const text = target.textContent;
+        target.innerHTML = '';
+        for (let character of text) {
+            const span = document.createElement('span');
+            if (character === ' ') {
+                span.innerHTML = '&nbsp;';
+            } else {
+                span.textContent = character;
+            }
+            target.appendChild(span);
+        }
     }
 }

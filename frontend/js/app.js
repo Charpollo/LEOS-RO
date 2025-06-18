@@ -19,6 +19,7 @@ import { updateTelemetryUI } from './telemetry.js';
 import { startSimulationLoop, updateTimeDisplay, getCurrentSimTime } from './simulation.js';
 import { setupKeyboardControls } from './controls.js';
 import { createGroundStations, updateGroundStationsLOS, createCoverageCircles, getGroundStationMeshes, clearAutoLOSBeams, getGroundStationDefinitions, createTestConnection } from './groundStations.js';
+import { initAuroraBackground, cleanupAuroraBackground } from './aurora-background.js';
 
 // Globals
 let engine;
@@ -52,6 +53,11 @@ export async function initApp() {
     setTimeout(() => {
         initBrandUI();
     }, 100);
+    
+    // Delay aurora background further to not compete with critical loading
+    setTimeout(() => {
+        initAuroraBackground();
+    }, 300);
     
     // Initialize 3D model viewer panel
     initModelViewer();
@@ -415,7 +421,7 @@ export async function initApp() {
 
     // Use unlimited render loop for smooth LOS visualization
     let lastFrameTime = 0;
-    const maxFPS = 60;
+    const maxFPS = 45; // Reduced FPS during loading for better overall performance
     engine.runRenderLoop(() => {
         const now = performance.now();
         if (now - lastFrameTime < 1000 / maxFPS) return;

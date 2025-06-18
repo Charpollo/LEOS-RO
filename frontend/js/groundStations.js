@@ -153,26 +153,26 @@ function addGroundStationLabel(stationName, mesh, advancedTexture) {
   labelBtn.width = "140px";
   labelBtn.height = "32px";
   labelBtn.cornerRadius = 6;
-  labelBtn.background = "rgba(0, 20, 0, 0.8)";
+  labelBtn.background = "rgba(0, 0, 0, 0.7)"; // Match satellite label style
   labelBtn.color = "#00ff64";
   labelBtn.fontSize = 11;
   labelBtn.fontWeight = "bold";
   labelBtn.thickness = 1;
-  labelBtn.alpha = 0.9;
+  labelBtn.alpha = 0.8; // Match satellite label alpha
   labelBtn.zIndex = 1500; // Lower than satellite labels to avoid conflicts
   labelBtn.isPointerBlocker = true;
   
   // Hover effects
   labelBtn.onPointerEnterObservable.add(() => {
-    labelBtn.background = "rgba(0, 100, 0, 0.9)";
+    labelBtn.background = "rgba(0, 100, 200, 0.7)"; // Match satellite label hover style
     labelBtn.alpha = 1.0;
     labelBtn.color = "#64ff00";
     document.getElementById('renderCanvas').style.cursor = 'pointer';
   });
   
   labelBtn.onPointerOutObservable.add(() => {
-    labelBtn.background = "rgba(0, 20, 0, 0.8)";
-    labelBtn.alpha = 0.9;
+    labelBtn.background = "rgba(0, 0, 0, 0.7)"; // Match satellite label style
+    labelBtn.alpha = 0.8;
     labelBtn.color = "#00ff64";
     document.getElementById('renderCanvas').style.cursor = 'default';
   });
