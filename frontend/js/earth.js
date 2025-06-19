@@ -158,25 +158,29 @@ export async function createEarth(scene, getTimeMultiplier, sunDirection) {
         diameter: 2.008 // Slightly larger than Earth
     }, scene);
     
-    // Create clouds material
+    // Create clouds material with standard material but improved settings
     const cloudsMaterial = new BABYLON.StandardMaterial('cloudsMaterial', scene);
     const cloudsTexture = new BABYLON.Texture('assets/earth_clouds.jpg', scene);
     
-    cloudsMaterial.diffuseTexture = cloudsTexture;
-    // Flip clouds texture to match the Earth surface orientation
-    cloudsMaterial.diffuseTexture.uOffset = 1.0; // Offset to flip
-    cloudsMaterial.diffuseTexture.vOffset = 0.0;
-    cloudsMaterial.diffuseTexture.uScale = -1.0; // Negative scale to flip horizontally
-    cloudsMaterial.diffuseTexture.vScale = 1.0;
-    cloudsMaterial.diffuseTexture.level = 1.5;
+    // Apply same texture correction as Earth surface
+    cloudsTexture.uOffset = 1.0;
+    cloudsTexture.vOffset = 0.0;
+    cloudsTexture.uScale = -1.0;
+    cloudsTexture.vScale = 1.0;
+    cloudsTexture.wrapU = BABYLON.Texture.MIRROR_ADDRESSMODE;
+    cloudsTexture.wrapV = BABYLON.Texture.MIRROR_ADDRESSMODE;
     
-    cloudsMaterial.diffuseColor = new BABYLON.Color3(1.2, 1.2, 1.2);
-    cloudsMaterial.emissiveColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+    cloudsMaterial.diffuseTexture = cloudsTexture;
     cloudsMaterial.opacityTexture = cloudsTexture;
     cloudsMaterial.opacityTexture.getAlphaFromRGB = true;
-    cloudsMaterial.alpha = 0.4;
-    cloudsMaterial.backFaceCulling = false;
+    
+    cloudsMaterial.diffuseColor = new BABYLON.Color3(1.0, 1.0, 1.0);
+    cloudsMaterial.alpha = 0.3; // Reduced opacity
     cloudsMaterial.alphaMode = BABYLON.Engine.ALPHA_COMBINE;
+    cloudsMaterial.backFaceCulling = false;
+    
+    // Make clouds respond to lighting so they're darker on night side
+    cloudsMaterial.emissiveColor = new BABYLON.Color3(0, 0, 0); // No self-illumination
     
     cloudsMesh.material = cloudsMaterial;
     cloudsMesh.parent = earthMesh;
