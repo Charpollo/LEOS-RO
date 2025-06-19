@@ -7,6 +7,9 @@ export function getCurrentSimTime() {
     return currentSimTime;
 }
 
+// Make it accessible globally for other modules
+window.getCurrentSimTime = getCurrentSimTime;
+
 export function startSimulationLoop(scene, satelliteData, orbitalElements, simulationStartTime, getTimeMultiplier, advancedTexture, activeSatellite, telemetryData) {
     // Initialize simulation time from start time or use current time
     let simulationTime = simulationStartTime || new Date();

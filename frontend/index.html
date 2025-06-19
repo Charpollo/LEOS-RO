@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LEOS: First Orbit - Satellite Visualization</title>
     <link rel="stylesheet" href="css/brand-ui.css">
+    <link rel="stylesheet" href="css/sda-styles.css">
     <!-- Load the bundled JavaScript only once -->
     <script defer src="dist/js/bundle.js"></script>
     <style>
@@ -55,9 +56,43 @@
 <body>
     <div id="renderCanvas-container">
         <!-- Help Sphere Button (hidden until simulation starts) -->
-        <button id="help-sphere-btn" title="Help" style="position:absolute; top:16px; left:16px; width:36px; height:36px; border-radius:50%; background:rgba(102,217,255,0.7); border:2px solid #00cfff; cursor:pointer; z-index:5000; display:none;"></button>
+        <button id="help-sphere-btn" title="Help" style="position:absolute; top:16px; left:16px; width:36px; height:36px; border-radius:50%; background:rgba(102,217,255,0.7); border:2px solid #00cfff; cursor:pointer; z-index:5000; display:none;">?</button>
+        
+        <!-- SDA Toggle Button (hidden until simulation starts) -->
+        <button id="sda-toggle-btn" title="Toggle Space Domain Awareness (Press 'S')" style="position:absolute; top:16px; left:62px; width:36px; height:36px; border-radius:50%; background:rgba(102,217,255,0.7); border:2px solid #00cfff; cursor:pointer; z-index:5000; display:none;">🛰️</button>
+        
         <canvas id="renderCanvas" touch-action="none"></canvas>
-         <!-- Loading Screen with Space Facts -->
+        <!-- Loading Screen with Space Facts -->
+        
+        <!-- SDA Objects Legend (hidden by default) -->
+        <div class="sda-legend" id="sda-legend">
+            <h4>Space Objects</h4>
+            <div class="sda-legend-item">
+                <div class="sda-legend-color leo"></div>
+                <span>LEO (160-2,000 km)</span>
+            </div>
+            <div class="sda-legend-item">
+                <div class="sda-legend-color meo"></div>
+                <span>MEO (2,000-35,786 km)</span>
+            </div>
+            <div class="sda-legend-item">
+                <div class="sda-legend-color geo"></div>
+                <span>GEO (~35,786 km)</span>
+            </div>
+            <div class="sda-legend-item">
+                <div class="sda-legend-color heo"></div>
+                <span>HEO (Highly Elliptical)</span>
+            </div>
+            <div class="sda-legend-item">
+                <div class="sda-legend-color user"></div>
+                <span>User-Added Objects</span>
+            </div>
+        </div>
+        
+        <!-- Add TLE Button (hidden by default) -->
+        <button class="add-tle-button" id="add-tle-button">
+            Add New Object (TLE)
+        </button>
         <div id="loading-screen">
             <!-- Aurora Background Canvas -->
             <canvas id="aurora-canvas" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1001;"></canvas>

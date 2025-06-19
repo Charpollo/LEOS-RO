@@ -247,6 +247,12 @@ export function showHelpButton() {
     if (helpBtn) {
         helpBtn.style.display = 'flex';
     }
+    
+    // Also show the SDA toggle button
+    const sdaBtn = document.getElementById('sda-toggle-btn');
+    if (sdaBtn) {
+        sdaBtn.style.display = 'flex';
+    }
 }
 
 // Initialize loading wave animation by splitting text into spans

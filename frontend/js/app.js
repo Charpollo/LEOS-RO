@@ -9,6 +9,9 @@ import { uiManager } from './ui/manager.js';
 import { initBrandUI, hideLoadingScreen, showWelcomeModal, showHelpButton } from './ui/brand-ui.js';
 import { createTelemetryItem } from './ui/template-manager.js';
 
+// Import SDA visualization
+import { initSDAVisualization, createTLEInputModal } from './sda-visualization.js';
+
 // Import our modular components
 import { EARTH_RADIUS, EARTH_SCALE, MIN_LEO_ALTITUDE_KM, MOON_DISTANCE, MOON_SCALE, LOS_DEFAULT_KM, LOS_DEFAULT_BABYLON, calculateHorizonDistance } from './constants.js';
 import { createSkybox } from './skybox.js';
@@ -32,6 +35,7 @@ let activeSatellite = null;
 let isInitialized = false;
 let sceneLoaded = false;
 let advancedTexture; 
+let sdaController; // SDA visualization controller
 
 // Use a shared state object for timeMultiplier
 const simState = {
@@ -61,6 +65,12 @@ export async function initApp() {
     
     // Initialize 3D model viewer panel
     initModelViewer();
+    
+    // Set up listener for LEOS dial buttons
+    window.addEventListener('leos-dial-action', (event) => {
+        const action = event.detail.action;
+        handleDialAction(action);
+    });
     
     // Create scene with performance optimizations and wait until ready
     await createScene();
@@ -430,6 +440,40 @@ export async function initApp() {
         
         if (scene.isReady() && !sceneLoaded) {
             hideLoadingScreen();
+            
+            // Initialize SDA visualization
+            initSDAVisualization(scene).then(controller => {
+                sdaController = controller;
+                // Make available globally for keyboard shortcuts
+                window.sdaController = controller;
+                console.log("SDA visualization initialized");
+                
+                // Set up click handler for the SDA toggle button
+                const sdaToggleBtn = document.getElementById('sda-toggle-btn');
+                if (sdaToggleBtn) {
+                    sdaToggleBtn.addEventListener('click', () => {
+                        const isActive = sdaController.toggle();
+                        // Visual feedback for button state
+                        sdaToggleBtn.style.backgroundColor = isActive ? 
+                            'rgba(0, 255, 255, 0.7)' : 'rgba(102, 217, 255, 0.7)';
+                    });
+                }
+                
+                // Set up event listeners for SDA controls
+                document.getElementById('add-tle-button').addEventListener('click', () => {
+                    createTLEInputModal();
+                });
+                
+                // Listen for SDA visibility changes to update UI
+                window.addEventListener('sda-visibility-changed', (event) => {
+                    const visible = event.detail.visible;
+                    document.getElementById('sda-legend').classList.toggle('visible', visible);
+                    document.getElementById('add-tle-button').classList.toggle('visible', visible);
+                });
+            }).catch(err => {
+                console.error("Failed to initialize SDA visualization:", err);
+            });
+            
             sceneLoaded = true;
             // Show help button now that simulation is loaded
             showHelpButton();

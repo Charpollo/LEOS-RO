@@ -29,6 +29,10 @@ export class LeosDial {
                     <span class="leos-dial-btn-icon moon"></span>
                     <span class="leos-dial-btn-label">Moon</span>
                 </button>
+                <button class="leos-dial-btn" data-action="trackall">
+                    <span class="leos-dial-btn-icon trackall"></span>
+                    <span class="leos-dial-btn-label">Track All Objects</span>
+                </button>
                 <button class="leos-dial-btn" data-action="info">
                     <span class="leos-dial-btn-icon info"></span>
                     <span class="leos-dial-btn-label">Info</span>
