@@ -439,7 +439,10 @@ export async function initApp() {
         scene.render();
         
         if (scene.isReady() && !sceneLoaded) {
-            hideLoadingScreen();
+            // Delay hiding loading screen to ensure all SDA objects are loaded
+            setTimeout(() => {
+                hideLoadingScreen();
+            }, 3000); // 3 second delay for smooth object loading
             
             // Initialize SDA visualization
             initSDAVisualization(scene).then(controller => {
@@ -448,27 +451,62 @@ export async function initApp() {
                 window.sdaController = controller;
                 console.log("SDA visualization initialized");
                 
-                // Set up click handler for the SDA toggle button
-                const sdaToggleBtn = document.getElementById('sda-toggle-btn');
-                if (sdaToggleBtn) {
-                    sdaToggleBtn.addEventListener('click', () => {
-                        const isActive = sdaController.toggle();
-                        // Visual feedback for button state
-                        sdaToggleBtn.style.backgroundColor = isActive ? 
-                            'rgba(0, 255, 255, 0.7)' : 'rgba(102, 217, 255, 0.7)';
-                    });
-                }
+                // SDA button click handler is now in index.html to avoid conflicts
                 
                 // Set up event listeners for SDA controls
                 document.getElementById('add-tle-button').addEventListener('click', () => {
-                    createTLEInputModal();
+                    // Show "Coming Soon" notification
+                    const notification = document.createElement('div');
+                    notification.style.cssText = `
+                        position: fixed;
+                        top: 50%;
+                        left: 50%;
+                        transform: translate(-50%, -50%);
+                        background: rgba(0, 0, 0, 0.9);
+                        color: #00cfff;
+                        padding: 20px 30px;
+                        border-radius: 10px;
+                        border: 2px solid #00cfff;
+                        font-family: 'Orbitron', monospace;
+                        font-size: 16px;
+                        z-index: 10000;
+                        text-align: center;
+                        animation: fadeInOut 2s ease-in-out;
+                    `;
+                    notification.innerHTML = `
+                        <h3 style="margin: 0 0 10px 0; color: #ff6b35;">Coming Soon!</h3>
+                        <p style="margin: 0;">Custom TLE upload feature is in development.</p>
+                    `;
+                    
+                    // Add fade animation
+                    const style = document.createElement('style');
+                    style.textContent = `
+                        @keyframes fadeInOut {
+                            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+                            20% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+                            80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+                            100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+                        }
+                    `;
+                    document.head.appendChild(style);
+                    document.body.appendChild(notification);
+                    
+                    // Remove after animation
+                    setTimeout(() => {
+                        document.body.removeChild(notification);
+                        document.head.removeChild(style);
+                    }, 2000);
                 });
                 
                 // Listen for SDA visibility changes to update UI
                 window.addEventListener('sda-visibility-changed', (event) => {
                     const visible = event.detail.visible;
                     document.getElementById('sda-legend').classList.toggle('visible', visible);
-                    document.getElementById('add-tle-button').classList.toggle('visible', visible);
+                    // Show/hide TLE button based on SDA visibility
+                    const addTleBtn = document.getElementById('add-tle-button');
+                    if (addTleBtn) {
+                        addTleBtn.style.display = visible ? 'block' : 'none';
+                    }
                 });
                 
                 // Add keyboard shortcut (S key) for toggling SDA visualization
@@ -481,12 +519,29 @@ export async function initApp() {
                     // Check for 'S' key
                     if (event.key === 's' || event.key === 'S') {
                         if (sdaController) {
-                            const isActive = sdaController.toggle();
-                            // Update button visual state
-                            const sdaToggleBtn = document.getElementById('sda-toggle-btn');
-                            if (sdaToggleBtn) {
-                                sdaToggleBtn.style.backgroundColor = isActive ? 
-                                    'rgba(0, 255, 255, 0.7)' : 'rgba(102, 217, 255, 0.7)';
+                            // Check if user has seen welcome modal
+                            const hasSeenWelcome = localStorage.getItem('sda-welcome-seen') === 'true';
+                            if (!hasSeenWelcome) {
+                                // Show welcome modal first
+                                const sdaModal = document.getElementById('sda-welcome-modal');
+                                if (sdaModal) {
+                                    sdaModal.style.display = 'flex';
+                                }
+                            } else {
+                                // Toggle directly
+                                const isActive = sdaController.toggle();
+                                // Update button visual state
+                                const sdaToggleBtn = document.getElementById('sda-toggle-btn');
+                                if (sdaToggleBtn) {
+                                    sdaToggleBtn.style.backgroundColor = isActive ? 
+                                        'rgba(0, 255, 255, 0.7)' : 'rgba(102, 217, 255, 0.7)';
+                                }
+                                
+                                // Show/hide TLE button based on SDA state
+                                const addTleBtn = document.getElementById('add-tle-button');
+                                if (addTleBtn) {
+                                    addTleBtn.style.display = isActive ? 'block' : 'none';
+                                }
                             }
                         }
                     }

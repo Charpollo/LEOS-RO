@@ -259,6 +259,8 @@ export function showHelpButton() {
     if (sdaToggleBtn) {
         sdaToggleBtn.style.display = 'block';
     }
+    
+    // Don't show Add TLE button initially - only when SDA is active
 }
 
 // Initialize loading wave animation by splitting text into spans

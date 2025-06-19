@@ -13,6 +13,8 @@ class SDAVisualization {
     this.mesh = null;
     this.material = null;
     this.tooltip = null;
+    this.updateIndex = 0; // For batched updates
+    this.objectKeys = []; // Cache object keys for efficient iteration
     
     // Color coding for different orbit classes
     this.COLORS = {
@@ -22,12 +24,9 @@ class SDAVisualization {
       HEO: new BABYLON.Color3(0.7, 0, 1),     // Purple
       USER: new BABYLON.Color3(1, 1, 1)       // White
     };
-    
-    console.log('SDA Visualization module initialized');
   }
 
   async initialize(scene) {
-    console.log('Initializing SDA visualization...');
     this.scene = scene;
     
     // Load TLE data first
@@ -42,17 +41,12 @@ class SDAVisualization {
     // Initially hidden
     this.setVisible(false);
     
-    console.log(`SDA visualization ready with ${this.tleData.length} objects`);
     return this;
   }
 
   async loadTLEData() {
-    console.log('Loading TLE data...');
-    
     // Generate comprehensive frontend satellite dataset
     this.tleData = this.generateComprehensiveSatelliteData();
-    
-    console.log(`Generated ${this.tleData.length} synthetic satellites for SDA visualization`);
   }
 
   generateComprehensiveSatelliteData() {
@@ -86,7 +80,7 @@ class SDAVisualization {
     // Add real satellites
     satellites.push(...realSatellites);
 
-    // Generate MASSIVE Starlink constellation (like real deployment - 4,000+ satellites)
+    // Generate MASSIVE Starlink constellation (impressive scale - 4000 satellites)
     for (let i = 1; i <= 4000; i++) {
       const shells = [
         { altitude: 550, inclination: 53.0 },
@@ -105,8 +99,8 @@ class SDAVisualization {
       });
     }
 
-    // Generate OneWeb constellation (648 satellites)
-    for (let i = 1; i <= 648; i++) {
+    // Generate OneWeb constellation (500 satellites for impressive scale)
+    for (let i = 1; i <= 500; i++) {
       satellites.push({
         name: `ONEWEB-${i}`,
         norad: `48${1000 + i}`,
@@ -116,8 +110,8 @@ class SDAVisualization {
       });
     }
 
-    // Generate Kuiper constellation (3,236 satellites - Amazon's planned constellation)
-    for (let i = 1; i <= 3236; i++) {
+    // Generate Kuiper constellation (2500 satellites for impressive scale)
+    for (let i = 1; i <= 2500; i++) {
       const shells = [
         { altitude: 590, inclination: 51.9 },
         { altitude: 610, inclination: 42.0 },
@@ -246,8 +240,8 @@ class SDAVisualization {
       });
     }
 
-    // Generate space debris (5000 tracked objects)
-    for (let i = 1; i <= 5000; i++) {
+    // Generate space debris (8000 tracked objects for impressive scale)
+    for (let i = 1; i <= 8000; i++) {
       const inclination = Math.random() * 180;
       const meanMotion = 10 + Math.random() * 6;
       satellites.push({
@@ -297,8 +291,6 @@ class SDAVisualization {
   }
 
   createParticleSystem() {
-    console.log('Creating mesh-based SDA visualization...');
-    
     // Clean up existing system
     if (this.mesh) {
       this.mesh.dispose();
@@ -313,11 +305,18 @@ class SDAVisualization {
     // Create parent node for all SDA objects
     this.mesh = new BABYLON.TransformNode("sdaObjects", this.scene);
     
+    // Create shared materials for better performance
+    this.sharedMaterials = {};
+    Object.keys(this.COLORS).forEach(orbitClass => {
+      const material = new BABYLON.StandardMaterial(`sdaMaterial_${orbitClass}`, this.scene);
+      material.emissiveColor = this.COLORS[orbitClass];
+      material.disableLighting = true;
+      this.sharedMaterials[orbitClass] = material;
+    });
+    
     // Create individual meshes for each satellite
     const now = new Date();
     this.objectData = {};
-    
-    console.log(`Creating ${this.tleData.length} satellite meshes...`);
     
     this.tleData.forEach((obj, index) => {
       if (!obj.tle1 || !obj.tle2) {
@@ -336,10 +335,10 @@ class SDAVisualization {
         // Convert to Babylon coordinates with proper scaling
         const babylonPos = this.positionToBabylon(position);
         
-        // Create individual sphere for this satellite - MUCH smaller size
+        // Create individual sphere for this satellite - Small but visible
         const sphere = BABYLON.MeshBuilder.CreateSphere(`sda_${obj.norad || index}`, {
-          diameter: 0.02, // Much smaller - about 1/25th the previous size
-          segments: 4     // Low segments for performance with many objects
+          diameter: 0.018, // Smaller for more realistic scale but still hoverable
+          segments: 4      // Minimal segments for maximum performance
         }, this.scene);
         
         sphere.position.set(babylonPos.x, babylonPos.y, babylonPos.z);
@@ -347,13 +346,9 @@ class SDAVisualization {
         
         // Set color based on orbit class
         const orbitClass = obj.class || this.determineOrbitClass(position.altitude);
-        const color = this.COLORS[orbitClass] || this.COLORS.LEO;
         
-        // Create material with emissive color
-        const material = new BABYLON.StandardMaterial(`sdaMat_${index}`, this.scene);
-        material.emissiveColor = color;
-        material.disableLighting = true;
-        sphere.material = material;
+        // Use shared material for better performance
+        sphere.material = this.sharedMaterials[orbitClass] || this.sharedMaterials.LEO;
         
         // Store object data
         this.objectData[obj.norad || `obj-${index}`] = {
@@ -367,12 +362,14 @@ class SDAVisualization {
           inclination: position.inclination.toFixed(1)
         };
         
-        console.log(`Created satellite ${obj.name} at altitude ${position.altitude.toFixed(0)}km`);
-        
       } catch (error) {
         console.warn(`Error processing object ${obj.name}:`, error);
       }
     });
+
+    // Cache object keys for efficient batched updates
+    this.objectKeys = Object.keys(this.objectData);
+    this.updateIndex = 0;
 
     // Set up update loop
     this.scene.registerBeforeRender(() => {
@@ -383,8 +380,6 @@ class SDAVisualization {
     
     // Set up mouse interaction
     this.setupMouseInteraction();
-    
-    console.log(`Created ${Object.keys(this.objectData).length} satellite meshes`);
   }
 
   calculateSimpleOrbitPosition(tle1, tle2, time) {
@@ -465,18 +460,24 @@ class SDAVisualization {
   }
 
   updateMeshes() {
-    if (!this.isVisible) return;
+    if (!this.isVisible || this.objectKeys.length === 0) return;
     
     const now = new Date();
     let updatedCount = 0;
     
-    Object.keys(this.objectData).forEach(noradId => {
+    // Update only a subset of objects per frame for better performance
+    const batchSize = Math.min(100, this.objectKeys.length); // Update 100 objects per frame for smoother loading
+    const startIndex = this.updateIndex;
+    const endIndex = Math.min(startIndex + batchSize, this.objectKeys.length);
+    
+    for (let i = startIndex; i < endIndex; i++) {
+      const noradId = this.objectKeys[i];
       const data = this.objectData[noradId];
-      if (!data.tle1 || !data.tle2 || !data.mesh) return;
+      if (!data.tle1 || !data.tle2 || !data.mesh) continue;
       
       try {
         const position = this.calculateSimpleOrbitPosition(data.tle1, data.tle2, now);
-        if (!position) return;
+        if (!position) continue;
         
         const babylonPos = this.positionToBabylon(position);
         data.mesh.position.set(babylonPos.x, babylonPos.y, babylonPos.z);
@@ -488,16 +489,28 @@ class SDAVisualization {
       } catch (error) {
         // Silently handle calculation errors
       }
-    });
+    }
+    
+    // Move to next batch, wrap around if needed
+    this.updateIndex = endIndex >= this.objectKeys.length ? 0 : endIndex;
   }
 
   setupMouseInteraction() {
-    // Set up mouse interaction for tooltips
+    // Set up mouse interaction for tooltips with throttling for better performance
+    let lastPickTime = 0;
+    const pickThrottle = 50; // Only pick every 50ms for better performance
+    
     this.scene.onPointerMove = (evt) => {
       if (!this.isVisible) {
         this.tooltip.style.display = 'none';
         return;
       }
+
+      const now = Date.now();
+      if (now - lastPickTime < pickThrottle) {
+        return; // Skip this pick for performance
+      }
+      lastPickTime = now;
 
       const pickResult = this.scene.pick(
         this.scene.pointerX,
@@ -506,9 +519,9 @@ class SDAVisualization {
       );
 
       if (pickResult.hit && pickResult.pickedMesh) {
-        // Find object data for this mesh
+        // Find object data for this mesh more efficiently
         let objectData = null;
-        for (const noradId in this.objectData) {
+        for (const noradId of this.objectKeys) {
           if (this.objectData[noradId].mesh === pickResult.pickedMesh) {
             objectData = this.objectData[noradId];
             break;
@@ -541,20 +554,16 @@ class SDAVisualization {
   }
 
   setVisible(visible) {
-    console.log(`Setting SDA visibility to: ${visible}`);
     this.isVisible = visible;
     
     if (this.mesh) {
       this.mesh.setEnabled(visible);
-      console.log(`Mesh visibility set to: ${visible}, object count: ${Object.keys(this.objectData).length}`);
     } else {
       console.warn('No mesh available to set visibility');
     }
     
     // Update UI elements
     this.updateUI();
-    
-    console.log(`SDA visualization ${visible ? 'shown' : 'hidden'} - ${Object.keys(this.objectData).length} objects loaded`);
   }
 
   toggle() {
@@ -619,7 +628,7 @@ class SDAVisualization {
       const orbitCounts = this.getOrbitClassCounts();
       
       statusDiv.innerHTML = `
-        <div><strong>SDA VISUALIZATION ACTIVE</strong></div>
+        <div><strong>SDA VISUALIZATION ACTIVE</strong> <span style="color: #ff6b35; font-size: 11px;">(BETA - More features coming soon!)</span></div>
         <div>Total Objects: ${objectCount}</div>
         <div>LEO: ${orbitCounts.LEO} | MEO: ${orbitCounts.MEO} | GEO: ${orbitCounts.GEO} | HEO: ${orbitCounts.HEO}</div>
         <div>Hover over objects for details</div>
