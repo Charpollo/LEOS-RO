@@ -103,18 +103,30 @@ export async function createEarth(scene, getTimeMultiplier, sunDirection) {
             // Calculate lighting
             float lambert = dot(normal, lightDir);
             
-            // Create smooth terminator transition
-            float terminator = smoothstep(-0.1, 0.1, lambert);
+            // Wider, more gradual terminator transition
+            float terminator = smoothstep(-0.3, 0.3, lambert);
             
             // Sample textures
             vec3 dayColor = texture2D(dayTexture, vUV).rgb;
             vec3 nightColor = texture2D(nightTexture, vUV).rgb;
             
-            // City lights - much dimmer and warmer to make dark side truly dark
-            vec3 cityLights = nightColor * (1.0 - terminator) * 0.8;
+            // City lights - keep dark side dark
+            vec3 cityLights = nightColor * (1.0 - terminator) * 0.2;
             
-            // Make dark areas truly dark by reducing minimum lighting
-            vec3 finalColor = mix(cityLights, dayColor * max(0.05, lambert), terminator);
+            // Day lighting
+            vec3 dayLighting = dayColor * max(0.0, lambert);
+            
+            // Very very subtle terminator enhancement - barely visible
+            float terminatorGlow = 1.0 - abs(lambert) / 0.2; // Slightly wider
+            terminatorGlow = max(0.0, terminatorGlow);
+            terminatorGlow = pow(terminatorGlow, 6.0); // Much more focused
+            
+            vec3 subtleWarmth = vec3(1.05, 1.02, 1.0); // Almost imperceptible warmth
+            vec3 terminatorEnhancement = subtleWarmth * terminatorGlow * 0.02; // Extremely subtle
+            
+            // Simple blend with barely noticeable enhancement
+            vec3 finalColor = mix(cityLights, dayLighting, terminator);
+            finalColor *= (1.0 + terminatorEnhancement); // Multiply instead of add for more natural look
             
             gl_FragColor = vec4(finalColor, 1.0);
         }
