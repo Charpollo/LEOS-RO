@@ -35,6 +35,16 @@ export async function createEarth(scene, getTimeMultiplier, sunDirection) {
         () => console.log("Earth night texture loaded successfully")
     );
     
+    // Add specular map for realistic water reflections
+    const specularTexture = new BABYLON.Texture('assets/earth_specular.tif', scene, false, false,
+        BABYLON.Texture.BILINEAR_SAMPLINGMODE,
+        () => console.log("Earth specular texture loaded successfully"),
+        (err) => {
+            console.log("Specular texture load failed:", err);
+            return null;
+        }
+    );
+    
     // Texture orientation - flip UV in shader to fix mirrored continents
     const earthTextureUOffset = 0.0;
     const earthTextureVOffset = 0.0;
@@ -93,8 +103,12 @@ export async function createEarth(scene, getTimeMultiplier, sunDirection) {
         // Uniforms
         uniform sampler2D dayTexture;
         uniform sampler2D nightTexture;
+        uniform sampler2D specularTexture;
+        uniform sampler2D cloudShadowTexture;
         uniform vec3 lightDirection;
         uniform float time;
+        uniform float cloudsShadowFactor;
+        uniform vec2 cloudOffset;
         
         void main() {
             vec3 normal = normalize(vNormal);
@@ -109,6 +123,27 @@ export async function createEarth(scene, getTimeMultiplier, sunDirection) {
             // Sample textures
             vec3 dayColor = texture2D(dayTexture, vUV).rgb;
             vec3 nightColor = texture2D(nightTexture, vUV).rgb;
+            
+            // Sample specular map for water reflections
+            float specularIntensity = texture2D(specularTexture, vUV).r;
+            
+            // Sample cloud shadow texture (offset by animation)
+            vec2 cloudUV = vUV + cloudOffset;
+            cloudUV = mod(cloudUV, 1.0); // Wrap around 0-1
+            float cloudShadow = texture2D(cloudShadowTexture, cloudUV).a;
+            cloudShadow = mix(1.0, 1.0 - cloudShadow * cloudsShadowFactor, terminator);
+            
+            // Apply cloud shadows to day side only
+            dayColor *= cloudShadow;
+            
+            // Add water reflections on day side (use dot product with view direction for Fresnel effect)
+            float fresnel = pow(1.0 - max(0.0, dot(normal, vViewDirection)), 4.0);
+            float specularFactor = max(0.0, dot(reflect(-lightDir, normal), vViewDirection));
+            specularFactor = pow(specularFactor, 32.0) * fresnel * specularIntensity;
+            
+            // Only add specular on day side and only on water (using specular map)
+            vec3 specularColor = vec3(1.0, 1.0, 1.0) * specularFactor * terminator;
+            dayColor += specularColor;
             
             // City lights - keep dark side dark
             vec3 cityLights = nightColor * (1.0 - terminator) * 0.2;
@@ -137,15 +172,18 @@ export async function createEarth(scene, getTimeMultiplier, sunDirection) {
         { vertex: 'earth', fragment: 'earth' },
         {
             attributes: ['position', 'normal', 'uv'],
-            uniforms: ['worldViewProjection', 'world', 'cameraPosition', 'lightDirection', 'time']
+            uniforms: ['worldViewProjection', 'world', 'cameraPosition', 'lightDirection', 'time', 'cloudOffset', 'cloudsShadowFactor']
         }
     );
     
     // Set textures
     earthMaterial.setTexture('dayTexture', dayTexture);
     earthMaterial.setTexture('nightTexture', nightTexture);
+    earthMaterial.setTexture('specularTexture', specularTexture);
     earthMaterial.setVector3('lightDirection', scene.sunLight.direction);
     earthMaterial.setFloat('time', 0.0);
+    earthMaterial.setFloat('cloudsShadowFactor', 0.3); // Control shadow intensity
+    earthMaterial.setVector2('cloudOffset', new BABYLON.Vector2(0, 0));
     
     // Apply material to Earth mesh
     earthMaterial.backFaceCulling = false;
@@ -185,9 +223,12 @@ export async function createEarth(scene, getTimeMultiplier, sunDirection) {
     cloudsMesh.material = cloudsMaterial;
     cloudsMesh.parent = earthMesh;
     
-    // Create atmosphere layer
+    // Share cloud texture with Earth shader for cloud shadows
+    earthMaterial.setTexture('cloudShadowTexture', cloudsTexture);
+    
+    // Create enhanced atmosphere layer with two layers for more realistic scattering
     const atmosphereMesh = BABYLON.MeshBuilder.CreateSphere('atmosphere', {
-        segments: 24,
+        segments: 36, // Higher detail for smoother appearance
         diameter: 2.015 // Slightly larger than clouds
     }, scene);
     
@@ -198,12 +239,31 @@ export async function createEarth(scene, getTimeMultiplier, sunDirection) {
     atmosphereMaterial.alphaMode = BABYLON.Engine.ALPHA_COMBINE;
     atmosphereMaterial.backFaceCulling = false;
     
+    // Create outer atmosphere glow for more depth
+    const outerAtmosphere = BABYLON.MeshBuilder.CreateSphere('outerAtmosphere', {
+        segments: 24,
+        diameter: 2.05 // Even larger for outer glow
+    }, scene);
+    
+    const outerAtmMaterial = new BABYLON.StandardMaterial('outerAtmMaterial', scene);
+    outerAtmMaterial.diffuseColor = new BABYLON.Color3(0, 0, 0);
+    outerAtmMaterial.emissiveColor = new BABYLON.Color3(0.1, 0.2, 0.8);
+    outerAtmMaterial.alpha = 0.05;
+    outerAtmMaterial.alphaMode = BABYLON.Engine.ALPHA_COMBINE;
+    outerAtmMaterial.backFaceCulling = false;
+    
+    outerAtmosphere.material = outerAtmMaterial;
+    outerAtmosphere.parent = earthMesh;
+    
     // Enhanced Fresnel effect for atmospheric rim glow
     atmosphereMaterial.emissiveFresnelParameters = new BABYLON.FresnelParameters();
     atmosphereMaterial.emissiveFresnelParameters.bias = 0.6;
     atmosphereMaterial.emissiveFresnelParameters.power = 2.0;
     atmosphereMaterial.emissiveFresnelParameters.leftColor = new BABYLON.Color3(0.35, 0.6, 1.0);
     atmosphereMaterial.emissiveFresnelParameters.rightColor = BABYLON.Color3.Black();
+    
+    // Create a much subtler atmospheric glow instead of full volumetric scattering
+    // We'll use a simple emissive material instead of post-processing to avoid the bright square
     
     atmosphereMesh.material = atmosphereMaterial;
     atmosphereMesh.parent = earthMesh;
@@ -212,11 +272,13 @@ export async function createEarth(scene, getTimeMultiplier, sunDirection) {
     scene.earthMaterial = earthMaterial;
     scene.cloudsMaterial = cloudsMaterial;
     scene.atmosphereMaterial = atmosphereMaterial;
+    scene.outerAtmMaterial = outerAtmMaterial;
 
     // Enhanced day/night cycle with realistic Earth rotation
     let frameCount = 0;
     let earthRotation = 0;
     let solarTime = 0;
+    let cloudOffset = new BABYLON.Vector2(0, 0);
 
     scene.registerBeforeRender(() => {
         // Only update every 2 frames for performance
@@ -233,6 +295,11 @@ export async function createEarth(scene, getTimeMultiplier, sunDirection) {
         
         // Update clouds at slightly different rate
         cloudsMesh.rotation.y = earthMesh.rotation.y * 1.05;
+        
+        // Update cloud shadow offset for subtle cloud movement
+        cloudOffset.x += rotationStep * 0.02;
+        if (cloudOffset.x > 1) cloudOffset.x -= 1;
+        earthMaterial.setVector2('cloudOffset', cloudOffset);
 
         // Update shader uniforms
         if (scene.sunLight) {
@@ -270,6 +337,17 @@ export async function createEarth(scene, getTimeMultiplier, sunDirection) {
             atmosphereMaterial.emissiveColor = isNightSide
                 ? new BABYLON.Color3(0.05, 0.1, 0.3)
                 : new BABYLON.Color3(0.15, 0.35, 0.8).scale(1 + terminatorFactor * 2);
+                
+            // Update outer atmosphere for a more gradual fade
+            scene.outerAtmMaterial.alpha = atmFactor * 0.5;
+            scene.outerAtmMaterial.emissiveColor = isNightSide
+                ? new BABYLON.Color3(0.02, 0.05, 0.15)
+                : new BABYLON.Color3(0.1, 0.2, 0.5).scale(1 + terminatorFactor);
+                
+            // Enhanced atmospheric glow at terminator (dawn/dusk line)
+            // This creates a subtle atmospheric effect without using volumetric lighting
+            const enhancedGlow = Math.pow(terminatorFactor, 0.5) * 0.4;
+            atmosphereMaterial.emissiveFresnelParameters.power = 1.0 + enhancedGlow;
         }
     });
     
