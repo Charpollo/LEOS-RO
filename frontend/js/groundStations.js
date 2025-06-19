@@ -28,7 +28,7 @@ function toRadians(deg) {
  */
 function geodeticToCartesian(lat, lon, alt = 0) {
   const phi = toRadians(lat);
-  const lambda = toRadians(lon);
+  const lambda = toRadians(lon); // Use original longitude - texture flip is handled in shader
   const radius = EARTH_RADIUS + alt; // Use EARTH_RADIUS constant + alt
   const x = radius * Math.cos(phi) * Math.cos(lambda);
   const y = radius * Math.cos(phi) * Math.sin(lambda);
