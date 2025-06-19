@@ -341,7 +341,7 @@ class SDAVisualization {
         // Create SIMPLE sphere for SDA objects - NOT 3D models
         // This ensures we don't try loading the bulldog_sat.glb model thousands of times
         const sphere = BABYLON.MeshBuilder.CreateSphere(`sda_${obj.norad || index}`, {
-          diameter: 0.018, // Smaller for more realistic scale but still hoverable
+          diameter: 0.012, // Reduced size for more subtle SDA orbs
           segments: 4      // Minimal segments for maximum performance
         }, this.scene);
         

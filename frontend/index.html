@@ -51,15 +51,23 @@
       #help-sphere-btn:hover {
         background: rgba(102,217,255,0.9);
       }
+      /* Apply pulse animation to SDA toggle button */
+      #sda-toggle-btn {
+        animation: pulse 3s ease-in-out infinite;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+      }
     </style>
 </head>
 <body>
     <div id="renderCanvas-container">
         <!-- Help Sphere Button (hidden until simulation starts) -->
-        <button id="help-sphere-btn" title="Help" style="position:absolute; top:16px; left:16px; width:36px; height:36px; border-radius:50%; background:rgba(102,217,255,0.7); border:2px solid #00cfff; cursor:pointer; z-index:5000; display:none; pointer-events:auto;"></button>
-        
+        <button id="help-sphere-btn" title="Help" style="position:absolute; top:16px; left:16px; width:36px; height:36px; border-radius:50%; background:rgba(102,217,255,0.7); border:2px solid #00cfff; cursor:pointer; z-index:5000; display:none; pointer-events:auto;">i</button>
+
         <!-- SDA Toggle Button (hidden until simulation starts) -->
-        <button id="sda-toggle-btn" title="Toggle Space Domain Awareness (Press 'S')" style="position:absolute; top:16px; left:62px; width:36px; height:36px; border-radius:50%; background:rgba(102,217,255,0.7); border:2px solid #00cfff; cursor:pointer; z-index:5000; display:none; pointer-events:auto; text-align:center; line-height:32px; font-size:16px; padding-left:8px;">🛰️</button>
+        <button id="sda-toggle-btn" title="Toggle SDA" style="position:absolute; top:60px; left:16px; width:36px; height:36px; border-radius:50%; background:rgba(102,217,255,0.7); border:2px solid #00cfff; cursor:pointer; z-index:5000; display:none; pointer-events:auto; text-align:center; line-height:36px; font-size:16px;">🛰️</button>
         
         <canvas id="renderCanvas" touch-action="none"></canvas>
         <!-- Loading Screen with Space Facts -->
@@ -161,6 +169,9 @@
                 </div>
                 <p class="section-content" style="margin-top:1em;">Rotate the planet, zoom through space, follow satellite paths, and uncover the dynamics of orbit in motion. From launch to passover, LEOS invites you to experience the flow of space like never before.</p>
                 <p class="section-content" style="margin-top:1em; font-weight:bold;">Your simulation has started. The orbit is live.</p>
+                <p class="section-content" style="margin-top:1em; font-style:italic;">
+                    Use the 🛰️ icon below to access the Space Domain Awareness overlay (in beta).
+                </p>
                 <div class="modal-actions" style="margin-top:auto;">
                     <button id="help-show-tutorial" class="primary-button">Show Tutorial</button>
                     <button id="help-close-btn" class="secondary-button">Close</button>
@@ -538,5 +549,5 @@
             });
         });
     </script>
-</body>
+  </body>
 </html>
