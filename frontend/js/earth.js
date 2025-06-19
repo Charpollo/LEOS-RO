@@ -35,15 +35,11 @@ export async function createEarth(scene, getTimeMultiplier, sunDirection) {
         () => console.log("Earth night texture loaded successfully")
     );
     
-    // Add specular map for realistic water reflections
-    const specularTexture = new BABYLON.Texture('assets/earth_specular.tif', scene, false, false,
-        BABYLON.Texture.BILINEAR_SAMPLINGMODE,
-        () => console.log("Earth specular texture loaded successfully"),
-        (err) => {
-            console.log("Specular texture load failed:", err);
-            return null;
-        }
-    );
+    // Create a simple blank texture for specular instead of trying to load .tif/.tiff
+    console.log("Creating simple specular map");
+    const specularTexture = new BABYLON.Texture("assets/earth_diffuse.png", scene);
+    
+    // Use this dummy texture but actually handle specular in the shader based on color
     
     // Texture orientation - flip UV in shader to fix mirrored continents
     const earthTextureUOffset = 0.0;
@@ -103,7 +99,6 @@ export async function createEarth(scene, getTimeMultiplier, sunDirection) {
         // Uniforms
         uniform sampler2D dayTexture;
         uniform sampler2D nightTexture;
-        uniform sampler2D specularTexture;
         uniform sampler2D cloudShadowTexture;
         uniform vec3 lightDirection;
         uniform float time;
@@ -124,9 +119,6 @@ export async function createEarth(scene, getTimeMultiplier, sunDirection) {
             vec3 dayColor = texture2D(dayTexture, vUV).rgb;
             vec3 nightColor = texture2D(nightTexture, vUV).rgb;
             
-            // Sample specular map for water reflections
-            float specularIntensity = texture2D(specularTexture, vUV).r;
-            
             // Sample cloud shadow texture (offset by animation)
             vec2 cloudUV = vUV + cloudOffset;
             cloudUV = mod(cloudUV, 1.0); // Wrap around 0-1
@@ -136,17 +128,32 @@ export async function createEarth(scene, getTimeMultiplier, sunDirection) {
             // Apply cloud shadows to day side only
             dayColor *= cloudShadow;
             
-            // Add water reflections on day side (use dot product with view direction for Fresnel effect)
-            float fresnel = pow(1.0 - max(0.0, dot(normal, vViewDirection)), 4.0);
-            float specularFactor = max(0.0, dot(reflect(-lightDir, normal), vViewDirection));
-            specularFactor = pow(specularFactor, 32.0) * fresnel * specularIntensity;
+            // Detect water areas using color information from dayTexture
+            // Water is typically darker and more blue than land
+            float isWater = 0.0;
+            if (dayColor.b > dayColor.r * 1.3 && dayColor.b > dayColor.g * 1.2) {
+                isWater = pow(dayColor.b - max(dayColor.r, dayColor.g), 1.5) * 7.0;
+                isWater = clamp(isWater, 0.0, 0.7);
+            }
             
-            // Only add specular on day side and only on water (using specular map)
-            vec3 specularColor = vec3(1.0, 1.0, 1.0) * specularFactor * terminator;
-            dayColor += specularColor;
+            // Calculate extremely subtle water reflections with minimal glare
+            float angleFactor = max(0.0, dot(reflect(-lightDir, normal), vViewDirection));
+            float waterSpecular = pow(angleFactor, 64.0) * isWater * 0.05; // Very low intensity (0.05)
             
-            // City lights - keep dark side dark
-            vec3 cityLights = nightColor * (1.0 - terminator) * 0.2;
+            // Only add specular reflection when sun is at a good angle (reduces unrealistic glare)
+            // and only visible on the day side of Earth
+            float sunAngleIntensity = pow(max(0.0, lambert), 2.0);
+            waterSpecular *= sunAngleIntensity * terminator;
+            
+            // Extremely subtle specular color with blue tint for more realism
+            vec3 waterHighlight = vec3(0.95, 0.97, 1.0) * waterSpecular;
+            dayColor += waterHighlight;
+            
+            // City lights - darker night side with more contrast
+            vec3 cityLights = nightColor * (1.0 - terminator) * 0.15; // Reduced brightness to 0.15
+            
+            // Make night side darker by applying a darkening factor
+            cityLights *= vec3(0.8, 0.85, 0.9); // Slightly blue tint for deep night
             
             // Day lighting
             vec3 dayLighting = dayColor * max(0.0, lambert);
@@ -159,8 +166,14 @@ export async function createEarth(scene, getTimeMultiplier, sunDirection) {
             vec3 subtleWarmth = vec3(1.05, 1.02, 1.0); // Almost imperceptible warmth
             vec3 terminatorEnhancement = subtleWarmth * terminatorGlow * 0.02; // Extremely subtle
             
-            // Simple blend with barely noticeable enhancement
+            // Enhanced night-day transition with darker night side
             vec3 finalColor = mix(cityLights, dayLighting, terminator);
+            
+            // Make deep night side even darker by applying an additional darkness factor to the night portions
+            float deepNight = pow(1.0 - terminator, 1.5); // Stronger darkness effect further from terminator
+            finalColor = mix(finalColor, finalColor * 0.6, deepNight * 0.7); // Darken night side more
+            
+            // Apply the terminator enhancement
             finalColor *= (1.0 + terminatorEnhancement); // Multiply instead of add for more natural look
             
             gl_FragColor = vec4(finalColor, 1.0);
@@ -179,7 +192,6 @@ export async function createEarth(scene, getTimeMultiplier, sunDirection) {
     // Set textures
     earthMaterial.setTexture('dayTexture', dayTexture);
     earthMaterial.setTexture('nightTexture', nightTexture);
-    earthMaterial.setTexture('specularTexture', specularTexture);
     earthMaterial.setVector3('lightDirection', scene.sunLight.direction);
     earthMaterial.setFloat('time', 0.0);
     earthMaterial.setFloat('cloudsShadowFactor', 0.3); // Control shadow intensity
@@ -213,7 +225,7 @@ export async function createEarth(scene, getTimeMultiplier, sunDirection) {
     cloudsMaterial.opacityTexture.getAlphaFromRGB = true;
     
     cloudsMaterial.diffuseColor = new BABYLON.Color3(1.0, 1.0, 1.0);
-    cloudsMaterial.alpha = 0.3; // Reduced opacity
+    cloudsMaterial.alpha = 0.25; // Further reduced opacity for subtlety
     cloudsMaterial.alphaMode = BABYLON.Engine.ALPHA_COMBINE;
     cloudsMaterial.backFaceCulling = false;
     
@@ -252,14 +264,21 @@ export async function createEarth(scene, getTimeMultiplier, sunDirection) {
     outerAtmMaterial.alphaMode = BABYLON.Engine.ALPHA_COMBINE;
     outerAtmMaterial.backFaceCulling = false;
     
+    // More subtle and realistic Fresnel effect for outer atmosphere
+    outerAtmMaterial.emissiveFresnelParameters = new BABYLON.FresnelParameters();
+    outerAtmMaterial.emissiveFresnelParameters.bias = 0.8; // Higher bias to reduce effect
+    outerAtmMaterial.emissiveFresnelParameters.power = 5.0; // Higher power for narrower effect
+    outerAtmMaterial.emissiveFresnelParameters.leftColor = new BABYLON.Color3(0.15, 0.25, 0.5); // Much less intense color
+    outerAtmMaterial.emissiveFresnelParameters.rightColor = BABYLON.Color3.Black();
+    
     outerAtmosphere.material = outerAtmMaterial;
     outerAtmosphere.parent = earthMesh;
     
-    // Enhanced Fresnel effect for atmospheric rim glow
+    // More subtle and realistic Fresnel effect for atmospheric rim glow
     atmosphereMaterial.emissiveFresnelParameters = new BABYLON.FresnelParameters();
-    atmosphereMaterial.emissiveFresnelParameters.bias = 0.6;
-    atmosphereMaterial.emissiveFresnelParameters.power = 2.0;
-    atmosphereMaterial.emissiveFresnelParameters.leftColor = new BABYLON.Color3(0.35, 0.6, 1.0);
+    atmosphereMaterial.emissiveFresnelParameters.bias = 0.7; // Higher bias to reduce effect
+    atmosphereMaterial.emissiveFresnelParameters.power = 4.0; // Higher power for narrower effect
+    atmosphereMaterial.emissiveFresnelParameters.leftColor = new BABYLON.Color3(0.2, 0.35, 0.7); // Less intense color
     atmosphereMaterial.emissiveFresnelParameters.rightColor = BABYLON.Color3.Black();
     
     // Create a much subtler atmospheric glow instead of full volumetric scattering
@@ -335,13 +354,17 @@ export async function createEarth(scene, getTimeMultiplier, sunDirection) {
             
             const isNightSide = surfaceToSunDot < 0;
             atmosphereMaterial.emissiveColor = isNightSide
-                ? new BABYLON.Color3(0.05, 0.1, 0.3)
+                ? new BABYLON.Color3(0.03, 0.07, 0.2) // Darker night atmosphere
                 : new BABYLON.Color3(0.15, 0.35, 0.8).scale(1 + terminatorFactor * 2);
                 
+            // Make night side atmosphere more transparent
+            const nightAtmAlpha = isNightSide ? 0.08 : atmFactor;
+            atmosphereMaterial.alpha = nightAtmAlpha;
+                
             // Update outer atmosphere for a more gradual fade
-            scene.outerAtmMaterial.alpha = atmFactor * 0.5;
+            scene.outerAtmMaterial.alpha = (isNightSide ? 0.03 : atmFactor * 0.5);
             scene.outerAtmMaterial.emissiveColor = isNightSide
-                ? new BABYLON.Color3(0.02, 0.05, 0.15)
+                ? new BABYLON.Color3(0.01, 0.03, 0.1) // Darker outer night atmosphere
                 : new BABYLON.Color3(0.1, 0.2, 0.5).scale(1 + terminatorFactor);
                 
             // Enhanced atmospheric glow at terminator (dawn/dusk line)
