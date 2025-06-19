@@ -318,6 +318,9 @@ class SDAVisualization {
     const now = new Date();
     this.objectData = {};
     
+    // IMPORTANT: For SDA visualization with thousands of objects,
+    // we're using simple geometric shapes instead of 3D models
+    // to prevent excessive asset loading and improve performance
     this.tleData.forEach((obj, index) => {
       if (!obj.tle1 || !obj.tle2) {
         console.warn(`Skipping object ${obj.name} - missing TLE data`);
@@ -335,7 +338,8 @@ class SDAVisualization {
         // Convert to Babylon coordinates with proper scaling
         const babylonPos = this.positionToBabylon(position);
         
-        // Create individual sphere for this satellite - Small but visible
+        // Create SIMPLE sphere for SDA objects - NOT 3D models
+        // This ensures we don't try loading the bulldog_sat.glb model thousands of times
         const sphere = BABYLON.MeshBuilder.CreateSphere(`sda_${obj.norad || index}`, {
           diameter: 0.018, // Smaller for more realistic scale but still hoverable
           segments: 4      // Minimal segments for maximum performance

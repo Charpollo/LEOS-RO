@@ -26,9 +26,15 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
     }
     satelliteMeshes = {};
     
-    // Create new satellites
+    // Create new satellites - ONLY for real satellites, not simulated debris/SDA objects
     for (const satName in satelliteData) {
         if (satName === 'metadata') continue;
+        
+        // Only create 3D models for actual mission satellites (CRTS and BULLDOG)
+        // Skip debris and other simulated objects which should be handled by SDA visualization
+        if (!satName.toUpperCase().includes('CRTS') && !satName.toUpperCase().includes('BULLDOG')) {
+            continue;
+        }
         
         const modelFile = satName.toUpperCase().includes('CRTS') 
             ? 'assets/crts_satellite.glb' 
