@@ -36,7 +36,11 @@ ANOMALY_ALT_THRESHOLD_KM = 300.0  # Altitude below which anomaly is registered
 
 # Function to generate random satellite parameters
 def generate_random_satellite_params():
-    return {
+    """Generate a comprehensive set of satellites for SDA visualization"""
+    satellites = {}
+    
+    # Core mission satellites
+    satellites.update({
         "CRTS1": {
             "altitude_km": random.randint(LEO_MIN_ALTITUDE, LEO_MAX_ALTITUDE),
             "inclination_deg": random.uniform(MIN_INCLINATION, MAX_INCLINATION),
@@ -47,7 +51,49 @@ def generate_random_satellite_params():
             "inclination_deg": random.uniform(MIN_INCLINATION, MAX_INCLINATION),
             "description": "BULLDOG (Basic Utility Low-orbit Demonstration & Operations Gateway)"
         }
-    }
+    })
+    
+    # Generate Starlink-like constellation (LEO)
+    for i in range(1, 501):  # 500 Starlink satellites
+        satellites[f"STARLINK-{i}"] = {
+            "altitude_km": random.randint(540, 570),  # Starlink altitude range
+            "inclination_deg": random.choice([53.0, 70.0, 97.6]),  # Starlink orbital planes
+            "description": f"Starlink constellation satellite {i}"
+        }
+    
+    # Generate GPS constellation (MEO)  
+    for i in range(1, 33):  # 32 GPS satellites
+        satellites[f"GPS-{i}"] = {
+            "altitude_km": 20200,  # GPS altitude
+            "inclination_deg": 55.0,  # GPS inclination
+            "description": f"GPS navigation satellite {i}"
+        }
+    
+    # Generate geostationary satellites
+    for i in range(1, 51):  # 50 GEO satellites
+        satellites[f"GEO-{i}"] = {
+            "altitude_km": 35786,  # GEO altitude
+            "inclination_deg": random.uniform(0, 5),  # Near-equatorial
+            "description": f"Geostationary satellite {i}"
+        }
+    
+    # Generate various LEO satellites
+    for i in range(1, 201):  # 200 misc LEO satellites
+        satellites[f"LEO-{i}"] = {
+            "altitude_km": random.randint(200, 2000),
+            "inclination_deg": random.uniform(0, 180),
+            "description": f"LEO satellite {i}"
+        }
+    
+    # Generate space debris objects
+    for i in range(1, 301):  # 300 debris objects
+        satellites[f"DEBRIS-{i}"] = {
+            "altitude_km": random.randint(300, 1500),
+            "inclination_deg": random.uniform(0, 180),
+            "description": f"Space debris object {i}"
+        }
+    
+    return satellites
 
 # Satellite configurations - initialize with fixed values but will be randomized at runtime
 SATELLITES_CONFIG = {

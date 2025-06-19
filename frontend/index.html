@@ -56,17 +56,17 @@
 <body>
     <div id="renderCanvas-container">
         <!-- Help Sphere Button (hidden until simulation starts) -->
-        <button id="help-sphere-btn" title="Help" style="position:absolute; top:16px; left:16px; width:36px; height:36px; border-radius:50%; background:rgba(102,217,255,0.7); border:2px solid #00cfff; cursor:pointer; z-index:5000; display:none;">?</button>
+        <button id="help-sphere-btn" title="Help" style="position:absolute; top:16px; left:16px; width:36px; height:36px; border-radius:50%; background:rgba(102,217,255,0.7); border:2px solid #00cfff; cursor:pointer; z-index:5000; display:none; pointer-events:auto;"></button>
         
         <!-- SDA Toggle Button (hidden until simulation starts) -->
-        <button id="sda-toggle-btn" title="Toggle Space Domain Awareness (Press 'S')" style="position:absolute; top:16px; left:62px; width:36px; height:36px; border-radius:50%; background:rgba(102,217,255,0.7); border:2px solid #00cfff; cursor:pointer; z-index:5000; display:none;">🛰️</button>
+        <button id="sda-toggle-btn" title="Toggle Space Domain Awareness (Press 'S')" style="position:absolute; top:16px; left:62px; width:36px; height:36px; border-radius:50%; background:rgba(102,217,255,0.7); border:2px solid #00cfff; cursor:pointer; z-index:5000; display:none; pointer-events:auto;">🛰️</button>
         
         <canvas id="renderCanvas" touch-action="none"></canvas>
         <!-- Loading Screen with Space Facts -->
         
         <!-- SDA Objects Legend (hidden by default) -->
         <div class="sda-legend" id="sda-legend">
-            <h4>Space Objects</h4>
+            <h4>Space Objects <span id="sda-object-count" style="color: #00cfff; font-weight: normal;">(0 objects)</span></h4>
             <div class="sda-legend-item">
                 <div class="sda-legend-color leo"></div>
                 <span>LEO (160-2,000 km)</span>

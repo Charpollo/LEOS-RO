@@ -160,13 +160,19 @@ export function hideLoadingScreen() {
         loadingScreen.style.transition = 'opacity 0.5s ease-out';
         
         setTimeout(() => {
+            // Fully hide loading screen
             loadingScreen.style.display = 'none';
             // Clean up aurora background when loading screen is hidden
             import('../aurora-background.js').then(module => {
                 if (module.cleanupAuroraBackground) {
                     module.cleanupAuroraBackground();
                 }
-            }).catch(() => {}); // Ignore errors if module doesn't exist yet
+            }).catch(() => {});
+            // Now show SDA toggle button once loading is cleared
+            const sdaBtn = document.getElementById('sda-toggle-btn');
+            if (sdaBtn) {
+                sdaBtn.style.display = 'flex';
+            }
         }, 500);
     }
 }
@@ -248,10 +254,10 @@ export function showHelpButton() {
         helpBtn.style.display = 'flex';
     }
     
-    // Also show the SDA toggle button
-    const sdaBtn = document.getElementById('sda-toggle-btn');
-    if (sdaBtn) {
-        sdaBtn.style.display = 'flex';
+    // Show SDA toggle button now that the simulation is loaded
+    const sdaToggleBtn = document.getElementById('sda-toggle-btn');
+    if (sdaToggleBtn) {
+        sdaToggleBtn.style.display = 'block';
     }
 }
 

@@ -470,6 +470,27 @@ export async function initApp() {
                     document.getElementById('sda-legend').classList.toggle('visible', visible);
                     document.getElementById('add-tle-button').classList.toggle('visible', visible);
                 });
+                
+                // Add keyboard shortcut (S key) for toggling SDA visualization
+                document.addEventListener('keydown', (event) => {
+                    // Only handle if we're not in an input field
+                    if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
+                        return;
+                    }
+                    
+                    // Check for 'S' key
+                    if (event.key === 's' || event.key === 'S') {
+                        if (sdaController) {
+                            const isActive = sdaController.toggle();
+                            // Update button visual state
+                            const sdaToggleBtn = document.getElementById('sda-toggle-btn');
+                            if (sdaToggleBtn) {
+                                sdaToggleBtn.style.backgroundColor = isActive ? 
+                                    'rgba(0, 255, 255, 0.7)' : 'rgba(102, 217, 255, 0.7)';
+                            }
+                        }
+                    }
+                });
             }).catch(err => {
                 console.error("Failed to initialize SDA visualization:", err);
             });

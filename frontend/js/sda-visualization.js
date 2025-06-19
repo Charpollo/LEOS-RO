@@ -2,437 +2,726 @@ import * as BABYLON from '@babylonjs/core';
 import { EARTH_RADIUS, EARTH_SCALE } from './constants.js';
 import { calculateSatellitePosition, toBabylonPosition } from './orbital-mechanics.js';
 
-// Track all visualized SDA objects
-let sdaObjectsVisible = false;
-let sdaPointsParent = null;   // Parent container for all SDA points
-let sdaPoints = [];           // Array of point meshes
-let sdaPointsData = {};       // Data associated with each point
-let tleData = {};
+// SDA Visualization Module - Self-contained and modular
+class SDAVisualization {
+  constructor() {
+    this.isVisible = false;
+    this.scene = null;
+    this.particleSystem = null;
+    this.tleData = [];
+    this.objectData = {};
+    this.mesh = null;
+    this.material = null;
+    this.tooltip = null;
+    
+    // Color coding for different orbit classes
+    this.COLORS = {
+      LEO: new BABYLON.Color3(0, 1, 1),       // Cyan
+      MEO: new BABYLON.Color3(1, 1, 0),       // Yellow  
+      GEO: new BABYLON.Color3(1, 0, 0),       // Red
+      HEO: new BABYLON.Color3(0.7, 0, 1),     // Purple
+      USER: new BABYLON.Color3(1, 1, 1)       // White
+    };
+    
+    console.log('SDA Visualization module initialized');
+  }
 
-// Particle System Color Constants
-const COLORS = {
-  LEO: new BABYLON.Color4(0, 1, 1, 1),       // Cyan
-  MEO: new BABYLON.Color4(1, 1, 0, 1),       // Yellow
-  GEO: new BABYLON.Color4(1, 0, 0, 1),       // Red
-  HEO: new BABYLON.Color4(0.7, 0, 1, 1),     // Purple
-  USER: new BABYLON.Color4(1, 1, 1, 1)       // White
-};
+  async initialize(scene) {
+    console.log('Initializing SDA visualization...');
+    this.scene = scene;
+    
+    // Load TLE data first
+    await this.loadTLEData();
+    
+    // Create the visualization system
+    this.createParticleSystem();
+    
+    // Set up UI interactions
+    this.setupUI();
+    
+    // Initially hidden
+    this.setVisible(false);
+    
+    console.log(`SDA visualization ready with ${this.tleData.length} objects`);
+    return this;
+  }
+
+  async loadTLEData() {
+    console.log('Loading TLE data...');
+    
+    // Generate comprehensive frontend satellite dataset
+    this.tleData = this.generateComprehensiveSatelliteData();
+    
+    console.log(`Generated ${this.tleData.length} synthetic satellites for SDA visualization`);
+  }
+
+  generateComprehensiveSatelliteData() {
+    const satellites = [];
+    
+    // Real satellite base templates with actual TLE data
+    const realSatellites = [
+      {
+        name: "ISS (ZARYA)",
+        norad: "25544",
+        class: "LEO",
+        tle1: "1 25544U 98067A   25169.18513889  .00008396  00000+0  15112-3 0  9990",
+        tle2: "2 25544  51.6455  37.3238 0007076 132.8248 356.1283 15.50168983399991"
+      },
+      {
+        name: "GOES 16",
+        norad: "41866", 
+        class: "GEO",
+        tle1: "1 41866U 16071A   25167.74993576 -.00000290  00000+0  00000+0 0  9996",
+        tle2: "2 41866   0.0448 172.2648 0000569 141.6764  94.5863  1.00271645 31488"
+      },
+      {
+        name: "GPS IIF-7",
+        norad: "40105",
+        class: "MEO", 
+        tle1: "1 40105U 14045A   25168.83022673  .00000022  00000+0  00000+0 0  9990",
+        tle2: "2 40105  54.7416 261.5752 0048253 201.3285 158.4543  2.00566719 79944"
+      }
+    ];
+
+    // Add real satellites
+    satellites.push(...realSatellites);
+
+    // Generate MASSIVE Starlink constellation (like real deployment - 4,000+ satellites)
+    for (let i = 1; i <= 4000; i++) {
+      const shells = [
+        { altitude: 550, inclination: 53.0 },
+        { altitude: 540, inclination: 53.2 },
+        { altitude: 570, inclination: 70.0 },
+        { altitude: 560, inclination: 97.6 }
+      ];
+      const shell = shells[i % shells.length];
+      
+      satellites.push({
+        name: `STARLINK-${i}`,
+        norad: `44${1000 + i}`,
+        class: "LEO",
+        tle1: this.generateTLE1(`44${1000 + i}`, 25169 + (i * 0.0001)),
+        tle2: this.generateTLE2(`44${1000 + i}`, shell.inclination + (Math.random() - 0.5) * 2, 15.05 + (Math.random() - 0.5) * 0.1)
+      });
+    }
+
+    // Generate OneWeb constellation (648 satellites)
+    for (let i = 1; i <= 648; i++) {
+      satellites.push({
+        name: `ONEWEB-${i}`,
+        norad: `48${1000 + i}`,
+        class: "LEO",
+        tle1: this.generateTLE1(`48${1000 + i}`, 25169 + (i * 0.0002)),
+        tle2: this.generateTLE2(`48${1000 + i}`, 87.4 + (Math.random() - 0.5), 13.7 + (Math.random() - 0.5) * 0.1)
+      });
+    }
+
+    // Generate Kuiper constellation (3,236 satellites - Amazon's planned constellation)
+    for (let i = 1; i <= 3236; i++) {
+      const shells = [
+        { altitude: 590, inclination: 51.9 },
+        { altitude: 610, inclination: 42.0 },
+        { altitude: 630, inclination: 33.0 }
+      ];
+      const shell = shells[i % shells.length];
+      
+      satellites.push({
+        name: `KUIPER-${i}`,
+        norad: `50${1000 + i}`,
+        class: "LEO",
+        tle1: this.generateTLE1(`50${1000 + i}`, 25169 + (i * 0.0001)),
+        tle2: this.generateTLE2(`50${1000 + i}`, shell.inclination + (Math.random() - 0.5), 14.8 + (Math.random() - 0.5) * 0.2)
+      });
+    }
+
+    // Generate GPS constellation (32 satellites)
+    for (let i = 1; i <= 32; i++) {
+      satellites.push({
+        name: `GPS-${i}`,
+        norad: `37${700 + i}`,
+        class: "MEO",
+        tle1: this.generateTLE1(`37${700 + i}`, 25169 + (i * 0.01)),
+        tle2: this.generateTLE2(`37${700 + i}`, 55.0 + (Math.random() - 0.5), 2.00 + (Math.random() - 0.5) * 0.01)
+      });
+    }
+
+    // Generate Galileo constellation (30 satellites)
+    for (let i = 1; i <= 30; i++) {
+      satellites.push({
+        name: `GALILEO-${i}`,
+        norad: `37${800 + i}`,
+        class: "MEO",
+        tle1: this.generateTLE1(`37${800 + i}`, 25169 + (i * 0.01)),
+        tle2: this.generateTLE2(`37${800 + i}`, 56.0 + (Math.random() - 0.5), 1.88 + (Math.random() - 0.5) * 0.01)
+      });
+    }
+
+    // Generate GLONASS constellation (24 satellites)
+    for (let i = 1; i <= 24; i++) {
+      satellites.push({
+        name: `GLONASS-${i}`,
+        norad: `39${500 + i}`,
+        class: "MEO",
+        tle1: this.generateTLE1(`39${500 + i}`, 25169 + (i * 0.01)),
+        tle2: this.generateTLE2(`39${500 + i}`, 64.8 + (Math.random() - 0.5), 2.13 + (Math.random() - 0.5) * 0.01)
+      });
+    }
+
+    // Generate BeiDou constellation (35 satellites)
+    for (let i = 1; i <= 35; i++) {
+      satellites.push({
+        name: `BEIDOU-${i}`,
+        norad: `36${400 + i}`,
+        class: "MEO",
+        tle1: this.generateTLE1(`36${400 + i}`, 25169 + (i * 0.01)),
+        tle2: this.generateTLE2(`36${400 + i}`, 55.5 + (Math.random() - 0.5), 1.86 + (Math.random() - 0.5) * 0.01)
+      });
+    }
+
+    // Generate GEO communication satellites (200 satellites)
+    for (let i = 1; i <= 200; i++) {
+      satellites.push({
+        name: `GEO-COMM-${i}`,
+        norad: `25${100 + i}`,
+        class: "GEO", 
+        tle1: this.generateTLE1(`25${100 + i}`, 25169 + (i * 0.02)),
+        tle2: this.generateTLE2(`25${100 + i}`, Math.random() * 5, 1.00 + (Math.random() - 0.5) * 0.001)
+      });
+    }
+
+    // Generate Iridium constellation (75 satellites)
+    for (let i = 1; i <= 75; i++) {
+      satellites.push({
+        name: `IRIDIUM-${i}`,
+        norad: `43${500 + i}`,
+        class: "LEO",
+        tle1: this.generateTLE1(`43${500 + i}`, 25169 + (i * 0.005)),
+        tle2: this.generateTLE2(`43${500 + i}`, 86.4 + (Math.random() - 0.5), 14.34 + (Math.random() - 0.5) * 0.1)
+      });
+    }
+
+    // Generate Globalstar constellation (48 satellites)
+    for (let i = 1; i <= 48; i++) {
+      satellites.push({
+        name: `GLOBALSTAR-${i}`,
+        norad: `25${400 + i}`,
+        class: "LEO",
+        tle1: this.generateTLE1(`25${400 + i}`, 25169 + (i * 0.005)),
+        tle2: this.generateTLE2(`25${400 + i}`, 52.0 + (Math.random() - 0.5), 13.1 + (Math.random() - 0.5) * 0.1)
+      });
+    }
+
+    // Generate Planet Labs constellation (200+ Earth observation satellites)
+    for (let i = 1; i <= 200; i++) {
+      satellites.push({
+        name: `PLANET-${i}`,
+        norad: `41${300 + i}`,
+        class: "LEO",
+        tle1: this.generateTLE1(`41${300 + i}`, 25169 + (i * 0.003)),
+        tle2: this.generateTLE2(`41${300 + i}`, 97.4 + (Math.random() - 0.5), 15.2 + (Math.random() - 0.5) * 0.2)
+      });
+    }
+
+    // Generate Earth observation satellites (100 satellites)
+    for (let i = 1; i <= 100; i++) {
+      satellites.push({
+        name: `EO-SAT-${i}`,
+        norad: `39${600 + i}`,
+        class: "LEO",
+        tle1: this.generateTLE1(`39${600 + i}`, 25169 + (i * 0.004)),
+        tle2: this.generateTLE2(`39${600 + i}`, 98.2 + (Math.random() - 0.5), 14.8 + (Math.random() - 0.5) * 0.3)
+      });
+    }
+
+    // Generate various LEO satellites (1000 satellites)
+    for (let i = 1; i <= 1000; i++) {
+      const inclination = Math.random() * 180;
+      const meanMotion = 12 + Math.random() * 4; // Varies with altitude
+      satellites.push({
+        name: `LEO-${i}`,
+        norad: `45${500 + i}`,
+        class: "LEO",
+        tle1: this.generateTLE1(`45${500 + i}`, 25169 + (i * 0.001)),
+        tle2: this.generateTLE2(`45${500 + i}`, inclination, meanMotion)
+      });
+    }
+
+    // Generate space debris (5000 tracked objects)
+    for (let i = 1; i <= 5000; i++) {
+      const inclination = Math.random() * 180;
+      const meanMotion = 10 + Math.random() * 6;
+      satellites.push({
+        name: `DEBRIS-${i}`,
+        norad: `99${1000 + i}`,
+        class: "LEO",
+        tle1: this.generateTLE1(`99${1000 + i}`, 25169 + (i * 0.0005)),
+        tle2: this.generateTLE2(`99${1000 + i}`, inclination, meanMotion)
+      });
+    }
+
+    // Generate HEO satellites (50 satellites - Molniya/Tundra orbits)
+    for (let i = 1; i <= 50; i++) {
+      satellites.push({
+        name: `HEO-${i}`,
+        norad: `40${900 + i}`,
+        class: "HEO",
+        tle1: this.generateTLE1(`40${900 + i}`, 25169 + (i * 0.1)),
+        tle2: this.generateTLE2(`40${900 + i}`, 63.4 + (Math.random() - 0.5) * 5, 2.0 + (Math.random() - 0.5) * 0.5)
+      });
+    }
+
+    return satellites;
+  }
+
+  generateTLE1(noradId, epoch) {
+    // Generate realistic TLE line 1
+    const padded = noradId.padStart(5, '0');
+    const epochStr = epoch.toFixed(8).padStart(14, '0');
+    const dragTerm = (Math.random() * 0.00001).toExponential(5).replace('e', '-').padStart(10, ' ');
+    
+    return `1 ${padded}U 25001A   ${epochStr}  .00001234  00000+0  ${dragTerm} 0  9999`;
+  }
+
+  generateTLE2(noradId, inclination, meanMotion) {
+    // Generate realistic TLE line 2
+    const padded = noradId.padStart(5, '0');
+    const incl = inclination.toFixed(4).padStart(8, ' ');
+    const raan = (Math.random() * 360).toFixed(4).padStart(8, ' ');
+    const eccentricity = (Math.random() * 0.01).toFixed(7).substring(2).padStart(7, '0');
+    const argPer = (Math.random() * 360).toFixed(4).padStart(8, ' ');
+    const meanAnom = (Math.random() * 360).toFixed(4).padStart(8, ' ');
+    const meanMot = meanMotion.toFixed(8).padStart(11, ' ');
+    const revNum = Math.floor(Math.random() * 99999).toString().padStart(5, ' ');
+    
+    return `2 ${padded} ${incl} ${raan} ${eccentricity} ${argPer} ${meanAnom} ${meanMot}${revNum}9`;
+  }
+
+  createParticleSystem() {
+    console.log('Creating mesh-based SDA visualization...');
+    
+    // Clean up existing system
+    if (this.mesh) {
+      this.mesh.dispose();
+      this.objectData = {};
+    }
+
+    if (this.tleData.length === 0) {
+      console.warn('No TLE data available for visualization');
+      return;
+    }
+
+    // Create parent node for all SDA objects
+    this.mesh = new BABYLON.TransformNode("sdaObjects", this.scene);
+    
+    // Create individual meshes for each satellite
+    const now = new Date();
+    this.objectData = {};
+    
+    console.log(`Creating ${this.tleData.length} satellite meshes...`);
+    
+    this.tleData.forEach((obj, index) => {
+      if (!obj.tle1 || !obj.tle2) {
+        console.warn(`Skipping object ${obj.name} - missing TLE data`);
+        return;
+      }
+
+      try {
+        // Calculate position using simple TLE-based orbital mechanics
+        const position = this.calculateSimpleOrbitPosition(obj.tle1, obj.tle2, now);
+        if (!position) {
+          console.warn(`Failed to calculate position for ${obj.name}`);
+          return;
+        }
+
+        // Convert to Babylon coordinates with proper scaling
+        const babylonPos = this.positionToBabylon(position);
+        
+        // Create individual sphere for this satellite - MUCH smaller size
+        const sphere = BABYLON.MeshBuilder.CreateSphere(`sda_${obj.norad || index}`, {
+          diameter: 0.02, // Much smaller - about 1/25th the previous size
+          segments: 4     // Low segments for performance with many objects
+        }, this.scene);
+        
+        sphere.position.set(babylonPos.x, babylonPos.y, babylonPos.z);
+        sphere.parent = this.mesh;
+        
+        // Set color based on orbit class
+        const orbitClass = obj.class || this.determineOrbitClass(position.altitude);
+        const color = this.COLORS[orbitClass] || this.COLORS.LEO;
+        
+        // Create material with emissive color
+        const material = new BABYLON.StandardMaterial(`sdaMat_${index}`, this.scene);
+        material.emissiveColor = color;
+        material.disableLighting = true;
+        sphere.material = material;
+        
+        // Store object data
+        this.objectData[obj.norad || `obj-${index}`] = {
+          mesh: sphere,
+          name: obj.name || `Object ${index}`,
+          noradId: obj.norad || `obj-${index}`,
+          class: orbitClass,
+          tle1: obj.tle1,
+          tle2: obj.tle2,
+          altitude: position.altitude.toFixed(0),
+          inclination: position.inclination.toFixed(1)
+        };
+        
+        console.log(`Created satellite ${obj.name} at altitude ${position.altitude.toFixed(0)}km`);
+        
+      } catch (error) {
+        console.warn(`Error processing object ${obj.name}:`, error);
+      }
+    });
+
+    // Set up update loop
+    this.scene.registerBeforeRender(() => {
+      if (this.isVisible) {
+        this.updateMeshes();
+      }
+    });
+    
+    // Set up mouse interaction
+    this.setupMouseInteraction();
+    
+    console.log(`Created ${Object.keys(this.objectData).length} satellite meshes`);
+  }
+
+  calculateSimpleOrbitPosition(tle1, tle2, time) {
+    try {
+      // Parse TLE data
+      const inclination = parseFloat(tle2.substring(8, 16)); // degrees
+      const raan = parseFloat(tle2.substring(17, 25)); // degrees
+      const eccentricity = parseFloat('0.' + tle2.substring(26, 33));
+      const argPerigee = parseFloat(tle2.substring(34, 42)); // degrees
+      const meanAnomaly = parseFloat(tle2.substring(43, 51)); // degrees
+      const meanMotion = parseFloat(tle2.substring(52, 63)); // revolutions per day
+      
+      // Calculate orbital period and semi-major axis
+      const period = 24 * 60 / meanMotion; // minutes
+      const semiMajorAxis = Math.pow((period * 60 / (2 * Math.PI)) * (period * 60 / (2 * Math.PI)) * 398600.4418, 1/3); // km
+      const altitude = semiMajorAxis - 6371; // km above Earth surface
+      
+      // Simple circular orbit approximation for visualization
+      const orbitalRadius = semiMajorAxis;
+      
+      // Time-based position calculation
+      const currentTime = time.getTime() / 1000; // seconds since epoch
+      const orbitalAngle = (currentTime * 2 * Math.PI) / (period * 60); // radians
+      
+      // Convert orbital angles to radians
+      const inclinationRad = inclination * Math.PI / 180;
+      const raanRad = raan * Math.PI / 180;
+      const argPerigeeRad = argPerigee * Math.PI / 180;
+      
+      // Calculate position in orbital plane
+      const cosAngle = Math.cos(orbitalAngle);
+      const sinAngle = Math.sin(orbitalAngle);
+      
+      // Position in orbital coordinate system
+      const xOrb = orbitalRadius * cosAngle;
+      const yOrb = orbitalRadius * sinAngle;
+      const zOrb = 0;
+      
+      // Rotate to Earth-centered coordinates
+      const cosInc = Math.cos(inclinationRad);
+      const sinInc = Math.sin(inclinationRad);
+      const cosRaan = Math.cos(raanRad);
+      const sinRaan = Math.sin(raanRad);
+      const cosArg = Math.cos(argPerigeeRad);
+      const sinArg = Math.sin(argPerigeeRad);
+      
+      // Apply rotations
+      const x = (cosRaan * cosArg - sinRaan * sinArg * cosInc) * xOrb + 
+                (-cosRaan * sinArg - sinRaan * cosArg * cosInc) * yOrb;
+      const y = (sinRaan * cosArg + cosRaan * sinArg * cosInc) * xOrb + 
+                (-sinRaan * sinArg + cosRaan * cosArg * cosInc) * yOrb;
+      const z = (sinInc * sinArg) * xOrb + (sinInc * cosArg) * yOrb;
+      
+      return {
+        x: x,
+        y: y, 
+        z: z,
+        altitude: altitude,
+        inclination: inclination
+      };
+      
+    } catch (error) {
+      console.error('Error parsing TLE:', error);
+      return null;
+    }
+  }
+
+  positionToBabylon(position) {
+    // Convert km to Babylon units using Earth scale
+    // Earth radius = 6371 km = 1 Babylon unit, so scale = 1/6371
+    const scale = 1 / 6371;
+    
+    return new BABYLON.Vector3(
+      position.x * scale,
+      position.z * scale, // Swap Y and Z for Babylon coordinate system
+      position.y * scale
+    );
+  }
+
+  updateMeshes() {
+    if (!this.isVisible) return;
+    
+    const now = new Date();
+    let updatedCount = 0;
+    
+    Object.keys(this.objectData).forEach(noradId => {
+      const data = this.objectData[noradId];
+      if (!data.tle1 || !data.tle2 || !data.mesh) return;
+      
+      try {
+        const position = this.calculateSimpleOrbitPosition(data.tle1, data.tle2, now);
+        if (!position) return;
+        
+        const babylonPos = this.positionToBabylon(position);
+        data.mesh.position.set(babylonPos.x, babylonPos.y, babylonPos.z);
+        
+        // Update data
+        data.altitude = position.altitude.toFixed(0);
+        data.inclination = position.inclination.toFixed(1);
+        updatedCount++;
+      } catch (error) {
+        // Silently handle calculation errors
+      }
+    });
+  }
+
+  setupMouseInteraction() {
+    // Set up mouse interaction for tooltips
+    this.scene.onPointerMove = (evt) => {
+      if (!this.isVisible) {
+        this.tooltip.style.display = 'none';
+        return;
+      }
+
+      const pickResult = this.scene.pick(
+        this.scene.pointerX,
+        this.scene.pointerY,
+        (mesh) => mesh.parent === this.mesh
+      );
+
+      if (pickResult.hit && pickResult.pickedMesh) {
+        // Find object data for this mesh
+        let objectData = null;
+        for (const noradId in this.objectData) {
+          if (this.objectData[noradId].mesh === pickResult.pickedMesh) {
+            objectData = this.objectData[noradId];
+            break;
+          }
+        }
+
+        if (objectData) {
+          this.tooltip.innerHTML = `
+            <h4>${objectData.name}</h4>
+            <p><span style="color: ${this.getColorHex(objectData.class)}">${objectData.class}</span> | NORAD: ${objectData.noradId}</p>
+            <p>Altitude: ${objectData.altitude} km</p>
+            <p>Inclination: ${objectData.inclination}°</p>
+          `;
+          this.tooltip.style.display = 'block';
+          this.tooltip.style.left = (evt.clientX + 10) + 'px';
+          this.tooltip.style.top = (evt.clientY + 10) + 'px';
+          return;
+        }
+      }
+
+      this.tooltip.style.display = 'none';
+    };
+  }
+
+  determineOrbitClass(altitudeKm) {
+    if (altitudeKm < 2000) return 'LEO';
+    if (altitudeKm < 35786) return 'MEO';
+    if (altitudeKm >= 35786 && altitudeKm <= 36000) return 'GEO';
+    return 'HEO';
+  }
+
+  setVisible(visible) {
+    console.log(`Setting SDA visibility to: ${visible}`);
+    this.isVisible = visible;
+    
+    if (this.mesh) {
+      this.mesh.setEnabled(visible);
+      console.log(`Mesh visibility set to: ${visible}, object count: ${Object.keys(this.objectData).length}`);
+    } else {
+      console.warn('No mesh available to set visibility');
+    }
+    
+    // Update UI elements
+    this.updateUI();
+    
+    console.log(`SDA visualization ${visible ? 'shown' : 'hidden'} - ${Object.keys(this.objectData).length} objects loaded`);
+  }
+
+  toggle() {
+    this.setVisible(!this.isVisible);
+    return this.isVisible;
+  }
+
+  updateUI() {
+    // Update object count display
+    const countElement = document.getElementById('sda-object-count');
+    if (countElement) {
+      countElement.textContent = `(${Object.keys(this.objectData).length} objects)`;
+    }
+    
+    // Update legend visibility
+    const legend = document.getElementById('sda-legend');
+    if (legend) {
+      legend.style.display = this.isVisible ? 'block' : 'none';
+    }
+    
+    // Update toggle button
+    const toggleBtn = document.getElementById('sda-toggle-btn');
+    if (toggleBtn) {
+      toggleBtn.style.backgroundColor = this.isVisible ? 
+        'rgba(0, 255, 255, 0.7)' : 'rgba(102, 217, 255, 0.7)';
+    }
+    
+    // Show status message
+    this.showStatusMessage();
+    
+    // Hide tooltip when not visible
+    if (!this.isVisible && this.tooltip) {
+      this.tooltip.style.display = 'none';
+    }
+  }
+
+  showStatusMessage() {
+    // Create or update status message
+    let statusDiv = document.getElementById('sda-status-message');
+    if (!statusDiv) {
+      statusDiv = document.createElement('div');
+      statusDiv.id = 'sda-status-message';
+      statusDiv.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        background: rgba(0, 0, 0, 0.8);
+        color: #00cfff;
+        padding: 10px 15px;
+        border-radius: 5px;
+        font-family: 'Orbitron', monospace;
+        font-size: 14px;
+        z-index: 5000;
+        border: 1px solid #00cfff;
+        display: none;
+      `;
+      document.body.appendChild(statusDiv);
+    }
+
+    if (this.isVisible) {
+      const objectCount = Object.keys(this.objectData).length;
+      const orbitCounts = this.getOrbitClassCounts();
+      
+      statusDiv.innerHTML = `
+        <div><strong>SDA VISUALIZATION ACTIVE</strong></div>
+        <div>Total Objects: ${objectCount}</div>
+        <div>LEO: ${orbitCounts.LEO} | MEO: ${orbitCounts.MEO} | GEO: ${orbitCounts.GEO} | HEO: ${orbitCounts.HEO}</div>
+        <div>Hover over objects for details</div>
+      `;
+      statusDiv.style.display = 'block';
+    } else {
+      statusDiv.style.display = 'none';
+    }
+  }
+
+  setupUI() {
+    // Create tooltip
+    this.tooltip = document.createElement('div');
+    this.tooltip.className = 'sda-tooltip';
+    this.tooltip.style.cssText = `
+      position: absolute;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 10px;
+      border-radius: 5px;
+      font-size: 12px;
+      pointer-events: none;
+      z-index: 1000;
+      display: none;
+    `;
+    document.body.appendChild(this.tooltip);
+  }
+
+  getColorHex(orbitClass) {
+    const color = this.COLORS[orbitClass] || this.COLORS.LEO;
+    return `rgb(${Math.floor(color.r * 255)}, ${Math.floor(color.g * 255)}, ${Math.floor(color.b * 255)})`;
+  }
+
+  addNewTLE(tle1, tle2, name) {
+    try {
+      const id = `USER_${Date.now()}`;
+      const newObject = {
+        name: name || `User Object ${this.tleData.length + 1}`,
+        norad: id,
+        class: 'USER',
+        tle1: tle1,
+        tle2: tle2,
+        epoch: new Date()
+      };
+      
+      this.tleData.push(newObject);
+      
+      // Rebuild visualization to include new object
+      this.createParticleSystem();
+      
+      if (this.isVisible) {
+        this.mesh.setEnabled(true);
+      }
+      
+      console.log(`Added new TLE object: ${newObject.name}`);
+      return true;
+    } catch (error) {
+      console.error('Error adding new TLE:', error);
+      return false;
+    }
+  }
+
+  getStats() {
+    return {
+      totalObjects: this.tleData.length,
+      visibleObjects: Object.keys(this.objectData).length,
+      isVisible: this.isVisible,
+      orbitClasses: this.getOrbitClassCounts()
+    };
+  }
+
+  getOrbitClassCounts() {
+    const counts = { LEO: 0, MEO: 0, GEO: 0, HEO: 0, USER: 0 };
+    Object.values(this.objectData).forEach(obj => {
+      counts[obj.class] = (counts[obj.class] || 0) + 1;
+    });
+    return counts;
+  }
+}
+
+// Global instance
+let sdaVisualization = null;
 
 /**
  * Initializes the SDA visualization system
  * @param {BABYLON.Scene} scene - The Babylon.js scene
  */
 export async function initSDAVisualization(scene) {
-  // Load TLE data
-  await loadTLEData();
+  console.log('Initializing SDA visualization system...');
   
-  // Create particle system for SDA objects
-  createSDAParticleSystem(scene);
+  // Create and initialize the SDA visualization
+  sdaVisualization = new SDAVisualization();
+  await sdaVisualization.initialize(scene);
   
-  // Initially the SDA objects are hidden
-  setSDAPanelVisible(false);
+  console.log('SDA visualization system ready');
   
   return {
-    isVisible: () => sdaObjectsVisible,
-    toggle: () => toggleSDAPanelVisibility(scene),
+    isVisible: () => sdaVisualization.isVisible,
+    toggle: () => sdaVisualization.toggle(),
+    getStats: () => sdaVisualization.getStats(),
+    addTLE: (tle1, tle2, name) => sdaVisualization.addNewTLE(tle1, tle2, name)
   };
-}
-
-/**
- * Loads TLE data for orbital objects
- */
-async function loadTLEData() {
-  try {
-    // Use a small sample for testing first
-    const response = await fetch('assets/tle-sample.json');
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
-    }
-    tleData = await response.json();
-    console.log(`Loaded ${Object.keys(tleData).length} objects from TLE data`);
-  } catch (error) {
-    console.error('Error loading TLE data:', error);
-    // Fall back to a minimal set of example data
-    tleData = {
-      "LEO_SAMPLE_1": {
-        "name": "ISS (ZARYA)",
-        "norad": "25544",
-        "class": "LEO",
-        "tle1": "1 25544U 98067A   21084.79927053  .00001366  00000-0  32305-4 0  9995",
-        "tle2": "2 25544  51.6452  89.5895 0003432  99.1345 261.0539 15.48909668276917"
-      },
-      "GEO_SAMPLE_1": {
-        "name": "GOES 13",
-        "norad": "29155",
-        "class": "GEO",
-        "tle1": "1 29155U 06018A   21084.50945312 -.00000094  00000-0  00000-0 0  9996",
-        "tle2": "2 29155   0.2488 279.2607 0001765 349.3505  69.7466  1.00269868 54059"
-      },
-      "MEO_SAMPLE_1": {
-        "name": "GPS BIIR-9 (PRN 21)",
-        "norad": "27704",
-        "class": "MEO",
-        "tle1": "1 27704U 03010A   21084.92552303 -.00000046  00000-0  00000-0 0  9995",
-        "tle2": "2 27704  54.7432 263.6380 0111656 202.4106 157.1944  2.00561959131237"
-      },
-      "HEO_SAMPLE_1": {
-        "name": "SIRIUS 3",
-        "norad": "26626",
-        "class": "HEO",
-        "tle1": "1 26626U 00082A   21084.13453883 -.00000073  00000-0  00000-0 0  9996",
-        "tle2": "2 26626  63.0217 114.0728 2748516 270.1789  27.8103  0.86576066 78462"
-      }
-    };
-  }
-}
-
-/**
- * Creates the SDA points for visualizing all SDA objects
- * @param {BABYLON.Scene} scene - The Babylon.js scene
- */
-function createSDAPoints(scene) {
-  // Clean up existing points if present
-  if (sdaPointsParent) {
-    sdaPointsParent.dispose();
-    sdaPoints = [];
-    sdaPointsData = {};
-  }
-  
-  // Create a parent node for all SDA points
-  sdaPointsParent = new BABYLON.TransformNode("sdaPoints", scene);
-  
-  // Create a custom material for the points
-  const pointMaterial = new BABYLON.StandardMaterial("sdaPointMaterial", scene);
-  pointMaterial.emissiveColor = new BABYLON.Color3(1, 1, 1); // Will be overridden per point
-  pointMaterial.disableLighting = true;
-  pointMaterial.backFaceCulling = false;
-  
-  // Points are now ready for positioning
-  positionSDAParticles(scene, pointMaterial);
-}
-
-/**
- * Positions all SDA particles based on the TLE data
- * @param {BABYLON.Scene} scene - The Babylon.js scene
- */
-function positionSDAParticles(scene) {
-  // Clear existing particles
-  sdaParticleSystem.reset();
-  
-  // Create a particle for each object in the TLE data
-  const objects = Object.values(tleData);
-  const now = new Date();
-  
-  // Limit the initial number for performance
-  const maxInitialObjects = 5000;
-  const objectsToShow = objects.slice(0, Math.min(objects.length, maxInitialObjects));
-  
-  // Create individual particles based on orbital parameters
-  objectsToShow.forEach((obj) => {
-    try {
-      // Skip objects without proper TLE data
-      if (!obj.tle1 || !obj.tle2) return;
-      
-      // Calculate position from TLE
-      const position = calculateSatellitePosition(obj.tle1, obj.tle2, now);
-      if (!position) return;
-      
-      // Convert to Babylon coordinates
-      const babylonPos = toBabylonPosition(position, EARTH_SCALE);
-      
-      // Set orbit class for color
-      const orbitClass = obj.class || determineOrbitClass(position.altitude);
-      
-      // Create a particle
-      sdaParticleSystem.addParticle(
-        new BABYLON.Vector3(babylonPos.x, babylonPos.y, babylonPos.z),
-        10  // Initial velocity (we'll override this every frame)
-      );
-      
-      // Store reference for updates
-      const particleIndex = sdaParticleSystem.particles.length - 1;
-      
-      // Set color based on orbit class
-      const color = COLORS[orbitClass] || COLORS.LEO;
-      sdaParticleSystem.particles[particleIndex].color = color;
-      
-      // Add metadata for hover/interaction
-      sdaMeshes[obj.norad] = {
-        particleIndex,
-        name: obj.name,
-        noradId: obj.norad,
-        class: orbitClass,
-        tle1: obj.tle1,
-        tle2: obj.tle2,
-        altitude: position.altitude.toFixed(0),
-        inclination: position.inclination.toFixed(1)
-      };
-    } catch (error) {
-      console.error(`Error creating SDA particle for ${obj.name || 'unknown'}:`, error);
-    }
-  });
-  
-  console.log(`Created ${sdaParticleSystem.particles.length} SDA particles`);
-  
-  // Create tooltip for object hovering
-  const tooltip = document.createElement('div');
-  tooltip.className = 'sda-tooltip';
-  tooltip.style.display = 'none';
-  document.body.appendChild(tooltip);
-  
-  // Setup interaction with particles
-  scene.onPointerMove = (evt) => {
-    if (!sdaObjectsVisible) {
-      tooltip.style.display = 'none';
-      return;
-    }
-    
-    // Use picking ray to detect particles
-    const pickResult = scene.pick(
-      scene.pointerX, 
-      scene.pointerY, 
-      (mesh) => false, // Skip mesh picking - we'll handle particles manually
-      false,
-      scene.activeCamera
-    );
-    
-    if (pickResult.hit) {
-      const ray = pickResult.ray;
-      let closestDistance = Infinity;
-      let closestObject = null;
-      
-      // Check ray against particles
-      for (const noradId in sdaMeshes) {
-        const obj = sdaMeshes[noradId];
-        const particle = sdaParticleSystem.particles[obj.particleIndex];
-        if (!particle) continue;
-        
-        // Calculate distance between ray and particle
-        const distance = BABYLON.Vector3.Distance(
-          ray.origin.add(ray.direction.scale(
-            BABYLON.Vector3.Dot(
-              particle.position.subtract(ray.origin),
-              ray.direction
-            )
-          )),
-          particle.position
-        );
-        
-        // If close enough to ray and closer than previous closest
-        if (distance < 0.05 && distance < closestDistance) {
-          closestDistance = distance;
-          closestObject = obj;
-        }
-      }
-      
-      // Display tooltip for closest object
-      if (closestObject) {
-        tooltip.innerHTML = `
-          <h4>${closestObject.name}</h4>
-          <p><span class="orbit-class ${closestObject.class.toLowerCase()}">${closestObject.class}</span> NORAD: ${closestObject.noradId}</p>
-          <p>Altitude: ${closestObject.altitude} km</p>
-          <p>Inclination: ${closestObject.inclination}°</p>
-        `;
-        tooltip.style.display = 'block';
-        tooltip.style.left = (evt.clientX + 10) + 'px';
-        tooltip.style.top = (evt.clientY + 10) + 'px';
-        return;
-      }
-    }
-    
-    // Hide tooltip if no hit
-    tooltip.style.display = 'none';
-  };
-  
-  console.log(`Created ${sdaParticleSystem.particles.length} SDA particles`);
-  
-  // Set up update loop for particle positions
-  scene.registerBeforeRender(() => {
-    if (!sdaObjectsVisible) return;
-    updateSDAPanelAndPositions(scene);
-  });
-}
-
-/**
- * Updates the positions of all SDA particles based on current time
- * @param {BABYLON.Scene} scene - The Babylon.js scene
- */
-function updateSDAPanelAndPositions(scene) {
-  // Only update every few frames for performance
-  if (scene.getFrameId() % 30 !== 0) return;
-  
-  // Try to get simulation time from global state if available
-  const simulationTime = window.getCurrentSimTime ? window.getCurrentSimTime() : new Date();
-  
-  // Count visible particles by orbit class for stats
-  const stats = {
-    LEO: 0,
-    MEO: 0,
-    GEO: 0,
-    HEO: 0,
-    USER: 0,
-    total: 0
-  };
-  
-  // Update each tracked object
-  Object.values(sdaMeshes).forEach(obj => {
-    try {
-      if (!obj.tle1 || !obj.tle2 || obj.particleIndex >= sdaParticleSystem.particles.length) return;
-      
-      // Calculate new position for this time
-      const position = calculateSatellitePosition(obj.tle1, obj.tle2, simulationTime);
-      if (!position) return;
-      
-      // Update particle position
-      const babylonPos = toBabylonPosition(position, EARTH_SCALE);
-      const particle = sdaParticleSystem.particles[obj.particleIndex];
-      
-      // Only update if particle exists
-      if (particle) {
-        particle.position.x = babylonPos.x;
-        particle.position.y = babylonPos.y;
-        particle.position.z = babylonPos.z;
-        
-        // Reset age to prevent dying
-        particle.age = 0;
-        
-        // Update object metadata with new position
-        obj.altitude = position.altitude.toFixed(0);
-        obj.inclination = position.inclination.toFixed(1);
-        
-        // Update stats
-        stats.total++;
-        if (stats[obj.class]) stats[obj.class]++;
-      }
-    } catch (error) {
-      // Skip problematic particles
-    }
-  });
-  
-  // Update the legend with the stats (optional)
-  updateStats(stats);
-}
-
-// Updates the legend with stats about visible objects
-function updateStats(stats) {
-  // This could update a counter in the legend to show how many
-  // objects of each type are being tracked
-  const legend = document.getElementById('sda-legend');
-  if (legend && legend.classList.contains('visible')) {
-    // Update only if legend is visible
-    const legendTitle = legend.querySelector('h4');
-    if (legendTitle) {
-      legendTitle.textContent = `Space Objects (${stats.total})`;
-    }
-    
-    // Update each orbit class count
-    for (const orbitClass in stats) {
-      if (orbitClass === 'total') continue;
-      const item = legend.querySelector(`.sda-legend-item:nth-child(${Object.keys(COLORS).indexOf(orbitClass) + 1})`);
-      if (item) {
-        const text = item.querySelector('span');
-        const orbitName = {
-          'LEO': 'LEO (160-2,000 km)',
-          'MEO': 'MEO (2,000-35,786 km)',
-          'GEO': 'GEO (~35,786 km)',
-          'HEO': 'HEO (Highly Elliptical)',
-          'USER': 'User-Added Objects'
-        }[orbitClass] || orbitClass;
-        if (text) text.textContent = `${orbitName}: ${stats[orbitClass]}`;
-      }
-    }
-  }
-}
-
-/**
- * Determines the orbit class based on altitude
- * @param {number} altitudeKm - The altitude in kilometers
- * @returns {string} - The orbit class (LEO, MEO, GEO, HEO)
- */
-function determineOrbitClass(altitudeKm) {
-  if (altitudeKm < 2000) return 'LEO';
-  if (altitudeKm < 35786) return 'MEO';
-  if (altitudeKm >= 35786 && altitudeKm <= 36000) return 'GEO';
-  return 'HEO';
-}
-
-/**
- * Sets the visibility of the SDA visualization panel
- * @param {boolean} visible - Whether the panel should be visible
- */
-function setSDAPanelVisible(visible) {
-  sdaObjectsVisible = visible;
-  
-  // Show/hide the particle system
-  if (sdaParticleSystem) {
-    if (visible) {
-      sdaParticleSystem.start();
-      // Initialize particles if this is the first time showing them
-      if (sdaParticleSystem.particles.length === 0) {
-        positionSDAParticles(sdaParticleSystem.getScene());
-      }
-    } else {
-      sdaParticleSystem.stop();
-      // Hide tooltip if it exists
-      const tooltip = document.querySelector('.sda-tooltip');
-      if (tooltip) {
-        tooltip.style.display = 'none';
-      }
-    }
-  }
-  
-  // Update button appearance based on state
-  const sdaToggleBtn = document.getElementById('sda-toggle-btn');
-  if (sdaToggleBtn) {
-    sdaToggleBtn.style.backgroundColor = visible ? 
-      'rgba(0, 255, 255, 0.7)' : 'rgba(102, 217, 255, 0.7)';
-  }
-}
-
-/**
- * Toggles the visibility of the SDA visualization
- */
-function toggleSDAPanelVisibility(scene) {
-  setSDAPanelVisible(!sdaObjectsVisible);
-  
-  // Dispatch toggle event for UI updates
-  window.dispatchEvent(new CustomEvent('sda-visibility-changed', { 
-    detail: { visible: sdaObjectsVisible } 
-  }));
-  
-  return sdaObjectsVisible;
-}
-
-/**
- * Adds a new orbital object from TLE data
- * @param {string} tle1 - First line of TLE
- * @param {string} tle2 - Second line of TLE
- * @param {string} name - Object name
- */
-export function addNewSDATle(tle1, tle2, name) {
-  try {
-    // Create a unique ID for this object
-    const id = `USER_${Date.now()}`;
-    
-    // Add to TLE data
-    tleData[id] = {
-      name: name || `User Object ${Object.keys(tleData).length + 1}`,
-      norad: id,
-      class: 'USER',
-      tle1: tle1,
-      tle2: tle2
-    };
-    
-    // If visualization is active, recreate particle system to include the new object
-    if (sdaObjectsVisible && sdaParticleSystem) {
-      createSDAParticleSystem(sdaParticleSystem.getScene());
-    }
-    
-    return true;
-  } catch (error) {
-    console.error('Error adding new TLE data:', error);
-    return false;
-  }
 }
 
 /**
@@ -483,9 +772,13 @@ export function createTLEInputModal() {
     const tle2 = document.getElementById('tle-line2').value;
     
     if (tle1 && tle2) {
-      const success = addNewSDATle(tle1, tle2, name);
+      const success = sdaVisualization ? sdaVisualization.addNewTLE(tle1, tle2, name) : false;
       if (success) {
         modal.remove();
+        // Update UI to show new count
+        if (sdaVisualization) {
+          sdaVisualization.updateUI();
+        }
       } else {
         alert('Invalid TLE data. Please check your input and try again.');
       }
@@ -495,4 +788,11 @@ export function createTLEInputModal() {
   });
   
   return modal;
+}
+
+/**
+ * Legacy function for backward compatibility
+ */
+export function addNewSDATle(tle1, tle2, name) {
+  return sdaVisualization ? sdaVisualization.addNewTLE(tle1, tle2, name) : false;
 }
