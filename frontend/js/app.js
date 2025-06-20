@@ -1022,9 +1022,9 @@ async function initModelViewer() {
 
     // Enhance lighting for better model viewing with reduced reflections
     const hemisphericLight = new BABYLON.HemisphericLight('previewLight', new BABYLON.Vector3(0,1,0), previewScene);
-    hemisphericLight.intensity = 0.8; // Reduced intensity to minimize harsh reflections
+    hemisphericLight.intensity = 1.2; // Increased base intensity for better visibility
     hemisphericLight.diffuse = new BABYLON.Color3(0.9, 0.9, 1.0);
-    hemisphericLight.specular = new BABYLON.Color3(0.2, 0.2, 0.3); // Much lower specular to reduce reflective "static"
+    hemisphericLight.specular = new BABYLON.Color3(0.15, 0.15, 0.2); // Lower specular to reduce reflective "static"
     
     // Add subtle particle system for stars in background
     const particleSystem = new BABYLON.ParticleSystem("stars", 200, previewScene);
@@ -1246,8 +1246,8 @@ async function initModelViewer() {
             // Adjust scale factor and positioning based on satellite type
             let scaleFactor = 0.5;
             if (satName.toUpperCase().includes('CRTS')) {
-                scaleFactor = 0.35; // Smaller scale for CRTS models
-                previewCamera.radius = 3.5; // Better viewing distance for CRTS
+                scaleFactor = 0.75; // Much larger scale for CRTS models for better visibility
+                previewCamera.radius = 2.5; // Closer viewing distance for CRTS
                 // CRTS models stay in default orientation
             } else {
                 // BULLDOG satellite - keep in default orientation (no rotation to prevent floating pieces)
@@ -1275,16 +1275,38 @@ async function initModelViewer() {
             // Add enhanced lighting for better model visibility with reduced reflections
             const pointLight = new BABYLON.PointLight("modelSpotlight", 
                 new BABYLON.Vector3(4, 3, 4), previewScene);
-            pointLight.intensity = 1.2; // Reduced from 2.0 to minimize harsh reflections
+            pointLight.intensity = satName.toUpperCase().includes('CRTS') ? 2.5 : 1.2; // Much brighter lighting for CRTS
             pointLight.diffuse = new BABYLON.Color3(1.0, 1.0, 1.0);
-            pointLight.specular = new BABYLON.Color3(0.3, 0.3, 0.4); // Much lower specular to reduce static-like reflections
+            pointLight.specular = new BABYLON.Color3(0.2, 0.2, 0.3); // Lower specular to reduce static-like reflections
             
             // Add softer rim lighting for better definition without harsh reflections
             const rimLight = new BABYLON.DirectionalLight("rimLight", 
                 new BABYLON.Vector3(-1, -1, -1), previewScene);
-            rimLight.intensity = 0.4; // Reduced from 0.8 for softer lighting
-            rimLight.diffuse = new BABYLON.Color3(0.6, 0.8, 1.0);
+            rimLight.intensity = satName.toUpperCase().includes('CRTS') ? 1.0 : 0.4; // Much enhanced rim lighting for CRTS
+            rimLight.diffuse = new BABYLON.Color3(0.8, 0.8, 1.0);
             rimLight.specular = new BABYLON.Color3(0.1, 0.1, 0.2); // Very low specular to prevent reflective artifacts
+            
+            // Add additional fill light specifically for CRTS to brighten it up
+            if (satName.toUpperCase().includes('CRTS')) {
+                const fillLight = new BABYLON.PointLight("fillLight", 
+                    new BABYLON.Vector3(-3, 2, -2), previewScene);
+                fillLight.intensity = 1.2; // Increased intensity
+                fillLight.diffuse = new BABYLON.Color3(0.9, 0.9, 1.0);
+                fillLight.specular = new BABYLON.Color3(0.1, 0.1, 0.1); // Minimal specular
+                
+                // Add a secondary fill light from the opposite side
+                const fillLight2 = new BABYLON.PointLight("fillLight2", 
+                    new BABYLON.Vector3(3, -1, 2), previewScene);
+                fillLight2.intensity = 0.8;
+                fillLight2.diffuse = new BABYLON.Color3(1.0, 0.9, 0.8);
+                fillLight2.specular = new BABYLON.Color3(0.05, 0.05, 0.05);
+                
+                // Add an additional ambient boost for CRTS
+                const crtsAmbientLight = new BABYLON.HemisphericLight('crtsAmbient', 
+                    new BABYLON.Vector3(0, 1, 0), previewScene);
+                crtsAmbientLight.intensity = 0.5; // Increased ambient intensity
+                crtsAmbientLight.diffuse = new BABYLON.Color3(0.9, 0.9, 1.0);
+            }
             
             // Freeze meshes again for performance after loading
             setTimeout(() => {
