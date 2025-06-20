@@ -6,7 +6,7 @@ export async function createEarth(scene, getTimeMultiplier, sunDirection) {
     
     // Create base Earth mesh with optimized polygon count
     const earthMesh = BABYLON.MeshBuilder.CreateSphere('earth', { 
-        segments: 64, // Higher detail for better lighting
+        segments: 128, // Increased resolution for smoother mesh
         diameter: 2 // Unit sphere (radius 1)
     }, scene);
     
@@ -34,6 +34,17 @@ export async function createEarth(scene, getTimeMultiplier, sunDirection) {
         BABYLON.Texture.BILINEAR_SAMPLINGMODE,
         () => console.log("Earth night texture loaded successfully")
     );
+    
+    // Configure texture wrapping to wrap seamless at U boundary
+    // Move seam to Pacific to hide it
+    dayTexture.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+    dayTexture.uOffset = 0.25;  // Shift horizontal seam to 90°W
+    dayTexture.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+    
+    // Configure night texture likewise
+    nightTexture.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+    nightTexture.uOffset = 0.25;
+    nightTexture.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
     
     // Create a simple blank texture for specular instead of trying to load .tif/.tiff
     console.log("Creating simple specular map");
@@ -75,10 +86,10 @@ export async function createEarth(scene, getTimeMultiplier, sunDirection) {
             vNormal = normalize(mat3(world) * normal);
             
             // Adjust texture coordinates to align with ground station positions
+            // Flip and shift U coordinate, wrap seamlessly
             vec2 correctedUV = uv;
-            correctedUV.x = 1.0 - uv.x; // Flip U coordinate to un-mirror continents
-            correctedUV.x = correctedUV.x + 0.50; // Shift texture further right (about 180°) to align Wallops with East Coast
-            if (correctedUV.x > 1.0) correctedUV.x -= 1.0; // Wrap around if needed
+            float flipped = 1.0 - uv.x;
+            correctedUV.x = fract(flipped + 0.5); // Flip and shift, then wrap with fract
             vUV = correctedUV;
             
             vViewDirection = normalize(cameraPosition - worldPosition.xyz);
