@@ -470,33 +470,19 @@ export async function initApp() {
                     });
                 }
                 if (sdaActivateBtn) {
-                    // Remove any existing listeners to prevent duplicates
-                    sdaActivateBtn.replaceWith(sdaActivateBtn.cloneNode(true));
-                    const newSdaActivateBtn = document.getElementById('sda-activate-button');
-                    
-                    // Add fresh event listener
-                    newSdaActivateBtn.addEventListener('click', () => {
+                    sdaActivateBtn.addEventListener('click', () => {
                         console.log('SDA Activate Button clicked');
-                        // Hide modal and mark as seen
+                        // Close modal and mark as seen
                         sdaModal.style.display = 'none';
                         localStorage.setItem('sda-welcome-seen', 'true');
                         
-                        // Force SDA to be visible (not toggle)
+                        // Activate SDA (turn it on)
                         if (window.sdaController) {
-                            // If SDA is not already visible, toggle it on
-                            if (!window.sdaController.isVisible()) {
-                                const active = window.sdaController.toggle();
-                                console.log('SDA activation result:', active);
-                                
-                                // Update UI elements
-                                document.getElementById('sda-legend').classList.toggle('visible', active);
-                                const addTle = document.getElementById('add-tle-button');
-                                if (addTle) addTle.style.display = active ? 'block' : 'none';
-                                const btn = document.getElementById('sda-toggle-btn');
-                                if (btn) btn.style.backgroundColor = active ? 'rgba(0,255,255,0.7)' : 'rgba(102,217,255,0.7)';
-                            }
-                        } else {
-                            console.error('SDA Controller not available');
+                            // Force SDA to be visible
+                            window.sdaController.setVisible(true);
+                            // Update Add TLE button
+                            const addTle = document.getElementById('add-tle-button');
+                            if (addTle) addTle.style.display = 'block';
                         }
                     });
                 }
@@ -512,29 +498,24 @@ export async function initApp() {
                 // Bind click on SDA toggle button to invoke welcome modal or toggle
                 const sdaToggleBtn = document.getElementById('sda-toggle-btn');
                 if (sdaToggleBtn) {
-                    // Remove any existing listeners to prevent duplicates
-                    sdaToggleBtn.replaceWith(sdaToggleBtn.cloneNode(true));
-                    const newSdaToggleBtn = document.getElementById('sda-toggle-btn');
-                    
-                    // Add fresh event listener
-                    newSdaToggleBtn.addEventListener('click', () => {
+                    sdaToggleBtn.addEventListener('click', () => {
                         console.log('SDA Toggle Button clicked');
                         const hasSeenWelcome = localStorage.getItem('sda-welcome-seen') === 'true';
+                        
                         if (!hasSeenWelcome) {
-                            // Show welcome modal
+                            // First time: show welcome modal
+                            console.log('Showing welcome modal for first time');
                             if (sdaModal) sdaModal.style.display = 'flex';
-                        } else if (window.sdaController) {
-                            // Toggle SDA visualization
-                            const active = window.sdaController.toggle();
-                            console.log('SDA toggle result:', active);
-                            
-                            // Update UI elements
-                            document.getElementById('sda-legend').classList.toggle('visible', active);
-                            const addTleBtn = document.getElementById('add-tle-button');
-                            if (addTleBtn) addTleBtn.style.display = active ? 'block' : 'none';
-                            newSdaToggleBtn.style.backgroundColor = active ? 'rgba(0, 255, 255, 0.7)' : 'rgba(102,217,255,0.7)';
                         } else {
-                            console.error('SDA Controller not available');
+                            // After first time: simply toggle SDA on/off
+                            console.log('Toggling SDA overlay');
+                            if (window.sdaController) {
+                                const active = window.sdaController.toggle();
+                                console.log('SDA is now:', active ? 'ON' : 'OFF');
+                                // Update Add TLE button visibility
+                                const addTleBtn = document.getElementById('add-tle-button');
+                                if (addTleBtn) addTleBtn.style.display = active ? 'block' : 'none';
+                            }
                         }
                     });
                 }

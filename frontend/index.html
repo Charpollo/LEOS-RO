@@ -222,14 +222,15 @@
         <div id="sda-welcome-modal" class="modal-overlay" style="display: none;">
             <div class="modal-content sda-modal">
                 <div class="modal-header" style="position: relative;">
-                    <button class="close-button" id="sda-modal-close" style="position: absolute; top: 5px; right: 10px; background: none; border: none; color: #66d9ff; font-size: 24px; cursor: pointer; z-index: 10;">&times;</button>
+                    <button class="close-button" id="sda-modal-close" style="position: absolute; top: -5px; right: 5px; background: none; border: none; color: #66d9ff; font-size: 24px; cursor: pointer; z-index: 10;">&times;</button>
                     <h2>Space Domain Awareness</h2>
                     <p class="modal-subtitle">Real-time visualization of 15,000+ orbital objects</p>
                 </div>
                 <div class="modal-body">
                     <div class="info-section">
                         <h3>What is SDA?</h3>
-                        <p>Space Domain Awareness provides comprehensive knowledge of space objects, their activities, and the space environment. This visualization shows thousands of active satellites, debris, and other orbital objects in real-time.</p>
+                        <p style="margin-bottom: 1.2em;">Space Domain Awareness provides comprehensive knowledge of space objects, their activities, and the space environment.</p>
+                        <p>This visualization shows thousands of active satellites, debris, and other orbital objects in real-time.</p>
                     </div>
                     
                     <div class="info-section">
@@ -268,7 +269,7 @@
                     
                     <div class="info-section">
                         <h3>Beta Version</h3>
-                        <p>This is a beta visualization with new features and add-ons becoming available soon:</p>
+                        <p style="margin-bottom: 1.2em;">This is a beta visualization with new features and add-ons becoming available soon:</p>
                         <ul class="tips-list">
                             <li>Custom TLE upload and tracking</li>
                             <li>Collision prediction algorithms</li>
@@ -281,7 +282,7 @@
                     <div class="info-section">
                         <h3>Controls & Tips</h3>
                         <ul class="tips-list">
-                            <li><strong>Toggle SDA:</strong> Press 'S' or click the 🛰️ button</li>
+                            <li><strong>Toggle SDA:</strong> Click the 🛰️ button</li>
                             <li><strong>Hover objects:</strong> View detailed satellite information</li>
                             <li><strong>Object density:</strong> 15,000+ objects for realistic scale</li>
                         </ul>
@@ -472,95 +473,12 @@
                 return;
             }
             
-            let hasSeenWelcome = localStorage.getItem('sda-welcome-seen') === 'true';
-            let sdaActive = false;
-            
-            console.log('Setting up SDA button handler', hasSeenWelcome);
-            
-            // SDA button click handler
-            sdaToggleBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                console.log('SDA button clicked!', hasSeenWelcome);
-                
-                if (!hasSeenWelcome) {
-                    // First time - show welcome modal
-                    console.log('Showing welcome modal');
-                    sdaModal.style.display = 'flex';
-                } else {
-                    // After first time - toggle SDA directly
-                    console.log('Toggling SDA directly');
-                    if (window.sdaController) {
-                        sdaActive = window.sdaController.toggle();
-                        sdaToggleBtn.style.backgroundColor = sdaActive ? 
-                            'rgba(0, 255, 255, 0.7)' : 'rgba(102, 217, 255, 0.7)';
-                        
-                        // Show/hide TLE button based on SDA state
-                        const addTleBtn = document.getElementById('add-tle-button');
-                        if (addTleBtn) {
-                            addTleBtn.style.display = sdaActive ? 'block' : 'none';
-                        }
-                    } else {
-                        console.log('sdaController not available yet');
-                    }
-                }
-            });
-            
-            // Close modal handlers
-            sdaCloseBtn.addEventListener('click', () => {
-                sdaModal.style.display = 'none';
-                hasSeenWelcome = true;
-                localStorage.setItem('sda-welcome-seen', 'true');
-            });
-            sdaCloseBtnFooter.addEventListener('click', () => {
-                sdaModal.style.display = 'none';
-                hasSeenWelcome = true;
-                localStorage.setItem('sda-welcome-seen', 'true');
-            });
-            
-            // Activate SDA and close modal
-            sdaActivateBtn.addEventListener('click', () => {
-                sdaModal.style.display = 'none';
-                hasSeenWelcome = true;
-                localStorage.setItem('sda-welcome-seen', 'true');
-                
-                // Trigger SDA activation
-                if (window.sdaController) {
-                    sdaActive = window.sdaController.toggle();
-                    sdaToggleBtn.style.backgroundColor = sdaActive ? 
-                        'rgba(0, 255, 255, 0.7)' : 'rgba(102, 217, 255, 0.7)';
-                    
-                    // Show TLE button when SDA is activated
-                    const addTleBtn = document.getElementById('add-tle-button');
-                    if (addTleBtn) {
-                        addTleBtn.style.display = 'block';
-                    }
-                }
-            });
-            
-            // Close modal when clicking outside
-            sdaModal.addEventListener('click', (e) => {
-                if (e.target === sdaModal) {
-                    sdaModal.style.display = 'none';
-                    hasSeenWelcome = true;
-                    localStorage.setItem('sda-welcome-seen', 'true');
-                }
-            });
+            // SDA button event listener is now handled in app.js
+            // to prevent duplicate event listeners
+            // All modal handlers also moved to app.js to avoid conflicts
+            console.log('SDA functionality will be initialized in app.js');
         });
     </script>
-    <!-- Fallback SDA button click binding -->
-    <script>
-      document.addEventListener('DOMContentLoaded', () => {
-        const sdaBtn = document.getElementById('sda-toggle-btn');
-        const sdaModal = document.getElementById('sda-welcome-modal');
-        if (sdaBtn && sdaModal) {
-          sdaBtn.addEventListener('click', () => {
-            // Always show welcome modal on first click
-            sdaModal.style.display = 'flex';
-          });
-        }
-      });
-    </script>
+    <!-- SDA button click binding now handled in app.js -->
   </body>
 </html>

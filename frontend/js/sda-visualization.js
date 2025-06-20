@@ -731,6 +731,7 @@ export async function initSDAVisualization(scene) {
   
   return {
     isVisible: () => sdaVisualization.isVisible,
+    setVisible: (visible) => sdaVisualization.setVisible(visible),
     toggle: () => sdaVisualization.toggle(),
     getStats: () => sdaVisualization.getStats(),
     addTLE: (tle1, tle2, name) => sdaVisualization.addNewTLE(tle1, tle2, name)

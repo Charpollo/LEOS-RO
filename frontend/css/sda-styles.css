@@ -168,3 +168,21 @@
   margin-bottom: 0.3em;
   color: #ffffff;
 }
+
+/* SDA Modal improvements */
+.sda-modal .info-section {
+  margin-bottom: 1.8em;
+}
+
+.sda-modal .info-section h3 {
+  margin-bottom: 0.8em;
+}
+
+.sda-modal .info-section p {
+  line-height: 1.6;
+  margin-bottom: 0.8em;
+}
+
+.sda-modal .info-section p:last-child {
+  margin-bottom: 0;
+}
