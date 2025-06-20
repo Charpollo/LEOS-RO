@@ -450,102 +450,65 @@ export async function initApp() {
                 // Make available globally for keyboard shortcuts
                 window.sdaController = controller;
                 console.log("SDA visualization initialized");
-                
-                // SDA button click handler is now in index.html to avoid conflicts
-                
-                // Set up event listeners for SDA controls
-                document.getElementById('add-tle-button').addEventListener('click', () => {
-                    // Show "Coming Soon" notification
-                    const notification = document.createElement('div');
-                    notification.style.cssText = `
-                        position: fixed;
-                        top: 50%;
-                        left: 50%;
-                        transform: translate(-50%, -50%);
-                        background: rgba(0, 0, 0, 0.9);
-                        color: #00cfff;
-                        padding: 20px 30px;
-                        border-radius: 10px;
-                        border: 2px solid #00cfff;
-                        font-family: 'Orbitron', monospace;
-                        font-size: 16px;
-                        z-index: 10000;
-                        text-align: center;
-                        animation: fadeInOut 2s ease-in-out;
-                    `;
-                    notification.innerHTML = `
-                        <h3 style="margin: 0 0 10px 0; color: #ff6b35;">Coming Soon!</h3>
-                        <p style="margin: 0;">Custom TLE upload feature is in development.</p>
-                    `;
-                    
-                    // Add fade animation
-                    const style = document.createElement('style');
-                    style.textContent = `
-                        @keyframes fadeInOut {
-                            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
-                            20% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-                            80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-                            100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+
+                // After binding SDA button behavior, set up modal controls
+                const sdaModal = document.getElementById('sda-welcome-modal');
+                const sdaCloseBtn = document.getElementById('sda-modal-close');
+                const sdaCloseBtnFooter = document.getElementById('sda-modal-close-footer');
+                const sdaActivateBtn = document.getElementById('sda-activate-button');
+
+                if (sdaCloseBtn) {
+                    sdaCloseBtn.addEventListener('click', () => {
+                        sdaModal.style.display = 'none';
+                        localStorage.setItem('sda-welcome-seen', 'true');
+                    });
+                }
+                if (sdaCloseBtnFooter) {
+                    sdaCloseBtnFooter.addEventListener('click', () => {
+                        sdaModal.style.display = 'none';
+                        localStorage.setItem('sda-welcome-seen', 'true');
+                    });
+                }
+                if (sdaActivateBtn) {
+                    sdaActivateBtn.addEventListener('click', () => {
+                        sdaModal.style.display = 'none';
+                        localStorage.setItem('sda-welcome-seen', 'true');
+                        // Activate SDA
+                        const active = window.sdaController.toggle();
+                        document.getElementById('sda-legend').classList.toggle('visible', active);
+                        const addTle = document.getElementById('add-tle-button');
+                        if (addTle) addTle.style.display = active ? 'block' : 'none';
+                        const btn = document.getElementById('sda-toggle-btn');
+                        if (btn) btn.style.backgroundColor = active ? 'rgba(0,255,255,0.7)' : 'rgba(102,217,255,0.7)';
+                    });
+                }
+                // Close modal on background click
+                if (sdaModal) {
+                    sdaModal.addEventListener('click', (e) => {
+                        if (e.target === sdaModal) {
+                            sdaModal.style.display = 'none';
+                            localStorage.setItem('sda-welcome-seen', 'true');
                         }
-                    `;
-                    document.head.appendChild(style);
-                    document.body.appendChild(notification);
-                    
-                    // Remove after animation
-                    setTimeout(() => {
-                        document.body.removeChild(notification);
-                        document.head.removeChild(style);
-                    }, 2000);
-                });
-                
-                // Listen for SDA visibility changes to update UI
-                window.addEventListener('sda-visibility-changed', (event) => {
-                    const visible = event.detail.visible;
-                    document.getElementById('sda-legend').classList.toggle('visible', visible);
-                    // Show/hide TLE button based on SDA visibility
-                    const addTleBtn = document.getElementById('add-tle-button');
-                    if (addTleBtn) {
-                        addTleBtn.style.display = visible ? 'block' : 'none';
-                    }
-                });
-                
-                // Add keyboard shortcut (S key) for toggling SDA visualization
-                document.addEventListener('keydown', (event) => {
-                    // Only handle if we're not in an input field
-                    if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
-                        return;
-                    }
-                    
-                    // Check for 'S' key
-                    if (event.key === 's' || event.key === 'S') {
-                        if (sdaController) {
-                            // Check if user has seen welcome modal
-                            const hasSeenWelcome = localStorage.getItem('sda-welcome-seen') === 'true';
-                            if (!hasSeenWelcome) {
-                                // Show welcome modal first
-                                const sdaModal = document.getElementById('sda-welcome-modal');
-                                if (sdaModal) {
-                                    sdaModal.style.display = 'flex';
-                                }
-                            } else {
-                                // Toggle directly
-                                const isActive = sdaController.toggle();
-                                // Update button visual state
-                                const sdaToggleBtn = document.getElementById('sda-toggle-btn');
-                                if (sdaToggleBtn) {
-                                    sdaToggleBtn.style.backgroundColor = isActive ? 
-                                        'rgba(0, 255, 255, 0.7)' : 'rgba(102, 217, 255, 0.7)';
-                                }
-                                
-                                // Show/hide TLE button based on SDA state
-                                const addTleBtn = document.getElementById('add-tle-button');
-                                if (addTleBtn) {
-                                    addTleBtn.style.display = isActive ? 'block' : 'none';
-                                }
-                            }
+                    });
+                }
+                // Bind click on SDA toggle button to invoke welcome modal or toggle
+                const sdaToggleBtn = document.getElementById('sda-toggle-btn');
+                if (sdaToggleBtn) {
+                    sdaToggleBtn.addEventListener('click', () => {
+                        const hasSeenWelcome = localStorage.getItem('sda-welcome-seen') === 'true';
+                        if (!hasSeenWelcome) {
+                            // Show welcome modal
+                            if (sdaModal) sdaModal.style.display = 'flex';
+                        } else {
+                            // Toggle SDA visualization
+                            const active = window.sdaController.toggle();
+                            document.getElementById('sda-legend').classList.toggle('visible', active);
+                            const addTleBtn = document.getElementById('add-tle-button');
+                            if (addTleBtn) addTleBtn.style.display = active ? 'block' : 'none';
+                            sdaToggleBtn.style.backgroundColor = active ? 'rgba(0, 255, 255, 0.7)' : 'rgba(102,217,255,0.7)';
                         }
-                    }
-                });
+                    });
+                }
             }).catch(err => {
                 console.error("Failed to initialize SDA visualization:", err);
             });

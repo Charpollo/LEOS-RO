@@ -549,5 +549,18 @@
             });
         });
     </script>
+    <!-- Fallback SDA button click binding -->
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        const sdaBtn = document.getElementById('sda-toggle-btn');
+        const sdaModal = document.getElementById('sda-welcome-modal');
+        if (sdaBtn && sdaModal) {
+          sdaBtn.addEventListener('click', () => {
+            // Always show welcome modal on first click
+            sdaModal.style.display = 'flex';
+          });
+        }
+      });
+    </script>
   </body>
 </html>

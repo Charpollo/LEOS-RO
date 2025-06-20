@@ -18,16 +18,51 @@ export function initBrandUI() {
         const randomFact = spaceFacts[Math.floor(Math.random() * spaceFacts.length)];
         spaceFactElement.querySelector('p').textContent = randomFact;
     }
-    
     // Initialize loading wave animation
     initLoadingWave();
-    
     initPanelToggle();
     initWelcomeModal();
     initInfoPanel();
     // initTimeDisplay();    // Disabled in favor of simulation-driven clock
     initTelemetryDashboard();
     initHelpModal();
+    initSdaButton();
+}
+
+/**
+ * Bind the SDA toggle button to open the SDA welcome modal
+ */
+function initSdaButton() {
+    const sdaBtn = document.getElementById('sda-toggle-btn');
+    const sdaModal = document.getElementById('sda-welcome-modal');
+    if (sdaBtn && sdaModal) {
+        sdaBtn.addEventListener('click', () => {
+            sdaModal.style.display = 'flex';
+        });
+    }
+}
+
+/**
+ * Initialize SDA toggle button click handler showing welcome modal first
+ */
+function initSDAToggle() {
+    const sdaBtn = document.getElementById('sda-toggle-btn');
+    const sdaModal = document.getElementById('sda-welcome-modal');
+    if (!sdaBtn || !window.sdaController) return;
+    sdaBtn.addEventListener('click', () => {
+        const hasSeen = localStorage.getItem('sda-welcome-seen') === 'true';
+        if (!hasSeen) {
+            if (sdaModal) {
+                sdaModal.style.display = 'flex';
+            }
+        } else {
+            const active = window.sdaController.toggle();
+            document.getElementById('sda-legend').classList.toggle('visible', active);
+            const tleBtn = document.getElementById('add-tle-button');
+            if (tleBtn) tleBtn.style.display = active ? 'block' : 'none';
+            sdaBtn.style.backgroundColor = active ? 'rgba(0, 255, 255, 0.7)' : 'rgba(102,217,255,0.7)';
+        }
+    });
 }
 
 // Panel toggle functionality
@@ -172,8 +207,22 @@ export function hideLoadingScreen() {
             const sdaBtn = document.getElementById('sda-toggle-btn');
             if (sdaBtn) {
                 sdaBtn.style.display = 'flex';
-            }
-        }, 500);
+                // Bind SDA toggle functionality
+                sdaBtn.addEventListener('click', () => {
+                    const hasSeen = localStorage.getItem('sda-welcome-seen') === 'true';
+                    const sdaModal = document.getElementById('sda-welcome-modal');
+                    if (!hasSeen) {
+                        if (sdaModal) sdaModal.style.display = 'flex';
+                    } else if (window.sdaController) {
+                        const active = window.sdaController.toggle();
+                        document.getElementById('sda-legend').classList.toggle('visible', active);
+                        const addTleBtn = document.getElementById('add-tle-button');
+                        if (addTleBtn) addTleBtn.style.display = active ? 'block' : 'none';
+                        sdaBtn.style.backgroundColor = active ? 'rgba(0,255,255,0.7)' : 'rgba(102,217,255,0.7)';
+                    }
+                });
+             }
+         }, 500);
     }
 }
 

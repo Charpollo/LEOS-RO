@@ -41,13 +41,6 @@ export function setupKeyboardControls(camera, setTimeMultiplier, getTimeMultipli
                 const tm = getTimeMultiplier();
                 setTimeMultiplier(tm !== 0 ? 0 : 0.1);
                 break;
-            case 's':
-            case 'S':
-                // Toggle SDA visualization if available
-                if (window.sdaController && typeof window.sdaController.toggle === 'function') {
-                    window.sdaController.toggle();
-                }
-                break;
             // Add more controls as needed
         }
     });
