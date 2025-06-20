@@ -470,16 +470,34 @@ export async function initApp() {
                     });
                 }
                 if (sdaActivateBtn) {
-                    sdaActivateBtn.addEventListener('click', () => {
+                    // Remove any existing listeners to prevent duplicates
+                    sdaActivateBtn.replaceWith(sdaActivateBtn.cloneNode(true));
+                    const newSdaActivateBtn = document.getElementById('sda-activate-button');
+                    
+                    // Add fresh event listener
+                    newSdaActivateBtn.addEventListener('click', () => {
+                        console.log('SDA Activate Button clicked');
+                        // Hide modal and mark as seen
                         sdaModal.style.display = 'none';
                         localStorage.setItem('sda-welcome-seen', 'true');
-                        // Activate SDA
-                        const active = window.sdaController.toggle();
-                        document.getElementById('sda-legend').classList.toggle('visible', active);
-                        const addTle = document.getElementById('add-tle-button');
-                        if (addTle) addTle.style.display = active ? 'block' : 'none';
-                        const btn = document.getElementById('sda-toggle-btn');
-                        if (btn) btn.style.backgroundColor = active ? 'rgba(0,255,255,0.7)' : 'rgba(102,217,255,0.7)';
+                        
+                        // Force SDA to be visible (not toggle)
+                        if (window.sdaController) {
+                            // If SDA is not already visible, toggle it on
+                            if (!window.sdaController.isVisible()) {
+                                const active = window.sdaController.toggle();
+                                console.log('SDA activation result:', active);
+                                
+                                // Update UI elements
+                                document.getElementById('sda-legend').classList.toggle('visible', active);
+                                const addTle = document.getElementById('add-tle-button');
+                                if (addTle) addTle.style.display = active ? 'block' : 'none';
+                                const btn = document.getElementById('sda-toggle-btn');
+                                if (btn) btn.style.backgroundColor = active ? 'rgba(0,255,255,0.7)' : 'rgba(102,217,255,0.7)';
+                            }
+                        } else {
+                            console.error('SDA Controller not available');
+                        }
                     });
                 }
                 // Close modal on background click
@@ -494,24 +512,43 @@ export async function initApp() {
                 // Bind click on SDA toggle button to invoke welcome modal or toggle
                 const sdaToggleBtn = document.getElementById('sda-toggle-btn');
                 if (sdaToggleBtn) {
-                    sdaToggleBtn.addEventListener('click', () => {
+                    // Remove any existing listeners to prevent duplicates
+                    sdaToggleBtn.replaceWith(sdaToggleBtn.cloneNode(true));
+                    const newSdaToggleBtn = document.getElementById('sda-toggle-btn');
+                    
+                    // Add fresh event listener
+                    newSdaToggleBtn.addEventListener('click', () => {
+                        console.log('SDA Toggle Button clicked');
                         const hasSeenWelcome = localStorage.getItem('sda-welcome-seen') === 'true';
                         if (!hasSeenWelcome) {
                             // Show welcome modal
                             if (sdaModal) sdaModal.style.display = 'flex';
-                        } else {
+                        } else if (window.sdaController) {
                             // Toggle SDA visualization
                             const active = window.sdaController.toggle();
+                            console.log('SDA toggle result:', active);
+                            
+                            // Update UI elements
                             document.getElementById('sda-legend').classList.toggle('visible', active);
                             const addTleBtn = document.getElementById('add-tle-button');
                             if (addTleBtn) addTleBtn.style.display = active ? 'block' : 'none';
-                            sdaToggleBtn.style.backgroundColor = active ? 'rgba(0, 255, 255, 0.7)' : 'rgba(102,217,255,0.7)';
+                            newSdaToggleBtn.style.backgroundColor = active ? 'rgba(0, 255, 255, 0.7)' : 'rgba(102,217,255,0.7)';
+                        } else {
+                            console.error('SDA Controller not available');
                         }
                     });
                 }
             }).catch(err => {
                 console.error("Failed to initialize SDA visualization:", err);
             });
+            
+            // Add event listener for the Add TLE button
+            const addTleBtn = document.getElementById('add-tle-button');
+            if (addTleBtn) {
+                addTleBtn.addEventListener('click', () => {
+                    showNotification('Coming Soon! TLE import functionality will be available in a future update.');
+                });
+            }
             
             sceneLoaded = true;
             // Show help button now that simulation is loaded
@@ -1278,6 +1315,51 @@ async function initModelViewer() {
             console.error('Error loading preview model:', err);
         }
     });
+}
+
+/**
+ * Shows a temporary notification message in the UI
+ * @param {string} message - The message to display
+ * @param {number} duration - Time in milliseconds to show the notification (default: 3000ms)
+ */
+function showNotification(message, duration = 3000) {
+    // Create notification element if it doesn't exist
+    let notification = document.getElementById('leos-notification');
+    if (!notification) {
+        notification = document.createElement('div');
+        notification.id = 'leos-notification';
+        notification.style.cssText = `
+            position: absolute;
+            top: 70px; /* Position below the time display which is at 24px */
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 23, 40, 0.92);
+            border: 1px solid var(--neon-blue);
+            color: #66d9ff;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-family: var(--font-primary);
+            font-size: 14px;
+            font-weight: 500;
+            text-align: center;
+            z-index: 1100;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+            box-shadow: 0 2px 12px rgba(0, 207, 255, 0.2);
+        `;
+        document.body.appendChild(notification);
+    }
+    
+    // Set message and show notification
+    notification.textContent = message;
+    notification.style.opacity = '1';
+    
+    // Hide after duration
+    clearTimeout(window.notificationTimeout);
+    window.notificationTimeout = setTimeout(() => {
+        notification.style.opacity = '0';
+    }, duration);
 }
 
 async function loadSatelliteData() {

@@ -30,39 +30,22 @@ export function initBrandUI() {
 }
 
 /**
- * Bind the SDA toggle button to open the SDA welcome modal
+ * Placeholder for SDA button initialization
+ * The actual event binding happens in hideLoadingScreen
  */
 function initSdaButton() {
-    const sdaBtn = document.getElementById('sda-toggle-btn');
-    const sdaModal = document.getElementById('sda-welcome-modal');
-    if (sdaBtn && sdaModal) {
-        sdaBtn.addEventListener('click', () => {
-            sdaModal.style.display = 'flex';
-        });
-    }
+    // Event binding moved to hideLoadingScreen for proper localStorage check
+    // This prevents duplicate event listeners
 }
 
 /**
- * Initialize SDA toggle button click handler showing welcome modal first
+ * [DEPRECATED] - SDA toggle functionality now handled in app.js
+ * This function is kept for reference but should not be called
  */
 function initSDAToggle() {
-    const sdaBtn = document.getElementById('sda-toggle-btn');
-    const sdaModal = document.getElementById('sda-welcome-modal');
-    if (!sdaBtn || !window.sdaController) return;
-    sdaBtn.addEventListener('click', () => {
-        const hasSeen = localStorage.getItem('sda-welcome-seen') === 'true';
-        if (!hasSeen) {
-            if (sdaModal) {
-                sdaModal.style.display = 'flex';
-            }
-        } else {
-            const active = window.sdaController.toggle();
-            document.getElementById('sda-legend').classList.toggle('visible', active);
-            const tleBtn = document.getElementById('add-tle-button');
-            if (tleBtn) tleBtn.style.display = active ? 'block' : 'none';
-            sdaBtn.style.backgroundColor = active ? 'rgba(0, 255, 255, 0.7)' : 'rgba(102,217,255,0.7)';
-        }
-    });
+    // SDA toggle functionality has been moved to app.js
+    // to prevent duplicate event listeners
+    console.warn('initSDAToggle is deprecated. SDA toggle functionality is now handled in app.js');
 }
 
 // Panel toggle functionality
@@ -207,20 +190,9 @@ export function hideLoadingScreen() {
             const sdaBtn = document.getElementById('sda-toggle-btn');
             if (sdaBtn) {
                 sdaBtn.style.display = 'flex';
-                // Bind SDA toggle functionality
-                sdaBtn.addEventListener('click', () => {
-                    const hasSeen = localStorage.getItem('sda-welcome-seen') === 'true';
-                    const sdaModal = document.getElementById('sda-welcome-modal');
-                    if (!hasSeen) {
-                        if (sdaModal) sdaModal.style.display = 'flex';
-                    } else if (window.sdaController) {
-                        const active = window.sdaController.toggle();
-                        document.getElementById('sda-legend').classList.toggle('visible', active);
-                        const addTleBtn = document.getElementById('add-tle-button');
-                        if (addTleBtn) addTleBtn.style.display = active ? 'block' : 'none';
-                        sdaBtn.style.backgroundColor = active ? 'rgba(0,255,255,0.7)' : 'rgba(102,217,255,0.7)';
-                    }
-                });
+                // NOTE: Primary SDA toggle functionality is now handled in app.js
+                // This handler is removed to prevent duplicate event listeners
+                // No event listener is added here anymore
              }
          }, 500);
     }
