@@ -1000,7 +1000,7 @@ async function initModelViewer() {
     }
     
     // Camera setup with improved settings for smooth interaction
-    previewCamera = new BABYLON.ArcRotateCamera('previewCam', -Math.PI/2, Math.PI/2, 3, new BABYLON.Vector3(0,0,0), previewScene);
+    previewCamera = new BABYLON.ArcRotateCamera('previewCam', -Math.PI/2, Math.PI/3, 3, new BABYLON.Vector3(0,0,0), previewScene);
     previewCamera.lowerRadiusLimit = 0.5; // Prevent getting too close to avoid clipping
     previewCamera.upperRadiusLimit = 15; // Allow more zoom out
     previewCamera.minZ = 0.01; // Better near clipping plane
@@ -1248,11 +1248,13 @@ async function initModelViewer() {
             if (satName.toUpperCase().includes('CRTS')) {
                 scaleFactor = 0.75; // Much larger scale for CRTS models for better visibility
                 previewCamera.radius = 2.5; // Closer viewing distance for CRTS
+                previewCamera.beta = Math.PI/3; // Better initial angle for CRTS viewing
                 // CRTS models stay in default orientation
             } else {
                 // BULLDOG satellite - keep in default orientation (no rotation to prevent floating pieces)
                 scaleFactor = 0.5;
                 previewCamera.radius = 3.0; // Better viewing distance for BULLDOG
+                previewCamera.beta = Math.PI/3; // Better initial angle for viewing
                 // Removed the 180-degree rotation that was causing floating pieces
             }
             previewMesh.scaling = new BABYLON.Vector3(scaleFactor, scaleFactor, scaleFactor);
@@ -1260,7 +1262,12 @@ async function initModelViewer() {
             // Center the model on origin with better positioning
             const boundingInfo = previewMesh.getBoundingInfo();
             const center = boundingInfo.boundingBox.center;
-            previewMesh.position = center.negate();
+            // Adjust the Y position to center the satellite better in view
+            const adjustedCenter = center.clone();
+            if (satName.toUpperCase().includes('CRTS')) {
+                adjustedCenter.y += 0.4; // Move CRTS more down for better centering
+            }
+            previewMesh.position = adjustedCenter.negate();
             
             // Add smooth auto-rotation animation with proper cleanup
             const rotationObserver = previewScene.onBeforeRenderObservable.add(() => {
