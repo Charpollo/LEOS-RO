@@ -1195,11 +1195,12 @@ async function initModelViewer() {
                 previewMesh.rotationQuaternion = null;
             }
             
-            // Check for and start any built-in animations (like solar panel movements)
+            // Check for and start any built-in animations (solar panels, thrusters, etc.)
             console.log(`Checking for animations in ${modelFile}...`);
             console.log(`Animation groups found:`, result.animationGroups ? result.animationGroups.length : 0);
             console.log(`Scene animation groups total:`, previewScene.animationGroups.length);
             
+            // Enhanced animation handling for CRTS1 and other satellites
             if (result.animationGroups && result.animationGroups.length > 0) {
                 console.log(`Found ${result.animationGroups.length} animation(s) in ${modelFile}`);
                 result.animationGroups.forEach((animationGroup, index) => {
@@ -1207,41 +1208,308 @@ async function initModelViewer() {
                         name: animationGroup.name,
                         from: animationGroup.from,
                         to: animationGroup.to,
-                        targetedAnimations: animationGroup.targetedAnimations.length
+                        targetedAnimations: animationGroup.targetedAnimations.length,
+                        targets: animationGroup.targetedAnimations.map(ta => ta.target?.name || 'unknown')
                     });
                     
                     try {
                         // Reset animation to beginning
                         animationGroup.reset();
-                        // Start with looping enabled
-                        animationGroup.start(true, 1.0, animationGroup.from, animationGroup.to, false);
-                        console.log(`✓ Started animation: ${animationGroup.name}`);
+                        
+                        // Different animation settings based on type and satellite
+                        let speed = 1.0;
+                        let shouldLoop = true;
+                        
+                        if (satName.toUpperCase().includes('CRTS')) {
+                            // CRTS-specific animation handling - check for various solar panel naming patterns
+                            const animName = animationGroup.name.toLowerCase();
+                            if (animName.includes('solar') || 
+                                animName.includes('panel') ||
+                                animName.includes('wing') ||
+                                animName.includes('array') ||
+                                animName.includes('photovoltaic') ||
+                                animName.includes('pv')) {
+                                speed = 2.0; // Moderate speed for smooth solar panel unfolding
+                                console.log(`🔆 Starting CRTS solar panel animation: ${animationGroup.name} at ${speed}x speed`);
+                                console.log(`🎯 WATCH FOR: Solar panels should now be unfolding smoothly!`);
+                            } else if (animName.includes('thruster') || 
+                                      animName.includes('engine') ||
+                                      animName.includes('propulsion') ||
+                                      animName.includes('nozzle')) {
+                                speed = 1.2; // Slightly faster thruster animation
+                                console.log(`🚀 Starting CRTS thruster animation: ${animationGroup.name} at ${speed}x speed`);
+                            } else {
+                                console.log(`⚙️ Starting CRTS general animation: ${animationGroup.name} at ${speed}x speed`);
+                            }
+                        } else {
+                            console.log(`🛰️ Starting ${satName} animation: ${animationGroup.name} at ${speed}x speed`);
+                        }
+                        
+                        // Start with looping and custom speed
+                        animationGroup.start(shouldLoop, speed, animationGroup.from, animationGroup.to, false);
+                        
+                        // Ensure animation weight is set correctly (fixes solar panel issue)
+                        if (animationGroup.weight <= 0) {
+                            console.log(`⚠️ Animation "${animationGroup.name}" had invalid weight (${animationGroup.weight}), fixing to 1.0`);
+                            animationGroup.weight = 1.0;
+                        }
+                        
+                        // Also log the actual targets being animated
+                        animationGroup.targetedAnimations.forEach((targetedAnim, i) => {
+                            console.log(`  Target ${i}: ${targetedAnim.target?.name || 'unknown'} - Property: ${targetedAnim.animation?.targetPropertyPath || 'unknown'}`);
+                        });
+                        
+                        console.log(`✓ Successfully started animation: ${animationGroup.name} (speed: ${speed}x, loop: ${shouldLoop})`);
                     } catch (error) {
                         console.error(`✗ Failed to start animation ${animationGroup.name}:`, error);
                     }
                 });
+                
+                // Additional check: Look for animations that might be paused or stopped
+                setTimeout(() => {
+                    console.log(`🔍 Checking animation states after 1 second...`);
+                    result.animationGroups.forEach((animationGroup, index) => {
+                        console.log(`Animation "${animationGroup.name}" state:`, {
+                            isStarted: animationGroup.isStarted,
+                            isPaused: animationGroup.isPaused,
+                            speedRatio: animationGroup.speedRatio,
+                            weight: animationGroup.weight
+                        });
+                        
+                        // Force restart if animation seems stopped
+                        if (!animationGroup.isStarted) {
+                            console.log(`🔄 Force restarting stopped animation: ${animationGroup.name}`);
+                            try {
+                                animationGroup.start(true, 0.5);
+                                animationGroup.weight = 1.0; // Ensure proper weight
+                            } catch (e) {
+                                console.error(`Failed to force restart ${animationGroup.name}:`, e);
+                            }
+                        }
+                        
+                        // Fix weight issues even for started animations
+                        if (animationGroup.weight <= 0) {
+                            console.log(`🔧 Fixing weight for running animation "${animationGroup.name}": ${animationGroup.weight} → 1.0`);
+                            animationGroup.weight = 1.0;
+                        }
+                    });
+                    
+                    // Add real-time monitoring for solar panels specifically
+                    if (satName.toUpperCase().includes('CRTS')) {
+                        console.log(`🔬 Starting real-time solar panel monitoring...`);
+                        let monitorCount = 0;
+                        const monitorInterval = setInterval(() => {
+                            monitorCount++;
+                            const solarAnimations = result.animationGroups.filter(ag => 
+                                ag.name.toLowerCase().includes('solar') || ag.name.toLowerCase().includes('array')
+                            );
+                            
+                            solarAnimations.forEach(anim => {
+                                // Try different ways to access animation values
+                                console.log(`🔆 ${anim.name} - Current time: ${anim.animationTimeMultiplier || 'N/A'}`);
+                                
+                                if (anim.targetedAnimations && anim.targetedAnimations.length > 0) {
+                                    anim.targetedAnimations.forEach((targetedAnim, i) => {
+                                        const target = targetedAnim.target;
+                                        const animation = targetedAnim.animation;
+                                        
+                                        if (target && animation) {
+                                            const property = animation.targetPropertyPath;
+                                            let currentValue = 'N/A';
+                                            
+                                            // Debug: Log target object details
+                                            console.log(`      🎯 Target ${i} Details: name="${target.name}", type="${target.constructor.name}", property="${property}"`);
+                                            console.log(`      📊 Target object keys:`, Object.keys(target));
+                                            console.log(`      📍 Has position?`, !!target.position, target.position);
+                                            console.log(`      🔄 Has rotationQuaternion?`, !!target.rotationQuaternion, target.rotationQuaternion);
+                                            console.log(`      📏 Has scaling?`, !!target.scaling, target.scaling);
+                                            
+                                            // Try to get the current value from the target object
+                                            if (property === 'position' && target.position) {
+                                                currentValue = `${target.position.x.toFixed(3)}, ${target.position.y.toFixed(3)}, ${target.position.z.toFixed(3)}`;
+                                            } else if (property === 'rotationQuaternion' && target.rotationQuaternion) {
+                                                currentValue = `${target.rotationQuaternion.x.toFixed(3)}, ${target.rotationQuaternion.y.toFixed(3)}, ${target.rotationQuaternion.z.toFixed(3)}, ${target.rotationQuaternion.w.toFixed(3)}`;
+                                            } else if (property === 'scaling' && target.scaling) {
+                                                currentValue = `${target.scaling.x.toFixed(3)}, ${target.scaling.y.toFixed(3)}, ${target.scaling.z.toFixed(3)}`;
+                                            }
+                                            
+                                            console.log(`    Target ${i} (${target.name}): ${property} = ${currentValue}`);
+                                        }
+                                    });
+                                }
+                            });
+                            
+                            // Stop monitoring after 5 seconds
+                            if (monitorCount >= 5) {
+                                clearInterval(monitorInterval);
+                                console.log(`🛑 Stopped solar panel monitoring`);
+                            }
+                        }, 500); // Check every 500ms
+                        
+                        // Enhanced scene inspection to find solar panel meshes - run immediately
+                        console.log('\n🔍 ENHANCED SCENE INSPECTION:');
+                        console.log('📦 All meshes in scene:');
+                        result.meshes.forEach((mesh, index) => {
+                            const meshInfo = `${index}: "${mesh.name}" - Type: ${mesh.constructor.name}`;
+                            if (mesh.name.toLowerCase().includes('solar') || 
+                                mesh.name.toLowerCase().includes('panel') || 
+                                mesh.name.toLowerCase().includes('array') ||
+                                mesh.name.includes('MX') || mesh.name.includes('PX')) {
+                                console.log(`  🌞 RELEVANT MESH: ${meshInfo}`);
+                                console.log(`      Position: (${mesh.position.x.toFixed(3)}, ${mesh.position.y.toFixed(3)}, ${mesh.position.z.toFixed(3)})`);
+                                console.log(`      Rotation: ${mesh.rotation ? `(${mesh.rotation.x.toFixed(3)}, ${mesh.rotation.y.toFixed(3)}, ${mesh.rotation.z.toFixed(3)})` : 'N/A'}`);
+                                console.log(`      RotationQuaternion: ${mesh.rotationQuaternion ? `(${mesh.rotationQuaternion.x.toFixed(3)}, ${mesh.rotationQuaternion.y.toFixed(3)}, ${mesh.rotationQuaternion.z.toFixed(3)}, ${mesh.rotationQuaternion.w.toFixed(3)})` : 'N/A'}`);
+                            } else {
+                                console.log(`  ${meshInfo}`);
+                            }
+                        });
+
+                        // Check for skeletons and bones
+                        console.log('\n🦴 Skeletons and bones:');
+                        if (result.skeletons && result.skeletons.length > 0) {
+                            result.skeletons.forEach((skeleton, skelIndex) => {
+                                console.log(`  Skeleton ${skelIndex}: "${skeleton.name}" with ${skeleton.bones.length} bones`);
+                                skeleton.bones.forEach((bone, boneIndex) => {
+                                    if (bone.name.includes('MX') || bone.name.includes('PX') || 
+                                        bone.name.toLowerCase().includes('solar') || bone.name.toLowerCase().includes('panel')) {
+                                        console.log(`    🦴 RELEVANT BONE ${boneIndex}: "${bone.name}"`);
+                                        console.log(`      Position: (${bone.position.x.toFixed(3)}, ${bone.position.y.toFixed(3)}, ${bone.position.z.toFixed(3)})`);
+                                        console.log(`      Rotation: (${bone.rotation.x.toFixed(3)}, ${bone.rotation.y.toFixed(3)}, ${bone.rotation.z.toFixed(3)})`);
+                                        console.log(`      AbsolutePosition: (${bone.getAbsolutePosition().x.toFixed(3)}, ${bone.getAbsolutePosition().y.toFixed(3)}, ${bone.getAbsolutePosition().z.toFixed(3)})`);
+                                    }
+                                });
+                            });
+                        } else {
+                            console.log('  No skeletons found');
+                        }
+
+                        // Check for transform nodes
+                        console.log('\n🔄 Transform nodes:');
+                        result.transformNodes.forEach((node, index) => {
+                            if (node.name.includes('MX') || node.name.includes('PX') || 
+                                node.name.toLowerCase().includes('solar') || node.name.toLowerCase().includes('panel')) {
+                                console.log(`  🔄 RELEVANT TRANSFORM NODE ${index}: "${node.name}"`);
+                                console.log(`    Position: (${node.position.x.toFixed(3)}, ${node.position.y.toFixed(3)}, ${node.position.z.toFixed(3)})`);
+                                console.log(`    Rotation: ${node.rotation ? `(${node.rotation.x.toFixed(3)}, ${node.rotation.y.toFixed(3)}, ${node.rotation.z.toFixed(3)})` : 'N/A'}`);
+                                console.log(`    RotationQuaternion: ${node.rotationQuaternion ? `(${node.rotationQuaternion.x.toFixed(3)}, ${node.rotationQuaternion.y.toFixed(3)}, ${node.rotationQuaternion.z.toFixed(3)}, ${node.rotationQuaternion.w.toFixed(3)})` : 'N/A'}`);
+                            }
+                        });
+                        
+                        // DISABLED: Manual mesh-transform synchronization system
+                        // Let the original Blender animation in the GLB file run as intended
+                        console.log('\n🎬 Using original Blender animation from GLB file...');
+                        console.log('📋 Solar panels will animate according to their original rigging and keyframes');
+                        
+                        // Check if meshes have skeleton binding
+                        result.meshes.forEach(mesh => {
+                            if (mesh.name.toLowerCase().includes('solar') || 
+                                mesh.name.toLowerCase().includes('panel') || 
+                                mesh.name.toLowerCase().includes('array') ||
+                                mesh.name.includes('MX') || mesh.name.includes('PX')) {
+                                console.log(`🦴 Mesh "${mesh.name}": skeleton=${mesh.skeleton ? mesh.skeleton.name : 'NONE'}, hasVertexData=${!!mesh.getVerticesData}`);
+                                if (mesh.skeleton) {
+                                    console.log(`   └─ Skeleton has ${mesh.skeleton.bones.length} bones`);
+                                }
+                            }
+                        });
+                        
+                        /*
+                        // COMMENTED OUT: Manual mesh synchronization system
+                        const meshTransformPairs = [
+                            { meshName: 'SolarArray.MX_primitive0', transformNodeName: 'MX.Panel1' },
+                            { meshName: 'SolarArray.MX_primitive1', transformNodeName: 'MX.Panel2' },
+                            { meshName: 'SolarArray.MX_primitive2', transformNodeName: 'MX.Panel3' },
+                            { meshName: 'SolarArray.MX_primitive3', transformNodeName: 'MX.Panel4' },
+                            { meshName: 'SolarArray.MX_primitive4', transformNodeName: 'MX.Panel5' },
+                            { meshName: 'SolarArray.PX_primitive0', transformNodeName: 'PX.Panel1' },
+                            { meshName: 'SolarArray.PX_primitive1', transformNodeName: 'PX.Panel2' },
+                            { meshName: 'SolarArray.PX_primitive2', transformNodeName: 'PX.Panel3' },
+                            { meshName: 'SolarArray.PX_primitive3', transformNodeName: 'PX.Panel4' },
+                            { meshName: 'SolarArray.PX_primitive4', transformNodeName: 'PX.Panel5' }
+                        ];
+
+                        let syncCount = 0;
+                        const updateMeshTransforms = () => {
+                            // Manual synchronization code disabled
+                        };
+
+                        previewScene.registerBeforeRender(updateMeshTransforms);
+                        */
+                        // Remove any visual highlighting - let the solar panels move naturally
+                        console.log('\n✨ Configuring solar panels for natural appearance...');
+                        result.meshes.forEach((mesh, index) => {
+                            if (mesh.name.toLowerCase().includes('solar') || 
+                                mesh.name.toLowerCase().includes('panel') || 
+                                mesh.name.toLowerCase().includes('array') ||
+                                mesh.name.includes('MX') || mesh.name.includes('PX')) {
+                                try {
+                                    // Reset any emissive glow to natural appearance
+                                    if (mesh.material) {
+                                        if (mesh.material.emissiveColor) {
+                                            mesh.material.emissiveColor = new BABYLON.Color3(0, 0, 0); // No glow
+                                            console.log(`  🔧 Removed glow from: ${mesh.name}`);
+                                        }
+                                        
+                                        // Set realistic solar panel material properties
+                                        if (mesh.material.metallicFactor !== undefined) {
+                                            mesh.material.metallicFactor = 0.1; // Slightly metallic
+                                        }
+                                        if (mesh.material.roughnessFactor !== undefined) {
+                                            mesh.material.roughnessFactor = 0.3; // Moderately reflective
+                                        }
+                                    }
+                                    
+                                    // Ensure skeleton is properly applied for animation
+                                    if (mesh.skeleton) {
+                                        console.log(`  🦴 Mesh "${mesh.name}" has skeleton "${mesh.skeleton.name}" with ${mesh.skeleton.bones.length} bones`);
+                                        
+                                        // Make sure the skeleton is enabled and ready
+                                        mesh.skeleton.prepare();
+                                        mesh.refreshBoundingInfo();
+                                        
+                                        console.log(`  ✅ Skeleton prepared for: ${mesh.name}`);
+                                    } else {
+                                        console.log(`  ⚠️ Mesh "${mesh.name}" has NO skeleton - checking for parent with skeleton...`);
+                                        
+                                        // Check if parent has skeleton
+                                        let parent = mesh.parent;
+                                        while (parent) {
+                                            if (parent.skeleton) {
+                                                console.log(`  🔗 Found skeleton "${parent.skeleton.name}" on parent "${parent.name}"`);
+                                                break;
+                                            }
+                                            parent = parent.parent;
+                                        }
+                                    }
+                                } catch (error) {
+                                    console.warn(`Could not configure mesh ${mesh.name}:`, error);
+                                }
+                            }
+                        });
+                    }
+                }, 1000);
+                
             } else {
                 console.log(`No built-in animations found in ${modelFile}`);
                 // Also check if there are any animations in the scene that might have been imported
                 if (previewScene.animationGroups.length > 0) {
                     console.log(`But found ${previewScene.animationGroups.length} animations in scene:`, 
                         previewScene.animationGroups.map(ag => ag.name));
+                    
+                    // Try to start scene-level animations as well
+                    previewScene.animationGroups.forEach((animationGroup, index) => {
+                        try {
+                            console.log(`🔄 Starting scene animation ${index}: ${animationGroup.name}`);
+                            animationGroup.start(true, 1.0);
+                        } catch (error) {
+                            console.error(`✗ Failed to start scene animation ${animationGroup.name}:`, error);
+                        }
+                    });
                 }
             }
             
             // Don't reparent individual meshes - let GLB maintain its own hierarchy
             console.log(`Loaded ${result.meshes.length} meshes for ${satName}:`, result.meshes.map(m => m.name));
-            
-            // Check for and start any built-in animations (like solar panel movements)
-            if (result.animationGroups && result.animationGroups.length > 0) {
-                console.log(`Found ${result.animationGroups.length} animation(s) in ${modelFile}`);
-                result.animationGroups.forEach((animationGroup, index) => {
-                    console.log(`Starting animation ${index}: ${animationGroup.name}`);
-                    animationGroup.start(true); // true = loop the animation
-                });
-            } else {
-                console.log(`No built-in animations found in ${modelFile}`);
-            }
             
             // Adjust scale factor and positioning based on satellite type
             let scaleFactor = 0.5;
