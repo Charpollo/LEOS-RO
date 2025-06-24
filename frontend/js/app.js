@@ -1521,7 +1521,7 @@ async function initModelViewer() {
             } else {
                 // BULLDOG satellite - keep in default orientation (no rotation to prevent floating pieces)
                 scaleFactor = 0.5;
-                previewCamera.radius = 3.0; // Better viewing distance for BULLDOG
+                previewCamera.radius = 5.0; // Zoomed-out viewing distance for BULLDOG
                 previewCamera.beta = Math.PI/3; // Better initial angle for viewing
                 // Removed the 180-degree rotation that was causing floating pieces
             }
@@ -1580,7 +1580,7 @@ async function initModelViewer() {
                 const crtsAmbientLight = new BABYLON.HemisphericLight('crtsAmbient', 
                     new BABYLON.Vector3(0, 1, 0), previewScene);
                 crtsAmbientLight.intensity = 0.5; // Increased ambient intensity
-                crtsAmbientLight.diffuse = new BABYLON.Color3(0.9, 0.9, 1.0);
+                crtsAmbientLight.diffuse = new BABYLON.Color3(0.9, 0.9,  1.0);
             }
             
             // Freeze meshes again for performance after loading
