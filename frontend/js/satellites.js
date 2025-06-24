@@ -46,7 +46,9 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
             // First parameter: meshNames (empty string for all meshes)
             // Second parameter: root URL path for the assets
             // Third parameter: filename of the model
-            const result = await BABYLON.SceneLoader.ImportMeshAsync('', 'assets/', modelName, scene);
+            // In Cloud Run deployments, we need to ensure the full path is correct
+            // Modified to handle both local and cloud environments
+            const result = await BABYLON.SceneLoader.ImportMeshAsync('', '/assets/', modelName, scene);
             const satelliteMesh = result.meshes[0];
             satelliteMesh.name = `${satName}_mesh`;
             // Set mesh scaling based on new Earth scale
