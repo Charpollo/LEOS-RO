@@ -258,7 +258,7 @@ export async function createEarth(scene, getTimeMultiplier, sunDirection) {
     const atmosphereMaterial = new BABYLON.StandardMaterial('atmosphereMaterial', scene);
     atmosphereMaterial.diffuseColor = new BABYLON.Color3(0, 0, 0);
     atmosphereMaterial.emissiveColor = new BABYLON.Color3(0.2, 0.4, 0.9);
-    atmosphereMaterial.alpha = 0.15;
+    atmosphereMaterial.alpha = 0.25; // Increased for stronger glow
     atmosphereMaterial.alphaMode = BABYLON.Engine.ALPHA_COMBINE;
     atmosphereMaterial.backFaceCulling = false;
     
@@ -271,15 +271,15 @@ export async function createEarth(scene, getTimeMultiplier, sunDirection) {
     const outerAtmMaterial = new BABYLON.StandardMaterial('outerAtmMaterial', scene);
     outerAtmMaterial.diffuseColor = new BABYLON.Color3(0, 0, 0);
     outerAtmMaterial.emissiveColor = new BABYLON.Color3(0.1, 0.2, 0.8);
-    outerAtmMaterial.alpha = 0.05;
+    outerAtmMaterial.alpha = 0.08; // Enhanced outer glow visibility
     outerAtmMaterial.alphaMode = BABYLON.Engine.ALPHA_COMBINE;
     outerAtmMaterial.backFaceCulling = false;
     
     // More subtle and realistic Fresnel effect for outer atmosphere
     outerAtmMaterial.emissiveFresnelParameters = new BABYLON.FresnelParameters();
-    outerAtmMaterial.emissiveFresnelParameters.bias = 0.8; // Higher bias to reduce effect
-    outerAtmMaterial.emissiveFresnelParameters.power = 5.0; // Higher power for narrower effect
-    outerAtmMaterial.emissiveFresnelParameters.leftColor = new BABYLON.Color3(0.15, 0.25, 0.5); // Much less intense color
+    outerAtmMaterial.emissiveFresnelParameters.bias = 0.6; // Lower bias for wider effect
+    outerAtmMaterial.emissiveFresnelParameters.power = 3.0; // Reduced power for softer glow
+    outerAtmMaterial.emissiveFresnelParameters.leftColor = new BABYLON.Color3(0.2, 0.4, 0.8); // Brighter, more visible color
     outerAtmMaterial.emissiveFresnelParameters.rightColor = BABYLON.Color3.Black();
     
     outerAtmosphere.material = outerAtmMaterial;
@@ -287,9 +287,9 @@ export async function createEarth(scene, getTimeMultiplier, sunDirection) {
     
     // More subtle and realistic Fresnel effect for atmospheric rim glow
     atmosphereMaterial.emissiveFresnelParameters = new BABYLON.FresnelParameters();
-    atmosphereMaterial.emissiveFresnelParameters.bias = 0.7; // Higher bias to reduce effect
-    atmosphereMaterial.emissiveFresnelParameters.power = 4.0; // Higher power for narrower effect
-    atmosphereMaterial.emissiveFresnelParameters.leftColor = new BABYLON.Color3(0.2, 0.35, 0.7); // Less intense color
+    atmosphereMaterial.emissiveFresnelParameters.bias = 0.6; // Lower bias for wider effect
+    atmosphereMaterial.emissiveFresnelParameters.power = 3.0; // Softer rim
+    atmosphereMaterial.emissiveFresnelParameters.leftColor = new BABYLON.Color3(0.3, 0.5, 0.9); // Brighter rim color
     atmosphereMaterial.emissiveFresnelParameters.rightColor = BABYLON.Color3.Black();
     
     // Create a much subtler atmospheric glow instead of full volumetric scattering
