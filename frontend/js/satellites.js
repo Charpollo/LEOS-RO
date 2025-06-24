@@ -36,12 +36,17 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
             continue;
         }
         
-        const modelFile = satName.toUpperCase().includes('CRTS') 
-            ? 'assets/crts_satellite.glb' 
-            : 'assets/bulldog_sat.glb';
+        // Handle model paths to work in both local and cloud environments
+        const modelName = satName.toUpperCase().includes('CRTS') 
+            ? 'crts_satellite.glb' 
+            : 'bulldog_sat.glb';
         
         try {
-            const result = await BABYLON.SceneLoader.ImportMeshAsync('', '', modelFile, scene);
+            // Use proper parameter format for Babylon.js SceneLoader
+            // First parameter: meshNames (empty string for all meshes)
+            // Second parameter: root URL path for the assets
+            // Third parameter: filename of the model
+            const result = await BABYLON.SceneLoader.ImportMeshAsync('', 'assets/', modelName, scene);
             const satelliteMesh = result.meshes[0];
             satelliteMesh.name = `${satName}_mesh`;
             // Set mesh scaling based on new Earth scale

@@ -361,6 +361,10 @@ if $OBFUSCATE; then
       cp -r frontend dist/
       cp server.py dist/
       cp requirements.txt dist/
+      cp package.json dist/
+      cp package-lock.json dist/ 2>/dev/null || true  # Copy if exists
+      cp webpack.config.js dist/
+      cp build_frontend.sh dist/
     fi
   fi
 else
@@ -374,6 +378,14 @@ else
   cp -r frontend dist/
   cp server.py dist/
   cp requirements.txt dist/
+  cp package.json dist/
+  cp package-lock.json dist/ 2>/dev/null || true  # Copy if exists
+  cp webpack.config.js dist/
+  cp build_frontend.sh dist/
+  
+  # Run the dedicated asset copying script to ensure all assets are properly handled
+  echo "Ensuring assets are properly copied..."
+  ./copy_assets.sh
 fi
 
 # 2. Set up Artifact Registry (faster than Container Registry)
