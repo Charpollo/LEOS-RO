@@ -428,7 +428,7 @@ body.hide-time #time-display {
     left: 0;
     top: 0;
     bottom: 0;
-    width: 350px;
+    width: 800px;
     background: var(--background-panel);
     backdrop-filter: blur(15px);
     border-right: 2px solid var(--border-glow);
