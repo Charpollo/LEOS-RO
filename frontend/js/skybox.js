@@ -2,6 +2,9 @@ import * as BABYLON from '@babylonjs/core';
 
 // Create a skybox with stars for the space environment
 export function createSkybox(scene) {
+    // make the background pure black to avoid light bleed from default clear color
+    scene.clearColor = new BABYLON.Color4(0, 0, 0, 1);
+
     // Create a proper skybox for a realistic star field background
     const skyboxSize = 5000.0;
     const skybox = BABYLON.MeshBuilder.CreateBox("skyBox", {size: skyboxSize}, scene);
@@ -14,7 +17,8 @@ export function createSkybox(scene) {
         const cubeTexture = new BABYLON.CubeTexture("assets/starfield/stars", scene);
         cubeTexture.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
         skyboxMaterial.reflectionTexture = cubeTexture;
-        cubeTexture.level = 1.5; // brighten starfield
+        cubeTexture.level = 0.5; // darker, more realistic space
+        // remove emissive override to keep skybox dark
     } catch (e) {
         skyboxMaterial.diffuseColor = new BABYLON.Color3(0,0,0);
         skyboxMaterial.emissiveColor = new BABYLON.Color3(0,0,0);
