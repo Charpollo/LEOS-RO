@@ -200,22 +200,22 @@ function addGroundStationLabel(stationName, mesh, advancedTexture) {
   scene.onBeforeRenderObservable.add(() => {
     const camera = scene.activeCamera;
     if (!camera) return;
-    
+
     const dist = BABYLON.Vector3.Distance(camera.position, mesh.position);
-    
-    // Ground stations are smaller and closer to Earth, so adjust scaling
-    let scale = 1.0;
-    if (dist > 1.5) {
-      scale = Math.max(0.4, 2.0 / dist); // Scale down less aggressively than satellites
-    }
-    
+
+    // Scale labels within defined bounds to avoid over/under sizing
+    const rawScale = 2.0 / dist;
+    const minScale = 0.1; // Lower bound for far-out views to keep labels small
+    const maxScale = 1.0; // Prevent labels from growing above original size
+    const scale = Math.min(maxScale, Math.max(minScale, rawScale));
+
     // Fade out when very far to reduce clutter
     if (dist > 8) {
       labelBtn.alpha = Math.max(0.2, 0.9 * (10 - dist) / 2);
     } else {
       labelBtn.alpha = 0.9;
     }
-    
+
     labelBtn.scaleX = labelBtn.scaleY = scale;
   });
 }
@@ -587,8 +587,21 @@ export function createCoverageCircles(scene, maxSatAltKm = 2000, segments = 64) 
       scene
     );
     circle.color = new BABYLON.Color3(0, 1, 0);
+    // render circles on top of Earth to avoid clipping artifacts
+    circle.renderingGroupId = 1;
     const earthMesh = scene.getMeshByName('earth');
     if (earthMesh) circle.parent = earthMesh;
+    // toggle coverage circle visibility based on camera hemisphere
+    scene.onBeforeRenderObservable.add(() => {
+      const cam = scene.activeCamera;
+      if (!cam) return;
+      // Normalize vectors from Earth center
+      const camDir = cam.position.normalize();
+      const stationPos = stationMeshes[station.name.replace(/\s+/g, '_')].mesh.absolutePosition;
+      const stationDir = stationPos.normalize();
+      // Show circle only when station faces the camera
+      circle.isVisible = BABYLON.Vector3.Dot(camDir, stationDir) > 0;
+    });
     stationMeshes[station.name.replace(/\s+/g, '_')].coverage = circle;
   });
 }

@@ -48,7 +48,7 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
             // Make satellites smaller for better zoom-in experience
             const isCRTS = satName.toUpperCase().includes('CRTS');
             const isBulldog = satName.toUpperCase().includes('BULLDOG');
-            const SATELLITE_VISUAL_SCALE = isBulldog ? 0.0005 : 0.001; // BULLDOG is half the size
+            const SATELLITE_VISUAL_SCALE = isBulldog ? 0.0003 : 0.001; // BULLDOG is half the size
             satelliteMesh.scaling = new BABYLON.Vector3(SATELLITE_VISUAL_SCALE, SATELLITE_VISUAL_SCALE, SATELLITE_VISUAL_SCALE);
             // Set mesh color by satellite type
             const meshColor = isCRTS ? new BABYLON.Color3(0.8, 0.35, 0) : isBulldog ? new BABYLON.Color3(0, 1, 1) : new BABYLON.Color3(0.1, 0.4, 0.8);
