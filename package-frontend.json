@@ -1,0 +1,34 @@
+{
+  "name": "leos-frontend-only",
+  "version": "1.0.0",
+  "description": "LEOS Frontend-Only Satellite Visualization",
+  "main": "frontend/index.html",
+  "scripts": {
+    "start": "./dev-frontend.sh",
+    "serve": "python3 -m http.server 8000 --directory frontend",
+    "serve-node": "npx http-server frontend -p 8000",
+    "build": "echo 'No build process required for frontend-only version'",
+    "clean": "rm -rf frontend/data/telemetry/* && echo 'Telemetry data cleared'"
+  },
+  "keywords": [
+    "satellite",
+    "visualization",
+    "3d",
+    "babylon.js",
+    "orbital-mechanics",
+    "frontend-only"
+  ],
+  "author": "LEOS Team",
+  "license": "MIT",
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  },
+  "dependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/leos-frontend-only"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

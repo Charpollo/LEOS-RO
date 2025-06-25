@@ -22,9 +22,10 @@ export function calculateSatellitePosition(elements, currentTime, epochTime) {
     try {
         // Time since epoch in minutes
         const timeSinceEpoch = (currentTime - epochTime) / (1000 * 60);
-        
+        // Calculate mean motion from semi-major axis (rad/min)
+        const a = elements.semi_major_axis_km;
+        const meanMotion = Math.sqrt(EARTH_MU / (a * a * a)) * 60; // rad/min
         // Calculate mean anomaly at current time
-        const meanMotion = elements.mean_motion_rev_per_day * (2 * Math.PI) / 1440; // rad/min
         const meanAnomaly = (elements.mean_anomaly_deg * Math.PI / 180) + (meanMotion * timeSinceEpoch);
         
         // Solve Kepler's equation for eccentric anomaly
@@ -37,9 +38,9 @@ export function calculateSatellitePosition(elements, currentTime, epochTime) {
         );
         
         // Calculate distance from Earth center
-        const a = elements.semi_major_axis_km;
+        const aRadius = elements.semi_major_axis_km;
         const e = elements.eccentricity;
-        const r = a * (1 - e * Math.cos(eccentricAnomaly));
+        const r = aRadius * (1 - e * Math.cos(eccentricAnomaly));
         
         // Position in orbital plane
         const cosTA = Math.cos(trueAnomaly);
@@ -49,17 +50,17 @@ export function calculateSatellitePosition(elements, currentTime, epochTime) {
         const zOrbital = 0;
         
         // Convert angles to radians
-        const i = elements.inclination_deg * Math.PI / 180;
-        const omega = elements.arg_perigee_deg * Math.PI / 180;
-        const Omega = elements.raan_deg * Math.PI / 180;
+        const iRad = elements.inclination_deg * Math.PI / 180;
+        const omegaRad = elements.argument_of_perigee_deg * Math.PI / 180;
+        const OmegaRad = elements.raan_deg * Math.PI / 180;
         
         // Rotation matrices
-        const cosOmega = Math.cos(omega);
-        const sinOmega = Math.sin(omega);
-        const cosI = Math.cos(i);
-        const sinI = Math.sin(i);
-        const cosCapOmega = Math.cos(Omega);
-        const sinCapOmega = Math.sin(Omega);
+        const cosOmega = Math.cos(omegaRad);
+        const sinOmega = Math.sin(omegaRad);
+        const cosI = Math.cos(iRad);
+        const sinI = Math.sin(iRad);
+        const cosCapOmega = Math.cos(OmegaRad);
+        const sinCapOmega = Math.sin(OmegaRad);
         
         // Transform to Earth-centered inertial coordinates
         const x = (cosCapOmega * cosOmega - sinCapOmega * sinOmega * cosI) * xOrbital +
@@ -75,9 +76,9 @@ export function calculateSatellitePosition(elements, currentTime, epochTime) {
         const velocityMagnitude = n * a / Math.sqrt(1 - e * e);
         
         // Velocity direction (perpendicular to position, simplified)
-        const vx = -velocityMagnitude * Math.sin(trueAnomaly + omega) * Math.cos(i);
-        const vy = velocityMagnitude * Math.cos(trueAnomaly + omega);
-        const vz = velocityMagnitude * Math.sin(trueAnomaly + omega) * Math.sin(i);
+        const vx = -velocityMagnitude * Math.sin(trueAnomaly + omegaRad) * Math.cos(iRad);
+        const vy = velocityMagnitude * Math.cos(trueAnomaly + omegaRad);
+        const vz = velocityMagnitude * Math.sin(trueAnomaly + omegaRad) * Math.sin(iRad);
         
         return {
             position: { x, y, z },
@@ -162,7 +163,7 @@ export function generateRealTimeTelemetry(position, velocity, elements, satName)
             latitude: lat,
             longitude: lon,
             velocity: speed,
-            period: elements.period_minutes,
+            period: calculateOrbitalPeriod(elements.semi_major_axis_km),
             inclination: elements.inclination_deg,
             position: position,
             velocity: velocity,
@@ -193,7 +194,7 @@ export function generateRealTimeTelemetry(position, velocity, elements, satName)
             latitude: 0,
             longitude: 0,
             velocity: 7.5,
-            period: 95,
+            period: elements ? calculateOrbitalPeriod(elements.semi_major_axis_km) : 95,
             inclination: elements ? elements.inclination_deg || 51.6 : 51.6,
             position: position || { x: 0, y: 0, z: 0 },
             velocity: velocity || { x: 0, y: 0, z: 0 },

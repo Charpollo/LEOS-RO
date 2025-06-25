@@ -172,7 +172,18 @@ export function updateTelemetryUI(activeSatellite, telemetryData) {
                      <div class="telemetry-card">
                          <h4>Orbital Parameters</h4>
                          <div class="telemetry-item"><span>Altitude:</span> <span>${t.altitude?.toFixed(2) ?? 'N/A'} km</span></div>
-                         <div class="telemetry-item"><span>Velocity:</span> <span>${(t.speed || t.velocity)?.toFixed(2) ?? 'N/A'} km/s</span></div>
+                         <div class="telemetry-item"><span>Velocity:</span> <span>${(() => {
+                             if (t.speed && typeof t.speed === 'number') {
+                                 return t.speed.toFixed(2);
+                             } else if (t.velocity) {
+                                 if (Array.isArray(t.velocity)) {
+                                     return Math.sqrt(t.velocity[0]**2 + t.velocity[1]**2 + t.velocity[2]**2).toFixed(2);
+                                 } else if (typeof t.velocity === 'number') {
+                                     return t.velocity.toFixed(2);
+                                 }
+                             }
+                             return 'N/A';
+                         })()} km/s</span></div>
                          <div class="telemetry-item"><span>Period:</span> <span>${t.period?.toFixed(2) ?? 'N/A'} min</span></div>
                          <div class="telemetry-item"><span>Inclination:</span> <span>${t.inclination?.toFixed(2) ?? 'N/A'}°</span></div>
                      </div>

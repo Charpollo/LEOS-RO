@@ -1,0 +1,32 @@
+{
+  "satellites": {
+    "CRTS1": {
+      "name": "CRTS1",
+      "semi_major_axis_km": 6791.0,
+      "eccentricity": 0.001,
+      "inclination_deg": 97.4,
+      "raan_deg": 0.0,
+      "argument_of_perigee_deg": 0.0,
+      "mean_anomaly_deg": 0.0,
+      "epoch": "2025-01-01T00:00:00Z",
+      "model_file": "crts_satellite.glb",
+      "color": "#00CCFF"
+    },
+    "Bulldog": {
+      "name": "Bulldog",
+      "semi_major_axis_km": 6871.0,
+      "eccentricity": 0.002,
+      "inclination_deg": 98.2,
+      "raan_deg": 45.0,
+      "argument_of_perigee_deg": 90.0,
+      "mean_anomaly_deg": 180.0,
+      "epoch": "2025-01-01T00:00:00Z",
+      "model_file": "bulldog_sat.glb",
+      "color": "#FF6600"
+    }
+  },
+  "metadata": {
+    "simulation_start": "2025-01-01T00:00:00Z",
+    "description": "Static orbital elements for LEOS frontend-only visualization"
+  }
+}

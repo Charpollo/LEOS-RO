@@ -1,6 +1,6 @@
 import * as BABYLON from '@babylonjs/core';
 import { EARTH_RADIUS, EARTH_SCALE, MIN_LEO_ALTITUDE_KM } from './constants.js';
-import { generateRealTimeTelemetry } from './telemetry.js';
+import { generateRealTimeTelemetry } from './orbital-mechanics.js';
 import { calculateSatellitePosition, toBabylonPosition } from './orbital-mechanics.js';
 import { TextBlock, Rectangle, Control, Button } from '@babylonjs/gui';
 
@@ -231,9 +231,9 @@ function addSatelliteLabel(satName, mesh, advancedTexture, activeSatellite, mesh
 export function updateSatellitePosition(satName, timeIndex, orbitalElements, simulationTime, scene, advancedTexture) {
     if (!satelliteMeshes[satName] || !orbitalElements[satName]) return null;
     try {
-        // Get orbital elements for this satellite
-        const elements = orbitalElements[satName].elements;
-        const epochTime = new Date(orbitalElements[satName].tle.epoch);
+        // Get orbital elements for this satellite (now directly on the object)
+        const elements = orbitalElements[satName];
+        const epochTime = new Date(orbitalElements[satName].epoch);
         
         // Check if this satellite is currently selected and the camera is tracking it
         const isActiveTracking = satName === window.activeSatellite && scene.activeCamera;
@@ -442,9 +442,21 @@ function showSatelliteTelemetryPanel(satName, telemetryData, advancedTexture, me
         } else if (t.systems && t.systems.payload) {
             special = `\nPayload:\n  Imaging: ${t.systems.payload.imaging_system ?? 'N/A'}%\n  Storage: ${t.systems.payload.storage_capacity ?? 'N/A'} GB\n  Memory: ${t.systems.payload.memory_usage ?? 'N/A'}%`;
         }
+        
+        // Calculate velocity magnitude if velocity is an array
+        let velocityValue = 'N/A';
+        if (t.velocity !== undefined) {
+            if (Array.isArray(t.velocity)) {
+                // Calculate magnitude of velocity vector
+                velocityValue = Math.sqrt(t.velocity[0]**2 + t.velocity[1]**2 + t.velocity[2]**2).toFixed(2);
+            } else if (typeof t.velocity === 'number') {
+                velocityValue = t.velocity.toFixed(2);
+            }
+        }
+        
         content.text = `🛰️  ${satName}\n\n` +
             `Altitude: ${t.altitude !== undefined ? t.altitude.toFixed(1) : 'N/A'} km\n` +
-            `Velocity: ${t.velocity !== undefined ? t.velocity.toFixed(2) : 'N/A'} km/s\n` +
+            `Velocity: ${velocityValue} km/s\n` +
             `Period: ${t.period !== undefined ? t.period.toFixed(1) : 'N/A'} min\n` +
             `Inclination: ${t.inclination !== undefined ? t.inclination.toFixed(2) : 'N/A'}°\n` +
             `Lat/Lon: ${t.latitude !== undefined ? t.latitude.toFixed(2) : 'N/A'}, ${t.longitude !== undefined ? t.longitude.toFixed(2) : 'N/A'}\n` +

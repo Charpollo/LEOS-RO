@@ -4,11 +4,13 @@
   "description": "LEOS First Orbit Project",
   "private": true,
   "scripts": {
+    "clean": "rimraf frontend/dist",
     "build": "webpack --config webpack.config.js",
+    "build:prod": "NODE_ENV=production webpack --config webpack.config.js",
     "watch": "webpack --config webpack.config.js --watch",
-    "start": "python3 server.py",
-    "dev": "python3 server.py --watch --debug",
-    "deploy": "bash deploy.sh"
+    "start": "./run-frontend.sh",
+    "start:clean": "./run-frontend.sh --clean",
+    "dev": "./run-frontend.sh --clean --port 8000"
   },
   "dependencies": {
     "@babylonjs/core": "^6.27.1",
@@ -21,6 +23,7 @@
     "css-loader": "^6.7.3",
     "html-webpack-plugin": "^5.5.0",
     "javascript-obfuscator": "^4.1.1",
+    "rimraf": "^5.0.1",
     "style-loader": "^3.3.2",
     "terser": "^5.43.1",
     "webpack": "^5.80.0",

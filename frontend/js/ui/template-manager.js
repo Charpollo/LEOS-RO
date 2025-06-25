@@ -8,28 +8,51 @@ class TemplateManager {
     }
 
     /**
-     * Initialize the template manager by loading all templates
+     * Initialize the template manager with inline templates
      */
     async initialize() {
         if (this.initialized) return;
 
         try {
-            const response = await fetch('/templates/telemetry.html');
-            const html = await response.text();
-            
-            // Create a temporary container to parse the HTML
-            const container = document.createElement('div');
-            container.innerHTML = html;
-            
-            // Store all templates
-            container.querySelectorAll('template').forEach(template => {
-                this.templates.set(template.id, template);
-            });
-
+            // Create inline templates instead of fetching from backend
+            this.createInlineTemplates();
             this.initialized = true;
         } catch (error) {
             console.error('Failed to load templates:', error);
         }
+   }
+
+    /**
+     * Create inline templates instead of fetching from backend
+     */
+    createInlineTemplates() {
+        // Telemetry item template
+        const telemetryItemTemplate = document.createElement('template');
+        telemetryItemTemplate.id = 'telemetry-item-template';
+        telemetryItemTemplate.innerHTML = `
+            <div class="telemetry-item">
+                <div class="telemetry-label">{{label}}</div>
+                <div class="telemetry-value">{{value}}</div>
+                <div class="telemetry-unit">{{unit}}</div>
+            </div>
+        `;
+        this.templates.set('telemetry-item-template', telemetryItemTemplate);
+
+        // Telemetry card template
+        const telemetryCardTemplate = document.createElement('template');
+        telemetryCardTemplate.id = 'telemetry-card-template';
+        telemetryCardTemplate.innerHTML = `
+            <div class="telemetry-card">
+                <div class="telemetry-header">
+                    <h3>{{satelliteName}}</h3>
+                    <div class="telemetry-status {{status}}">{{status}}</div>
+                </div>
+                <div class="telemetry-content">
+                    <!-- Telemetry items will be populated here -->
+                </div>
+            </div>
+        `;
+        this.templates.set('telemetry-card-template', telemetryCardTemplate);
     }
 
     /**

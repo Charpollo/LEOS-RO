@@ -143,15 +143,16 @@
         // Test network requests
         async function testNetwork() {
             try {
-                const response = await fetch('/api/simulation/status');
+                // Test static data loading instead of API
+                const response = await fetch('/data/satellite_data.json');
                 const data = await response.json();
                 document.getElementById('network-result').innerHTML = `
-                    ✅ API Accessible<br>
-                    Status: ${JSON.stringify(data)}
+                    ✅ Static Data Accessible<br>
+                    Satellites: ${Object.keys(data.satellites || {}).join(', ')}
                 `;
                 document.getElementById('network-test').className = 'test pass';
             } catch (error) {
-                document.getElementById('network-result').textContent = `❌ API Error: ${error.message}`;
+                document.getElementById('network-result').textContent = `❌ Data Error: ${error.message}`;
                 document.getElementById('network-test').className = 'test fail';
             }
         }

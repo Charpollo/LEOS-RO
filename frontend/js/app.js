@@ -9,6 +9,9 @@ import { uiManager } from './ui/manager.js';
 import { initBrandUI, hideLoadingScreen, showWelcomeModal, showHelpButton } from './ui/brand-ui.js';
 import { createTelemetryItem } from './ui/template-manager.js';
 
+// Import frontend-only data loader
+import { dataLoader } from './data-loader.js';
+
 // Import SDA visualization
 import { initSDAVisualization, createTLEInputModal } from './sda-visualization.js';
 
@@ -17,7 +20,7 @@ import { EARTH_RADIUS, EARTH_SCALE, MIN_LEO_ALTITUDE_KM, MOON_DISTANCE, MOON_SCA
 import { createSkybox } from './skybox.js';
 import { createEarth } from './earth.js';
 import { createMoon } from './moon.js';
-import { createSatellites, getSatelliteMeshes, getTelemetryData, updateSatelliteFromOrbitalElements } from './satellites.js';
+import { createSatellites, getSatelliteMeshes, getTelemetryData } from './satellites.js';
 import { updateTelemetryUI } from './telemetry.js';
 import { startSimulationLoop, updateTimeDisplay, getCurrentSimTime } from './simulation.js';
 import { setupKeyboardControls } from './controls.js';
@@ -1346,18 +1349,29 @@ function showNotification(message, duration = 3000) {
 
 async function loadSatelliteData() {
     try {
-        // Use the optimized lightweight API endpoint instead of heavy simulation_data
-        const response = await fetch('/api/orbital_elements');
-        const data = await response.json();
+        // Initialize simulation time first to prevent null errors
+        simulationStartTime = new Date();
+        simulationTime = new Date(simulationStartTime);
         
-        // Store orbital elements for real-time calculation
-        orbitalElements = data.satellites;
+        console.log('Loading satellite data using data loader...');
+        
+        // Load satellite data from static files instead of backend API
+        const data = await dataLoader.loadSatelliteData();
+        
+        if (!data || !data.satellites) {
+            console.error('No satellite data loaded, using fallback');
+            // Create minimal fallback data
+            orbitalElements = dataLoader.getFallbackSatelliteData().satellites;
+        } else {
+            // Store orbital elements for real-time calculation
+            orbitalElements = data.satellites;
+            console.log('Loaded orbital elements for satellites:', Object.keys(orbitalElements));
+        }
         
         // Initialize simulation start time
-        if (data.metadata && data.metadata.simulation_start) {
+        if (data && data.metadata && data.metadata.simulation_start) {
             simulationStartTime = new Date(data.metadata.simulation_start);
-        } else {
-            simulationStartTime = new Date();
+            simulationTime = new Date(simulationStartTime);
         }
         
         // Create a lightweight version of satelliteData for compatibility
@@ -1369,18 +1383,35 @@ async function loadSatelliteData() {
             }
         };
         
-        // Add initial trajectory point for each satellite
-        Object.keys(orbitalElements).forEach(satName => {
+        // Add initial trajectory point for each satellite and load/generate telemetry
+        for (const satName of Object.keys(orbitalElements)) {
             satelliteData[satName] = {
                 trajectory: [{ position: { x: 0, y: 0, z: 0 }, velocity: { x: 0, y: 0, z: 0 } }]
             };
-        });
+            
+            // Try to load telemetry data, fallback to generated data
+            let telemetry = await dataLoader.loadTelemetryData(satName);
+            if (!telemetry || telemetry.length === 0) {
+                console.log(`Generating mock telemetry for ${satName}`);
+                telemetry = dataLoader.generateMockTelemetry(satName, orbitalElements[satName]);
+            }
+        }
         
+        console.log('Creating satellites in scene...');
         // Create satellites using the imported module
         await createSatellites(scene, satelliteData, orbitalElements, activeSatellite, advancedTexture, simulationTime);
         
         // Start the simulation loop using the imported module
+        console.log('Starting simulation loop with time:', simulationStartTime);
         simulationTime = startSimulationLoop(scene, satelliteData, orbitalElements, simulationStartTime, () => simState.timeMultiplier, advancedTexture, activeSatellite, getTelemetryData());
+        
+        // Ensure simulationTime is not null after starting the loop
+        if (!simulationTime) {
+            console.warn('simulationTime is null after starting loop, using current time');
+            simulationTime = new Date();
+        }
+        
+        console.log('Simulation initialized successfully with time:', simulationTime);
     } catch (error) {
         console.error('Error loading satellite data:', error);
     }

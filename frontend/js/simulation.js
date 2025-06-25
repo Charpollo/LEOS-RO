@@ -4,7 +4,8 @@ import { updateTelemetryUI } from './telemetry.js';
 
 let currentSimTime = null;
 export function getCurrentSimTime() {
-    return currentSimTime;
+    // Return currentSimTime if available, otherwise return current time as fallback
+    return currentSimTime || new Date();
 }
 
 // Make it accessible globally for other modules
@@ -13,6 +14,9 @@ window.getCurrentSimTime = getCurrentSimTime;
 export function startSimulationLoop(scene, satelliteData, orbitalElements, simulationStartTime, getTimeMultiplier, advancedTexture, activeSatellite, telemetryData) {
     // Initialize simulation time from start time or use current time
     let simulationTime = simulationStartTime || new Date();
+    
+    // Initialize currentSimTime immediately
+    currentSimTime = simulationTime;
     currentSimTime = simulationTime;
     // Update display according to persisted mode
     updateTimeDisplay(simulationTime);
@@ -69,6 +73,13 @@ export function startSimulationLoop(scene, satelliteData, orbitalElements, simul
 export function updateTimeDisplay(simulationTime) {
     const el = document.getElementById('current-time');
     if (!el) return;
+    
+    // Safety check for null or undefined simulationTime
+    if (!simulationTime || !(simulationTime instanceof Date)) {
+        console.warn('Invalid simulationTime passed to updateTimeDisplay:', simulationTime);
+        simulationTime = new Date(); // Fallback to current time
+    }
+    
     // Always show UTC: ISO-style full date + time with seconds
     const iso = simulationTime.toISOString().replace('T', ' ').substring(0, 19);
     el.textContent = `${iso} UTC`;
