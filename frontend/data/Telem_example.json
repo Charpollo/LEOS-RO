@@ -1,0 +1,88 @@
+{
+    "CRTS1": {
+        "Payload_Sensors": {
+            "Imaging_Mode": "High-res",
+            "Sensor_Temp_C": 22.5,
+            "Target_Area": {
+                "Latitude": "36.7783\u00b0 N",
+                "Longitude": "119.4179\u00b0 W"
+            },
+            "Capture_Status": "ACTIVE",
+            "Image_Data_Stored_MB": 126
+        },
+        "Power_Thermal": {
+            "Battery_Level_Percent": 87,
+            "Solar_Panel_Output_W": 115,
+            "Thermal_Regulator_Status": "Nominal",
+            "Battery_Temperature_C": 24.1,
+            "Panel_Orientation_Deg": 23.5
+        },
+        "Communications": {
+            "X_Band_Link_Status": "ACTIVE",
+            "Uplink_Signal_Strength_dBm": -80,
+            "Downlink_Rate_Mbps": 5.2,
+            "Last_Ground_Contact_Min": 14,
+            "Comm_Errors": 0
+        },
+        "GNC": {
+            "Pitch_Yaw_Roll_Deg": {
+                "Pitch": 0.1,
+                "Yaw": 0.3,
+                "Roll": 0.0
+            },
+            "Orbit_Altitude_km": 530.1,
+            "Velocity_km_s": 7.71,
+            "Sun_Sensor_Alignment_Percent": 98.2,
+            "Star_Tracker_Lock": "ACQUIRED"
+        },
+        "CDH": {
+            "CPU_Usage_Percent": 37,
+            "Storage_Used_GB": "2.8 / 8",
+            "Command_Queue": "2 pending",
+            "System_Clock_Sync": "OK",
+            "Bus_Status": "GREEN"
+        }
+    },
+    "Bulldog": {
+        "Propulsion_Power": {
+            "Propulsion_Mode": "Solar Electric",
+            "Thruster_Status": "ONLINE (Hall Effect Thruster #1)",
+            "Fuel_Remaining_Percent": 73,
+            "Power_Draw_W": 320,
+            "Battery_Temp_C": 19.3
+        },
+        "Scientific_Payloads": {
+            "ACE_Status": "ACTIVE \u2014 Analyzing atmospheric CO\u2082",
+            "XRS_Activity": "SCANNING \u2014 3 keV detected",
+            "TMC_Mapping_Area": "Lunar Limb \u2014 South Pole",
+            "LRA_Signal_Return": "CONFIRMED",
+            "MPSC_Imaging": "Earth-facing, zoom level: 3x"
+        },
+        "Communications": {
+            "Ku_Band_Uplink_Rate_Mbps": 2.1,
+            "X_Band_Link_Status": "STANDBY",
+            "TTandC_Signal_Quality": "GOOD",
+            "MHGA_Pointing_Vector": "Earth Lock (0.3\u00b0 drift)",
+            "DCA_Redundancy_Check": "PASS"
+        },
+        "Navigation_Control": {
+            "ADCS_Mode": "Fine Pointing",
+            "Star_Tracker_Error_Deg": 0.02,
+            "Angular_Velocity_rad_s": 0.001,
+            "Reaction_Wheels": "Balanced",
+            "Orbit_Path_Deviation_m": "< 5m over 5 orbits"
+        },
+        "Experimental_Systems": {
+            "Dock_Port_Status": {
+                "Port_1": "Occupied (NanoSat A)",
+                "Port_2": "Empty"
+            },
+            "Software_Config": "V3.1 Experimental Pathfinding",
+            "Autonomous_Maneuver_Log": {
+                "Planned": 2,
+                "Completed": 1
+            },
+            "Mission_Mode": "Transition to lunar transit test"
+        }
+    }
+}

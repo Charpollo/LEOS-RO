@@ -6,6 +6,7 @@ import { TextBlock, Rectangle, Control, Button } from '@babylonjs/gui';
 
 let satelliteMeshes = {};
 let telemetryData = {};
+let staticTelemetryData = {}; // Store the detailed telemetry from Telem_example.json
 let telemetryPanel = null;
 let telemetryPanelUpdateInterval = null;
 
@@ -18,10 +19,31 @@ export function getTelemetryData() {
 }
 
 export async function createSatellites(scene, satelliteData, orbitalElements, activeSatellite, advancedTexture, simulationTime) {
-    // Clear existing satellites
+    // Load detailed telemetry data first
+    await loadDetailedTelemetryData();
+    
+    // Clear existing satellites and their enhanced trails
     for (const satName in satelliteMeshes) {
         if (satelliteMeshes[satName]) {
-            satelliteMeshes[satName].dispose();
+            const satellite = satelliteMeshes[satName];
+            
+            // Dispose of orbit trail if it exists
+            if (satellite.orbitTrail) {
+                satellite.orbitTrail.dispose();
+            }
+            
+            // Dispose of glow trail if it exists
+            if (satellite.glowTrail) {
+                satellite.glowTrail.dispose();
+            }
+            
+            // Remove trail scale observer if it exists
+            if (satellite.trailScaleObserver) {
+                scene.onBeforeRenderObservable.remove(satellite.trailScaleObserver);
+            }
+            
+            // Dispose of the satellite mesh itself
+            satellite.dispose();
         }
     }
     satelliteMeshes = {};
@@ -67,6 +89,9 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
             // });
             satelliteMeshes[satName] = satelliteMesh;
             
+            // Position the satellite BEFORE creating trails to avoid trail from origin
+            updateSatellitePosition(satName, 0, orbitalElements, simulationTime, scene, advancedTexture);
+            
             addSatelliteLabel(satName, satelliteMesh, advancedTexture, activeSatellite, meshColor);
             
             satelliteMesh.isPickable = true;
@@ -90,17 +115,96 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
                 )
             );
             
-            // --- Add comet-like orbit trail ---
+            // --- Add enhanced comet-like orbit trail with distance-adaptive scaling ---
+            // Create trails AFTER positioning the satellite to avoid trails from origin
             if (!satelliteMesh.orbitTrail) {
                 const trailMaterial = new BABYLON.StandardMaterial(`${satName}_trailMat`, scene);
-                trailMaterial.emissiveColor = meshColor;
-                trailMaterial.alpha = 0.9; // More visible
-                // Make the trail long and wide for visibility
-                const TRAIL_LENGTH = 600; // Longer trail for enhanced visibility
-                const TRAIL_WIDTH = 0.3;  // Thicker trail for better view
+                
+                // Enhanced trail appearance for better visibility at all distances
+                trailMaterial.emissiveColor = meshColor.clone().scale(1.2); // Brighter emissive
+                trailMaterial.diffuseColor = meshColor.clone().scale(0.4); // Add diffuse component
+                trailMaterial.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1); // Minimal specular
+                trailMaterial.alpha = 0.8; // Good transparency for blending
+                trailMaterial.alphaMode = BABYLON.Engine.ALPHA_PREMULTIPLIED;
+                trailMaterial.backFaceCulling = false; // Visible from all angles
+                trailMaterial.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
+                trailMaterial.needDepthPrePass = true; // Helps with transparency ordering
+                
+                // Adaptive trail dimensions - longer and more visible from distance
+                const TRAIL_LENGTH = 1200; // Much longer trail for better distant visibility
+                const TRAIL_WIDTH = 0.4;   // Wider trail for better rendering at distance
+                
                 const trail = new BABYLON.TrailMesh(`${satName}_trail`, satelliteMesh, scene, TRAIL_WIDTH, TRAIL_LENGTH, true);
                 trail.material = trailMaterial;
+                trail.renderingGroupId = 1; // Render after opaque objects
+                
+                // Start trail as invisible to prevent dark square at beginning
+                trail.isVisible = false;
+                
+                // Add glow trail for better distance visibility
+                const glowMaterial = new BABYLON.StandardMaterial(`${satName}_glowMat`, scene);
+                glowMaterial.emissiveColor = meshColor.clone().scale(0.6);
+                glowMaterial.alpha = 0.4;
+                glowMaterial.alphaMode = BABYLON.Engine.ALPHA_PREMULTIPLIED;
+                glowMaterial.backFaceCulling = false;
+                glowMaterial.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
+                glowMaterial.needDepthPrePass = true; // Helps with transparency ordering
+                
+                const glowTrail = new BABYLON.TrailMesh(`${satName}_glowTrail`, satelliteMesh, scene, TRAIL_WIDTH * 2.5, TRAIL_LENGTH * 0.8, true);
+                glowTrail.material = glowMaterial;
+                glowTrail.renderingGroupId = 0; // Render behind main trail
+                
+                // Start glow trail as invisible too
+                glowTrail.isVisible = false;
+                
+                // Store both trails and add dynamic scaling based on camera distance
                 satelliteMesh.orbitTrail = trail;
+                satelliteMesh.glowTrail = glowTrail;
+                
+                // Track when trails were created to delay visibility
+                satelliteMesh.trailCreationTime = performance.now();
+                satelliteMesh.initialPosition = satelliteMesh.position.clone();
+                
+                // Add distance-adaptive scaling observer
+                const scaleObserver = scene.onBeforeRenderObservable.add(() => {
+                    const camera = scene.activeCamera;
+                    if (!camera) return;
+                    
+                    // Only show trails after they've had time to build up (5 seconds) AND satellite has moved
+                    const timeSinceCreation = performance.now() - satelliteMesh.trailCreationTime;
+                    const trailsReady = timeSinceCreation > 5000; // 5 seconds delay
+                    const hasMovedEnough = BABYLON.Vector3.Distance(satelliteMesh.position, satelliteMesh.initialPosition) > 0.5;
+                    
+                    if (trailsReady && hasMovedEnough && !trail.isVisible) {
+                        // Fade in the trails gradually
+                        trail.isVisible = true;
+                        glowTrail.isVisible = true;
+                    }
+                    
+                    if (trailsReady && hasMovedEnough) {
+                        const cameraDistance = BABYLON.Vector3.Distance(camera.position, BABYLON.Vector3.Zero());
+                        
+                        // Scale trails based on camera distance for better visibility
+                        // Close up: normal size, Far away: larger and more opaque
+                        const distanceScale = Math.max(0.8, Math.min(3.0, cameraDistance / 2.0));
+                        const opacityScale = Math.max(0.6, Math.min(1.2, cameraDistance / 3.0));
+                        
+                        // Apply scaling to trail materials
+                        if (trail.material) {
+                            trail.material.alpha = Math.min(0.95, 0.8 * opacityScale);
+                            // Boost emissive color for distance visibility
+                            trail.material.emissiveColor = meshColor.clone().scale(1.2 * opacityScale);
+                        }
+                        
+                        if (glowTrail.material) {
+                            glowTrail.material.alpha = Math.min(0.7, 0.4 * opacityScale);
+                            glowTrail.material.emissiveColor = meshColor.clone().scale(0.6 * opacityScale);
+                        }
+                    }
+                });
+                
+                // Store the observer for cleanup
+                satelliteMesh.trailScaleObserver = scaleObserver;
             }
             
             // Set active satellite when clicked
@@ -150,7 +254,6 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
                 )
             );
             
-            updateSatellitePosition(satName, 0, orbitalElements, simulationTime, scene, advancedTexture);
         } catch (error) {
             console.error(`Error loading satellite model for ${satName}:`, error);
         }
@@ -242,12 +345,19 @@ export function updateSatellitePosition(satName, timeIndex, orbitalElements, sim
         const result = calculateSatellitePosition(elements, simulationTime, epochTime);
         
         // Generate enhanced telemetry data
-        telemetryData[satName] = generateRealTimeTelemetry(
+        const baseTelemetry = generateRealTimeTelemetry(
             result.position, 
             result.velocity, 
             elements, 
             satName
         );
+        
+        // Merge with detailed static telemetry data
+        const detailedData = getDetailedTelemetryForSatellite(satName);
+        telemetryData[satName] = {
+            ...baseTelemetry,
+            ...detailedData
+        };
         
         // Convert position to Babylon coordinates (scaling happens here only)
         let posKm = { ...result.position };
@@ -367,8 +477,8 @@ function showSatelliteTelemetryPanel(satName, telemetryData, advancedTexture, me
     }
     // Create panel
     telemetryPanel = new Rectangle();
-    telemetryPanel.width = "400px";
-    telemetryPanel.height = "340px";
+    telemetryPanel.width = "420px";
+    telemetryPanel.height = "500px";
     telemetryPanel.cornerRadius = 18;
     telemetryPanel.thickness = 2;
     telemetryPanel.background = "rgba(10, 20, 40, 0.92)";
@@ -376,7 +486,7 @@ function showSatelliteTelemetryPanel(satName, telemetryData, advancedTexture, me
     telemetryPanel.zIndex = 1000;
     telemetryPanel.alpha = 0;
     telemetryPanel.left = "40%";
-    telemetryPanel.top = "-30%";
+    telemetryPanel.top = "-20%";
     telemetryPanel.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
     telemetryPanel.verticalAlignment = Control.VERTICAL_ALIGNMENT_CENTER;
     advancedTexture.addControl(telemetryPanel);
@@ -436,12 +546,6 @@ function showSatelliteTelemetryPanel(satName, telemetryData, advancedTexture, me
             content.text = `🛰️  ${satName}\n\nNo telemetry data available.`;
             return;
         }
-        let special = "";
-        if (t.systems && t.systems.sensors) {
-            special = `\nSensors:\n  Radiation: ${t.systems.sensors.radiation_detector ?? 'N/A'}\n  Magnetometer: ${t.systems.sensors.magnetometer ?? 'N/A'}\n  Star Tracker: ${t.systems.sensors.star_tracker ?? 'N/A'}`;
-        } else if (t.systems && t.systems.payload) {
-            special = `\nPayload:\n  Imaging: ${t.systems.payload.imaging_system ?? 'N/A'}%\n  Storage: ${t.systems.payload.storage_capacity ?? 'N/A'} GB\n  Memory: ${t.systems.payload.memory_usage ?? 'N/A'}%`;
-        }
         
         // Calculate velocity magnitude if velocity is an array
         let velocityValue = 'N/A';
@@ -454,18 +558,136 @@ function showSatelliteTelemetryPanel(satName, telemetryData, advancedTexture, me
             }
         }
         
-        content.text = `🛰️  ${satName}\n\n` +
-            `Altitude: ${t.altitude !== undefined ? t.altitude.toFixed(1) : 'N/A'} km\n` +
-            `Velocity: ${velocityValue} km/s\n` +
-            `Period: ${t.period !== undefined ? t.period.toFixed(1) : 'N/A'} min\n` +
-            `Inclination: ${t.inclination !== undefined ? t.inclination.toFixed(2) : 'N/A'}°\n` +
-            `Lat/Lon: ${t.latitude !== undefined ? t.latitude.toFixed(2) : 'N/A'}, ${t.longitude !== undefined ? t.longitude.toFixed(2) : 'N/A'}\n` +
-            `\nSystems:` +
-            `\n  Power: ${t.systems && t.systems.power && t.systems.power.value !== undefined ? t.systems.power.value : 'N/A'}% (${t.systems && t.systems.power && t.systems.power.status ? t.systems.power.status : 'N/A'})` +
-            `\n  Thermal: ${t.systems && t.systems.thermal && (t.systems.thermal.value ?? t.systems.thermal.core_temp) !== undefined ? (t.systems.thermal.value ?? t.systems.thermal.core_temp) : 'N/A'}°C (${t.systems && t.systems.thermal && t.systems.thermal.status ? t.systems.thermal.status : 'N/A'})` +
-            `\n  Comms: ${t.systems && (t.systems.communications || t.systems.comms) && ((t.systems.communications && t.systems.communications.value !== undefined) ? t.systems.communications.value : (t.systems.comms && t.systems.comms.signal_strength !== undefined ? t.systems.comms.signal_strength : 'N/A'))} (${t.systems && (t.systems.communications || t.systems.comms) && ((t.systems.communications && t.systems.communications.status) ? t.systems.communications.status : (t.systems.comms && t.systems.comms.signal_strength !== undefined ? 'NOMINAL' : 'N/A'))})` +
-            special;
+        // Basic orbital data
+        let displayText = `🛰️  ${satName}\n\n`;
+        displayText += `Altitude: ${t.altitude !== undefined ? t.altitude.toFixed(1) : 'N/A'} km\n`;
+        displayText += `Velocity: ${velocityValue} km/s\n`;
+        displayText += `Period: ${t.period !== undefined ? t.period.toFixed(1) : 'N/A'} min\n`;
+        displayText += `Inclination: ${t.inclination !== undefined ? t.inclination.toFixed(2) : 'N/A'}°\n`;
+        displayText += `Lat/Lon: ${t.latitude !== undefined ? t.latitude.toFixed(2) : 'N/A'}, ${t.longitude !== undefined ? t.longitude.toFixed(2) : 'N/A'}\n`;
+        
+        // Systems status - merge real-time and detailed data
+        displayText += `\nSystems Status:\n`;
+        
+        // Power system
+        if (t.systems && t.systems.power) {
+            const power = t.systems.power;
+            const powerValue = power.battery_level || power.value || 'N/A';
+            const powerStatus = power.status || 'N/A';
+            displayText += `  Power: ${powerValue}${typeof powerValue === 'number' ? '%' : ''} (${powerStatus})\n`;
+            if (power.solar_panels) displayText += `    Solar: ${power.solar_panels}\n`;
+            if (power.voltage) displayText += `    Voltage: ${power.voltage}V\n`;
+        }
+        
+        // Thermal system
+        if (t.systems && t.systems.thermal) {
+            const thermal = t.systems.thermal;
+            const tempValue = thermal.core_temp || thermal.value || 'N/A';
+            const tempStatus = thermal.status || 'N/A';
+            displayText += `  Thermal: ${tempValue}${typeof tempValue === 'number' ? '°C' : ''} (${tempStatus})\n`;
+            if (thermal.battery_temp) displayText += `    Battery: ${thermal.battery_temp}°C\n`;
+            if (thermal.payload_temp) displayText += `    Payload: ${thermal.payload_temp}°C\n`;
+        }
+        
+        // Communications system
+        if (t.systems && (t.systems.communications || t.systems.comms)) {
+            const comms = t.systems.communications || t.systems.comms;
+            const signalValue = comms.signal_strength || comms.value || 'N/A';
+            const commsStatus = comms.status || (signalValue !== 'N/A' ? 'NOMINAL' : 'N/A');
+            displayText += `  Comms: ${signalValue}${typeof signalValue === 'number' ? 'dBm' : ''} (${commsStatus})\n`;
+            if (comms.data_rate) displayText += `    Data Rate: ${comms.data_rate}\n`;
+            if (comms.frequency) displayText += `    Frequency: ${comms.frequency}\n`;
+        }
+        
+        // Attitude system (if available)
+        if (t.systems && t.systems.attitude) {
+            const attitude = t.systems.attitude;
+            displayText += `  Attitude: ${attitude.status || 'N/A'}\n`;
+            if (attitude.roll !== undefined) displayText += `    Roll: ${attitude.roll.toFixed(1)}°\n`;
+            if (attitude.pitch !== undefined) displayText += `    Pitch: ${attitude.pitch.toFixed(1)}°\n`;
+            if (attitude.yaw !== undefined) displayText += `    Yaw: ${attitude.yaw.toFixed(1)}°\n`;
+        }
+        
+        // Sensor systems (CRTS specific)
+        if (t.systems && t.systems.sensors) {
+            const sensors = t.systems.sensors;
+            displayText += `\nSensors:\n`;
+            if (sensors.radiation_detector) displayText += `  Radiation: ${sensors.radiation_detector}\n`;
+            if (sensors.magnetometer) displayText += `  Magnetometer: ${sensors.magnetometer}\n`;
+            if (sensors.star_tracker) displayText += `  Star Tracker: ${sensors.star_tracker}\n`;
+            if (sensors.gps) displayText += `  GPS: ${sensors.gps}\n`;
+        }
+        
+        // Payload systems (Bulldog specific)
+        if (t.systems && t.systems.payload) {
+            const payload = t.systems.payload;
+            displayText += `\nPayload:\n`;
+            if (payload.imaging_system !== undefined) displayText += `  Imaging: ${payload.imaging_system}%\n`;
+            if (payload.storage_capacity !== undefined) displayText += `  Storage: ${payload.storage_capacity} GB\n`;
+            if (payload.memory_usage !== undefined) displayText += `  Memory: ${payload.memory_usage}%\n`;
+            if (payload.data_collected !== undefined) displayText += `  Data: ${payload.data_collected} MB\n`;
+        }
+        
+        // Propulsion system (if available)
+        if (t.systems && t.systems.propulsion) {
+            const propulsion = t.systems.propulsion;
+            displayText += `\nPropulsion:\n`;
+            if (propulsion.fuel_level !== undefined) displayText += `  Fuel: ${propulsion.fuel_level}%\n`;
+            if (propulsion.thruster_status) displayText += `  Thrusters: ${propulsion.thruster_status}\n`;
+            if (propulsion.delta_v !== undefined) displayText += `  Delta-V: ${propulsion.delta_v} m/s\n`;
+        }
+        
+        content.text = displayText;
     }
     updatePanel();
     telemetryPanelUpdateInterval = setInterval(updatePanel, 500);
+}
+
+// Get detailed telemetry data for a specific satellite
+function getDetailedTelemetryForSatellite(satName) {
+    // Map satellite names to the keys in the telemetry data
+    let telemetryKey = null;
+    
+    if (satName.toUpperCase().includes('CRTS')) {
+        telemetryKey = 'CRTS1';
+    } else if (satName.toUpperCase().includes('BULLDOG')) {
+        telemetryKey = 'Bulldog';
+    }
+    
+    if (telemetryKey && staticTelemetryData[telemetryKey]) {
+        // Merge the detailed telemetry data with our existing structure
+        const detailedData = staticTelemetryData[telemetryKey];
+        return {
+            // Keep existing systems structure but merge with detailed data
+            systems: {
+                power: detailedData.power || {},
+                thermal: detailedData.thermal || {},
+                communications: detailedData.communications || detailedData.comms || {},
+                sensors: detailedData.sensors || {},
+                payload: detailedData.payload || {},
+                attitude: detailedData.attitude || {},
+                propulsion: detailedData.propulsion || {}
+            },
+            // Add any additional top-level properties
+            ...detailedData
+        };
+    }
+    
+    return { systems: {} };
+}
+
+// Load detailed telemetry data from the example file
+async function loadDetailedTelemetryData() {
+    try {
+        const response = await fetch('/data/Telem_example.json');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        staticTelemetryData = await response.json();
+        console.log('Detailed telemetry data loaded:', staticTelemetryData);
+    } catch (error) {
+        console.error('Error loading detailed telemetry data:', error);
+        // Fallback to empty object if loading fails
+        staticTelemetryData = {};
+    }
 }

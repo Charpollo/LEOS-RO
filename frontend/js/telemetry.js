@@ -285,70 +285,189 @@ export function updateTelemetryUI(activeSatellite, telemetryData) {
                          })()} km/s</span></div>
                          <div class="telemetry-item"><span>Period:</span> <span>${t.period?.toFixed(2) ?? 'N/A'} min</span></div>
                          <div class="telemetry-item"><span>Inclination:</span> <span>${t.inclination?.toFixed(2) ?? 'N/A'}°</span></div>
+                         <div class="telemetry-item"><span>Latitude:</span> <span>${t.latitude?.toFixed(2) ?? 'N/A'}°</span></div>
+                         <div class="telemetry-item"><span>Longitude:</span> <span>${t.longitude?.toFixed(2) ?? 'N/A'}°</span></div>
                      </div>
                  `;
                  
-                 // CRTS-1 subsystems card
-                 if (activeSatellite.toUpperCase().includes('CRTS') && t.subsystems) {
-                     telemetryHTML += `
-                         <div class="telemetry-card" style="margin-top: 15px;">
-                             <h4>CRTS-1 Subsystems</h4>
-                             <div class="telemetry-item"><span>Solar Arrays:</span> <span>${t.subsystems.solarArrays} W</span></div>
-                             <div class="telemetry-item"><span>Power System:</span> <span>${t.subsystems.powerSubsystem}%</span></div>
-                             <div class="telemetry-item"><span>Telescope:</span> <span>${t.subsystems.telescope}</span></div>
-                             <div class="telemetry-item"><span>L-Band Antennas:</span> <span>${t.subsystems.lBandAntennas} dBm</span></div>
-                             <div class="telemetry-item"><span>Ku-Band Antenna:</span> <span>${t.subsystems.kuBandAntenna} Mbps</span></div>
-                             <div class="telemetry-item"><span>Waveguide Array:</span> <span>${t.subsystems.slottedWaveguide}°</span></div>
-                             <div class="telemetry-item"><span>Low Gain Antennas:</span> <span>${t.subsystems.lowGainAntennas}</span></div>
-                             <div class="telemetry-item"><span>Cold Gas Thrusters:</span> <span>${t.subsystems.coldGasThrusters}%</span></div>
-                             <div class="telemetry-item"><span>Magnetometer:</span> <span>${t.subsystems.magnetometer} µT</span></div>
-                             <div class="telemetry-item"><span>Star Trackers:</span> <span>${t.subsystems.starTrackers} arcsec</span></div>
-                             <div class="telemetry-item"><span>Sun Sensor:</span> <span>${t.subsystems.sunSensor}°</span></div>
-                         </div>
-                     `;
+                 // CRTS-1 detailed telemetry from Telem_example.json
+                 if (activeSatellite.toUpperCase().includes('CRTS') && t.systems) {
+                     // Payload Sensors
+                     if (t.Payload_Sensors || (t.systems && t.systems.sensors)) {
+                         const sensors = t.Payload_Sensors || t.systems.sensors || {};
+                         telemetryHTML += `
+                             <div class="telemetry-card" style="margin-top: 15px;">
+                                 <h4>Payload Sensors</h4>
+                                 <div class="telemetry-item"><span>Imaging Mode:</span> <span>${sensors.Imaging_Mode || sensors.imaging_mode || 'N/A'}</span></div>
+                                 <div class="telemetry-item"><span>Sensor Temp:</span> <span>${sensors.Sensor_Temp_C || sensors.sensor_temp || 'N/A'}°C</span></div>
+                                 <div class="telemetry-item"><span>Capture Status:</span> <span>${sensors.Capture_Status || sensors.capture_status || 'N/A'}</span></div>
+                                 <div class="telemetry-item"><span>Image Data Stored:</span> <span>${sensors.Image_Data_Stored_MB || sensors.image_data_stored || 'N/A'} MB</span></div>
+                                 ${sensors.Target_Area ? `
+                                     <div class="telemetry-item"><span>Target Latitude:</span> <span>${sensors.Target_Area.Latitude || 'N/A'}</span></div>
+                                     <div class="telemetry-item"><span>Target Longitude:</span> <span>${sensors.Target_Area.Longitude || 'N/A'}</span></div>
+                                 ` : ''}
+                             </div>
+                         `;
+                     }
+                     
+                     // Power & Thermal
+                     if (t.Power_Thermal || (t.systems && (t.systems.power || t.systems.thermal))) {
+                         const power = t.Power_Thermal || {};
+                         const systemPower = t.systems && t.systems.power || {};
+                         const systemThermal = t.systems && t.systems.thermal || {};
+                         telemetryHTML += `
+                             <div class="telemetry-card" style="margin-top: 15px;">
+                                 <h4>Power & Thermal</h4>
+                                 <div class="telemetry-item"><span>Battery Level:</span> <span>${power.Battery_Level_Percent || systemPower.battery_level || systemPower.value || 'N/A'}%</span></div>
+                                 <div class="telemetry-item"><span>Solar Panel Output:</span> <span>${power.Solar_Panel_Output_W || systemPower.solar_panels || 'N/A'} W</span></div>
+                                 <div class="telemetry-item"><span>Thermal Regulator:</span> <span>${power.Thermal_Regulator_Status || systemThermal.status || 'N/A'}</span></div>
+                                 <div class="telemetry-item"><span>Battery Temp:</span> <span>${power.Battery_Temperature_C || systemThermal.battery_temp || 'N/A'}°C</span></div>
+                                 <div class="telemetry-item"><span>Panel Orientation:</span> <span>${power.Panel_Orientation_Deg || 'N/A'}°</span></div>
+                             </div>
+                         `;
+                     }
+                     
+                     // Communications
+                     if (t.Communications || (t.systems && t.systems.communications)) {
+                         const comms = t.Communications || t.systems.communications || {};
+                         telemetryHTML += `
+                             <div class="telemetry-card" style="margin-top: 15px;">
+                                 <h4>Communications</h4>
+                                 <div class="telemetry-item"><span>X-Band Link:</span> <span>${comms.X_Band_Link_Status || comms.status || 'N/A'}</span></div>
+                                 <div class="telemetry-item"><span>Uplink Signal:</span> <span>${comms.Uplink_Signal_Strength_dBm || comms.signal_strength || 'N/A'} dBm</span></div>
+                                 <div class="telemetry-item"><span>Downlink Rate:</span> <span>${comms.Downlink_Rate_Mbps || comms.data_rate || 'N/A'} Mbps</span></div>
+                                 <div class="telemetry-item"><span>Last Ground Contact:</span> <span>${comms.Last_Ground_Contact_Min || 'N/A'} min ago</span></div>
+                                 <div class="telemetry-item"><span>Comm Errors:</span> <span>${comms.Comm_Errors || '0'}</span></div>
+                             </div>
+                         `;
+                     }
+                     
+                     // GNC (Guidance, Navigation, Control)
+                     if (t.GNC || (t.systems && t.systems.attitude)) {
+                         const gnc = t.GNC || {};
+                         const attitude = t.systems && t.systems.attitude || {};
+                         telemetryHTML += `
+                             <div class="telemetry-card" style="margin-top: 15px;">
+                                 <h4>Guidance, Navigation & Control</h4>
+                                 ${gnc.Pitch_Yaw_Roll_Deg ? `
+                                     <div class="telemetry-item"><span>Pitch:</span> <span>${gnc.Pitch_Yaw_Roll_Deg.Pitch || attitude.pitch || 'N/A'}°</span></div>
+                                     <div class="telemetry-item"><span>Yaw:</span> <span>${gnc.Pitch_Yaw_Roll_Deg.Yaw || attitude.yaw || 'N/A'}°</span></div>
+                                     <div class="telemetry-item"><span>Roll:</span> <span>${gnc.Pitch_Yaw_Roll_Deg.Roll || attitude.roll || 'N/A'}°</span></div>
+                                 ` : ''}
+                                 <div class="telemetry-item"><span>Orbit Altitude:</span> <span>${gnc.Orbit_Altitude_km || 'N/A'} km</span></div>
+                                 <div class="telemetry-item"><span>Velocity:</span> <span>${gnc.Velocity_km_s || 'N/A'} km/s</span></div>
+                                 <div class="telemetry-item"><span>Sun Sensor Alignment:</span> <span>${gnc.Sun_Sensor_Alignment_Percent || 'N/A'}%</span></div>
+                                 <div class="telemetry-item"><span>Star Tracker Lock:</span> <span>${gnc.Star_Tracker_Lock || 'N/A'}</span></div>
+                             </div>
+                         `;
+                     }
+                     
+                     // CDH (Command & Data Handling)
+                     if (t.CDH) {
+                         const cdh = t.CDH;
+                         telemetryHTML += `
+                             <div class="telemetry-card" style="margin-top: 15px;">
+                                 <h4>Command & Data Handling</h4>
+                                 <div class="telemetry-item"><span>CPU Usage:</span> <span>${cdh.CPU_Usage_Percent || 'N/A'}%</span></div>
+                                 <div class="telemetry-item"><span>Storage Used:</span> <span>${cdh.Storage_Used_GB || 'N/A'}</span></div>
+                                 <div class="telemetry-item"><span>Command Queue:</span> <span>${cdh.Command_Queue || 'N/A'}</span></div>
+                                 <div class="telemetry-item"><span>System Clock:</span> <span>${cdh.System_Clock_Sync || 'N/A'}</span></div>
+                                 <div class="telemetry-item"><span>Bus Status:</span> <span>${cdh.Bus_Status || 'N/A'}</span></div>
+                             </div>
+                         `;
+                     }
                  }
                  
-                 // BULLDOG subsystems card
-                 if (activeSatellite.toUpperCase().includes('BULLDOG') && t.subsystems) {
-                     telemetryHTML += `
-                         <div class="telemetry-card" style="margin-top: 15px;">
-                             <h4>BULLDOG Subsystems</h4>
-                             <div class="telemetry-section"><strong>Propulsion & Power</strong></div>
-                             <div class="telemetry-item"><span>Ion Propulsion:</span> <span>${t.subsystems.ionPropulsion}</span></div>
-                             <div class="telemetry-item"><span>Hall Thrusters:</span> <span>${t.subsystems.hallThrusters}%</span></div>
-                             <div class="telemetry-item"><span>Solar Arrays:</span> <span>${t.subsystems.solarArrays} W</span></div>
-                             <div class="telemetry-item"><span>Power Element:</span> <span>${t.subsystems.powerElement}%</span></div>
-                             <div class="telemetry-item"><span>Cold Gas Thrusters:</span> <span>${t.subsystems.coldGasThrusters}%</span></div>
-                             
-                             <div class="telemetry-section" style="margin-top: 10px;"><strong>Scientific Payload</strong></div>
-                             <div class="telemetry-item"><span>Atmospheric Explorer:</span> <span>${t.subsystems.atmosphericExplorer}</span></div>
-                             <div class="telemetry-item"><span>Mass Spectrometer:</span> <span>${t.subsystems.massSpectrometer}%</span></div>
-                             <div class="telemetry-item"><span>X-ray Spectrometer:</span> <span>${t.subsystems.xraySpectrometer}</span></div>
-                             <div class="telemetry-item"><span>Space Camera:</span> <span>${t.subsystems.spaceCamera}</span></div>
-                             <div class="telemetry-item"><span>Terrain Mapper:</span> <span>${t.subsystems.terrainMapper}</span></div>
-                             <div class="telemetry-item"><span>Laser Retroreflector:</span> <span>${t.subsystems.laserRetroReflector}</span></div>
-                             
-                             <div class="telemetry-section" style="margin-top: 10px;"><strong>Communications</strong></div>
-                             <div class="telemetry-item"><span>Ku-Band Antennas:</span> <span>${t.subsystems.kuBandAntennas} dBm</span></div>
-                             <div class="telemetry-item"><span>X-Band Antennas:</span> <span>${t.subsystems.xBandAntennas} dBm</span></div>
-                             <div class="telemetry-item"><span>TTC Antenna:</span> <span>${t.subsystems.ttcAntenna}%</span></div>
-                             <div class="telemetry-item"><span>High Gain Antenna:</span> <span>${t.subsystems.highGainAntenna} Mbps</span></div>
-                             <div class="telemetry-item"><span>Directional Comm:</span> <span>${t.subsystems.directionalComm}%</span></div>
-                             
-                             <div class="telemetry-section" style="margin-top: 10px;"><strong>Navigation & Control</strong></div>
-                             <div class="telemetry-item"><span>Star Trackers:</span> <span>${t.subsystems.starTrackers} arcsec</span></div>
-                             <div class="telemetry-item"><span>ADCS System:</span> <span>${t.subsystems.adcsSystem}%</span></div>
-                             
-                             <div class="telemetry-section" style="margin-top: 10px;"><strong>Other</strong></div>
-                             <div class="telemetry-item"><span>Nanosat Docks:</span> <span>${t.subsystems.nanosatDocks}</span></div>
-                         </div>
-                     `;
+                 // BULLDOG detailed telemetry from Telem_example.json
+                 if (activeSatellite.toUpperCase().includes('BULLDOG') && t.systems) {
+                     // Propulsion & Power
+                     if (t.Propulsion_Power || (t.systems && (t.systems.propulsion || t.systems.power))) {
+                         const propPower = t.Propulsion_Power || {};
+                         const sysPower = t.systems && t.systems.power || {};
+                         const sysProp = t.systems && t.systems.propulsion || {};
+                         telemetryHTML += `
+                             <div class="telemetry-card" style="margin-top: 15px;">
+                                 <h4>Propulsion & Power</h4>
+                                 <div class="telemetry-item"><span>Propulsion Mode:</span> <span>${propPower.Propulsion_Mode || sysProp.mode || 'N/A'}</span></div>
+                                 <div class="telemetry-item"><span>Thruster Status:</span> <span>${propPower.Thruster_Status || sysProp.thruster_status || 'N/A'}</span></div>
+                                 <div class="telemetry-item"><span>Fuel Remaining:</span> <span>${propPower.Fuel_Remaining_Percent || sysProp.fuel_level || 'N/A'}%</span></div>
+                                 <div class="telemetry-item"><span>Power Draw:</span> <span>${propPower.Power_Draw_W || sysPower.power_draw || 'N/A'} W</span></div>
+                                 <div class="telemetry-item"><span>Battery Temp:</span> <span>${propPower.Battery_Temp_C || sysPower.battery_temp || 'N/A'}°C</span></div>
+                             </div>
+                         `;
+                     }
+                     
+                     // Scientific Payloads
+                     if (t.Scientific_Payloads || (t.systems && t.systems.payload)) {
+                         const payload = t.Scientific_Payloads || t.systems.payload || {};
+                         telemetryHTML += `
+                             <div class="telemetry-card" style="margin-top: 15px;">
+                                 <h4>Scientific Payloads</h4>
+                                 <div class="telemetry-item"><span>ACE Status:</span> <span>${payload.ACE_Status || 'N/A'}</span></div>
+                                 <div class="telemetry-item"><span>XRS Activity:</span> <span>${payload.XRS_Activity || 'N/A'}</span></div>
+                                 <div class="telemetry-item"><span>TMC Mapping:</span> <span>${payload.TMC_Mapping_Area || 'N/A'}</span></div>
+                                 <div class="telemetry-item"><span>LRA Signal Return:</span> <span>${payload.LRA_Signal_Return || 'N/A'}</span></div>
+                                 <div class="telemetry-item"><span>MPSC Imaging:</span> <span>${payload.MPSC_Imaging || payload.imaging_system || 'N/A'}</span></div>
+                             </div>
+                         `;
+                     }
+                     
+                     // Communications
+                     if (t.Communications || (t.systems && t.systems.communications)) {
+                         const comms = t.Communications || t.systems.communications || {};
+                         telemetryHTML += `
+                             <div class="telemetry-card" style="margin-top: 15px;">
+                                 <h4>Communications</h4>
+                                 <div class="telemetry-item"><span>Ku-Band Uplink:</span> <span>${comms.Ku_Band_Uplink_Rate_Mbps || 'N/A'} Mbps</span></div>
+                                 <div class="telemetry-item"><span>X-Band Link:</span> <span>${comms.X_Band_Link_Status || comms.status || 'N/A'}</span></div>
+                                 <div class="telemetry-item"><span>TTC Signal Quality:</span> <span>${comms.TTandC_Signal_Quality || 'N/A'}</span></div>
+                                 <div class="telemetry-item"><span>MHGA Pointing:</span> <span>${comms.MHGA_Pointing_Vector || 'N/A'}</span></div>
+                                 <div class="telemetry-item"><span>DCA Redundancy:</span> <span>${comms.DCA_Redundancy_Check || 'N/A'}</span></div>
+                             </div>
+                         `;
+                     }
+                     
+                     // Navigation & Control
+                     if (t.Navigation_Control || (t.systems && t.systems.attitude)) {
+                         const navCtrl = t.Navigation_Control || {};
+                         const attitude = t.systems && t.systems.attitude || {};
+                         telemetryHTML += `
+                             <div class="telemetry-card" style="margin-top: 15px;">
+                                 <h4>Navigation & Control</h4>
+                                 <div class="telemetry-item"><span>ADCS Mode:</span> <span>${navCtrl.ADCS_Mode || attitude.status || 'N/A'}</span></div>
+                                 <div class="telemetry-item"><span>Star Tracker Error:</span> <span>${navCtrl.Star_Tracker_Error_Deg || 'N/A'}°</span></div>
+                                 <div class="telemetry-item"><span>Angular Velocity:</span> <span>${navCtrl.Angular_Velocity_rad_s || 'N/A'} rad/s</span></div>
+                                 <div class="telemetry-item"><span>Reaction Wheels:</span> <span>${navCtrl.Reaction_Wheels || 'N/A'}</span></div>
+                                 <div class="telemetry-item"><span>Orbit Path Deviation:</span> <span>${navCtrl.Orbit_Path_Deviation_m || 'N/A'}</span></div>
+                             </div>
+                         `;
+                     }
+                     
+                     // Experimental Systems
+                     if (t.Experimental_Systems) {
+                         const exp = t.Experimental_Systems;
+                         telemetryHTML += `
+                             <div class="telemetry-card" style="margin-top: 15px;">
+                                 <h4>Experimental Systems</h4>
+                                 ${exp.Dock_Port_Status ? `
+                                     <div class="telemetry-item"><span>Dock Port 1:</span> <span>${exp.Dock_Port_Status.Port_1 || 'N/A'}</span></div>
+                                     <div class="telemetry-item"><span>Dock Port 2:</span> <span>${exp.Dock_Port_Status.Port_2 || 'N/A'}</span></div>
+                                 ` : ''}
+                                 <div class="telemetry-item"><span>Software Config:</span> <span>${exp.Software_Config || 'N/A'}</span></div>
+                                 ${exp.Autonomous_Maneuver_Log ? `
+                                     <div class="telemetry-item"><span>Maneuvers Planned:</span> <span>${exp.Autonomous_Maneuver_Log.Planned || 'N/A'}</span></div>
+                                     <div class="telemetry-item"><span>Maneuvers Completed:</span> <span>${exp.Autonomous_Maneuver_Log.Completed || 'N/A'}</span></div>
+                                 ` : ''}
+                                 <div class="telemetry-item"><span>Mission Mode:</span> <span>${exp.Mission_Mode || 'N/A'}</span></div>
+                             </div>
+                         `;
+                     }
                  }
                  
                  // Add note about upcoming features
                  telemetryHTML += `
                      <div class="telemetry-note" style="margin-top: 15px; padding: 10px; background: rgba(0, 100, 200, 0.1); border-radius: 5px; border-left: 3px solid #00a8ff;">
-                         <strong>Coming Soon:</strong> Real-time data graphs and detailed subsystem drill-down capabilities will be available in the next update.
+                         <strong>Coming Soon:</strong> Real-time data graphs, detailed subsystem drill-down capabilities, and integrated dashboards will be available in the next update.
                      </div>
                  `;
                  

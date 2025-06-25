@@ -195,7 +195,7 @@ function addGroundStationLabel(stationName, mesh, advancedTexture) {
   labelBtn.linkOffsetY = -45; // Position above the station
   labelBtn.isVisible = true;
   
-  // Scale label based on camera distance
+  // Scale label based on camera distance and Earth horizon visibility
   const scene = mesh.getScene();
   scene.onBeforeRenderObservable.add(() => {
     const camera = scene.activeCamera;
@@ -203,20 +203,49 @@ function addGroundStationLabel(stationName, mesh, advancedTexture) {
 
     const dist = BABYLON.Vector3.Distance(camera.position, mesh.position);
 
-    // Scale labels within defined bounds to avoid over/under sizing
-    const rawScale = 2.0 / dist;
-    const minScale = 0.1; // Lower bound for far-out views to keep labels small
-    const maxScale = 1.0; // Prevent labels from growing above original size
-    const scale = Math.min(maxScale, Math.max(minScale, rawScale));
+    // Check if ground station is visible from camera (not behind Earth's horizon)
+    const cameraPos = camera.position;
+    const stationPos = mesh.absolutePosition || mesh.position;
+    const earthCenter = BABYLON.Vector3.Zero();
+    
+    // Calculate if station is on the visible side of Earth from camera
+    const cameraToEarth = earthCenter.subtract(cameraPos).normalize();
+    const cameraToStation = stationPos.subtract(cameraPos).normalize();
+    
+    // If the angle between camera-to-earth and camera-to-station vectors is less than ~90 degrees,
+    // the station is on the visible hemisphere
+    const dotProduct = BABYLON.Vector3.Dot(cameraToEarth, cameraToStation);
+    const isOnVisibleSide = dotProduct > -0.1; // Small buffer to prevent flickering at horizon
+    
+    // Additional check: make sure station isn't directly behind Earth
+    const stationToCamera = cameraPos.subtract(stationPos);
+    const stationToEarth = earthCenter.subtract(stationPos);
+    const stationDot = BABYLON.Vector3.Dot(stationToCamera.normalize(), stationToEarth.normalize());
+    const isNotBehindEarth = stationDot < 0.8; // Station should face generally toward camera
+    
+    // Only show label if station is on visible side and not behind Earth
+    const isVisible = isOnVisibleSide && isNotBehindEarth;
+    
+    if (isVisible) {
+      // Scale labels within defined bounds to avoid over/under sizing
+      const rawScale = 2.0 / dist;
+      const minScale = 0.1; // Lower bound for far-out views to keep labels small
+      const maxScale = 1.0; // Prevent labels from growing above original size
+      const scale = Math.min(maxScale, Math.max(minScale, rawScale));
 
-    // Fade out when very far to reduce clutter
-    if (dist > 8) {
-      labelBtn.alpha = Math.max(0.2, 0.9 * (10 - dist) / 2);
+      // Fade out when very far to reduce clutter
+      if (dist > 8) {
+        labelBtn.alpha = Math.max(0.2, 0.9 * (10 - dist) / 2);
+      } else {
+        labelBtn.alpha = 0.9;
+      }
+
+      labelBtn.scaleX = labelBtn.scaleY = scale;
+      labelBtn.isVisible = true;
     } else {
-      labelBtn.alpha = 0.9;
+      // Hide label when station is not visible from camera position
+      labelBtn.isVisible = false;
     }
-
-    labelBtn.scaleX = labelBtn.scaleY = scale;
   });
 }
 
