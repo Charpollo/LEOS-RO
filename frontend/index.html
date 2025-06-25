@@ -60,6 +60,19 @@
         justify-content: center;
         color: #fff;
       }
+      /* Apply orange pulse animation to data sources button */
+      #data-sources-btn {
+        animation: pulse-orange 3s ease-in-out infinite;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+      }
+      @keyframes pulse-orange {
+        0% { box-shadow: 0 0 0 0 rgba(255,140,0,0.7); }
+        70% { box-shadow: 0 0 0 12px rgba(255,140,0,0); }
+        100% { box-shadow: 0 0 0 0 rgba(255,140,0,0); }
+      }
     </style>
 </head>
 <body>
@@ -68,7 +81,7 @@
         <button id="help-sphere-btn" title="Help" style="position:absolute; top:16px; left:16px; width:36px; height:36px; border-radius:50%; background:rgba(102,217,255,0.7); border:2px solid #00cfff; cursor:pointer; z-index:5000; display:none; pointer-events:auto;">i</button>
         
         <!-- Data Sources Button -->
-        <button id="data-sources-btn" title="Data Sources (Ctrl+D)" onclick="window.dataSourceUI?.toggle()" style="position:absolute; top:16px; left:60px; width:36px; height:36px; border-radius:50%; background:rgba(255,140,0,0.7); border:2px solid #ff8c00; cursor:pointer; z-index:5000; display:none; pointer-events:auto; font-size:16px; color:white;">📊</button>
+        <button id="data-sources-btn" title="Data Sources (Ctrl+D)" onclick="window.dataSourceUI?.toggle()" style="position:absolute; top:16px; left:60px; width:36px; height:36px; border-radius:50%; background:rgba(255,140,0,0.7); border:2px solid #ff8c00; cursor:pointer; z-index:5000; display:none; pointer-events:auto; font-size:16px; color:white;">�</button>
 
         <!-- SDA Toggle Button (hidden until simulation starts) -->
         <button id="sda-toggle-btn" title="Toggle SDA" style="position:absolute; top:60px; left:16px; width:36px; height:36px; border-radius:50%; background:rgba(102,217,255,0.7); border:2px solid #00cfff; cursor:pointer; z-index:5000; display:none; pointer-events:auto; text-align:center; line-height:36px; font-size:16px;">🛰️</button>
