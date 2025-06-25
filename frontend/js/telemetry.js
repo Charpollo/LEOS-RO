@@ -1,28 +1,5 @@
 // Telemetry module for generating and displaying telemetry data
 
-// Add data source integration
-let dataSourceManager = null;
-
-// Initialize data source integration
-export function initializeDataSources() {
-    // Import and initialize data source manager if available
-    import('./data-source-ui.js').then(({ dataSourceUI }) => {
-        dataSourceManager = dataSourceUI.getDataManager();
-        
-        // Subscribe to data updates
-        dataSourceManager.subscribe((event, data) => {
-            if (event === 'data' || event === 'data-refreshed') {
-                handleExternalTelemetryData(data);
-            }
-        });
-        
-        // Set default source to static files
-        dataSourceManager.setActiveSource('static_bulldog').catch(console.error);
-    }).catch(() => {
-        console.log('Data source system not available, using static telemetry');
-    });
-}
-
 // Handle external telemetry data
 function handleExternalTelemetryData(data) {
     if (!data) return;

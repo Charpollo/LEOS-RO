@@ -21,7 +21,7 @@ import { createSkybox } from './skybox.js';
 import { createEarth } from './earth.js';
 import { createMoon } from './moon.js';
 import { createSatellites, getSatelliteMeshes, getTelemetryData } from './satellites.js';
-import { updateTelemetryUI, initializeDataSources } from './telemetry.js';
+import { updateTelemetryUI } from './telemetry.js';
 import { startSimulationLoop, updateTimeDisplay, getCurrentSimTime } from './simulation.js';
 import { setupKeyboardControls } from './controls.js';
 import { createGroundStations, updateGroundStationsLOS, createCoverageCircles, getGroundStationMeshes, clearAutoLOSBeams, getGroundStationDefinitions, createTestConnection } from './groundStations.js';
@@ -68,11 +68,6 @@ export async function initApp() {
     
     // Initialize 3D model viewer panel
     initModelViewer();
-    
-    // Initialize data source system for flexible telemetry input
-    setTimeout(() => {
-        initializeDataSources();
-    }, 500);
     
     // Set up listener for LEOS dial buttons
     window.addEventListener('leos-dial-action', (event) => {
