@@ -1,0 +1,343 @@
+/* Data Source Manager UI Styles */
+.data-source-panel {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 450px;
+    max-height: 80vh;
+    background: rgba(0, 20, 40, 0.95);
+    border: 1px solid #00a8ff;
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0, 168, 255, 0.3);
+    backdrop-filter: blur(10px);
+    z-index: 1000;
+    font-family: 'Arial', sans-serif;
+    overflow-y: auto;
+    transition: all 0.3s ease;
+}
+
+.data-source-panel.hidden {
+    opacity: 0;
+    transform: translateX(100%);
+    pointer-events: none;
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    border-bottom: 1px solid #00a8ff;
+    background: rgba(0, 168, 255, 0.1);
+}
+
+.panel-header h3 {
+    margin: 0;
+    color: #00a8ff;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    color: #00a8ff;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.2s;
+}
+
+.close-btn:hover {
+    background: rgba(0, 168, 255, 0.2);
+}
+
+.panel-content {
+    padding: 20px;
+}
+
+.panel-content h4 {
+    color: #ffffff;
+    font-size: 14px;
+    margin: 20px 0 10px 0;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #444;
+}
+
+.panel-content h4:first-child {
+    margin-top: 0;
+}
+
+/* Current Source Info */
+.current-source {
+    margin-bottom: 25px;
+}
+
+#current-source-info {
+    padding: 10px;
+    background: rgba(0, 168, 255, 0.1);
+    border-radius: 5px;
+    color: #ffffff;
+    font-size: 12px;
+}
+
+.active-source strong {
+    color: #00a8ff;
+}
+
+.status.connected {
+    color: #00ff88;
+}
+
+.status.disconnected {
+    color: #ff6b6b;
+}
+
+.last-update {
+    font-size: 11px;
+    color: #aaa;
+    margin-top: 5px;
+}
+
+/* Source List */
+.source-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    margin: 8px 0;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 5px;
+    border-left: 3px solid #444;
+    transition: all 0.2s;
+}
+
+.source-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.source-item.active {
+    border-left-color: #00a8ff;
+    background: rgba(0, 168, 255, 0.1);
+}
+
+.source-item.connected .status-indicator {
+    background: #00ff88;
+}
+
+.source-item.disconnected .status-indicator {
+    background: #ff6b6b;
+}
+
+.source-info {
+    flex: 1;
+}
+
+.source-name {
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.source-type {
+    color: #00a8ff;
+    font-size: 11px;
+    text-transform: uppercase;
+    font-weight: 500;
+}
+
+.source-description {
+    color: #aaa;
+    font-size: 11px;
+    margin-top: 2px;
+}
+
+.source-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.source-controls button {
+    background: linear-gradient(135deg, #00a8ff, #0078d4);
+    border: none;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.source-controls button:hover:not(:disabled) {
+    background: linear-gradient(135deg, #0078d4, #005a9e);
+    transform: translateY(-1px);
+}
+
+.source-controls button:disabled {
+    background: #555;
+    cursor: not-allowed;
+}
+
+.status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #666;
+}
+
+/* Custom Source Forms */
+.source-type-tabs {
+    display: flex;
+    margin-bottom: 15px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.tab-btn {
+    flex: 1;
+    background: none;
+    border: none;
+    color: #aaa;
+    padding: 10px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.tab-btn.active {
+    background: #00a8ff;
+    color: white;
+}
+
+.tab-btn:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    color: #ffffff;
+    font-size: 12px;
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid #555;
+    border-radius: 4px;
+    padding: 8px;
+    color: #ffffff;
+    font-size: 12px;
+    box-sizing: border-box;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: #00a8ff;
+    box-shadow: 0 0 0 2px rgba(0, 168, 255, 0.2);
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+    color: #888;
+}
+
+.form-group textarea {
+    resize: vertical;
+    font-family: 'Courier New', monospace;
+}
+
+.source-config button {
+    background: linear-gradient(135deg, #00a8ff, #0078d4);
+    border: none;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 5px;
+    font-size: 12px;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 10px;
+    transition: all 0.2s;
+}
+
+.source-config button:hover {
+    background: linear-gradient(135deg, #0078d4, #005a9e);
+    transform: translateY(-1px);
+}
+
+/* Connection Status */
+#connection-status {
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+}
+
+#connection-status.connected {
+    background: rgba(0, 255, 136, 0.2);
+    color: #00ff88;
+    border: 1px solid #00ff88;
+}
+
+#connection-status.disconnected {
+    background: rgba(255, 107, 107, 0.2);
+    color: #ff6b6b;
+    border: 1px solid #ff6b6b;
+}
+
+#data-info {
+    margin-top: 10px;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+    font-size: 11px;
+    color: #aaa;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .data-source-panel {
+        width: 90vw;
+        right: 5vw;
+        left: 5vw;
+        max-height: 70vh;
+    }
+}
+
+/* Scrollbar Styling */
+.data-source-panel::-webkit-scrollbar {
+    width: 6px;
+}
+
+.data-source-panel::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+
+.data-source-panel::-webkit-scrollbar-thumb {
+    background: #00a8ff;
+    border-radius: 3px;
+}
+
+.data-source-panel::-webkit-scrollbar-thumb:hover {
+    background: #0078d4;
+}

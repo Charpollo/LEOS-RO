@@ -1,5 +1,5 @@
 import * as BABYLON from '@babylonjs/core';
-import { EARTH_RADIUS, EARTH_SCALE } from './constants.js';
+import { EARTH_RADIUS, EARTH_SCALE, SATELLITE_POSITION_SCALE } from './constants.js';
 import { calculateSatellitePosition, toBabylonPosition } from './orbital-mechanics.js';
 
 // SDA Visualization Module - Self-contained and modular
@@ -456,11 +456,21 @@ class SDAVisualization {
     // Earth radius = 6371 km = 1 Babylon unit, so scale = 1/6371
     const scale = 1 / 6371;
     
-    return new BABYLON.Vector3(
+    const babylonPos = new BABYLON.Vector3(
       position.x * scale,
       position.z * scale, // Swap Y and Z for Babylon coordinate system
       position.y * scale
     );
+    
+    // Apply the same satellite position scaling as in orbital-mechanics.js
+    // This ensures SDA objects and satellites use consistent visual positioning
+    const distanceFromCenter = babylonPos.length();
+    if (distanceFromCenter > 1.0) { // Only scale objects outside Earth's core
+        const scaledDistance = 1.0 + (distanceFromCenter - 1.0) * SATELLITE_POSITION_SCALE;
+        babylonPos.scaleInPlace(scaledDistance / distanceFromCenter);
+    }
+    
+    return babylonPos;
   }
 
   updateMeshes() {

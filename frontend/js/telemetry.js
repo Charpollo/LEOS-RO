@@ -1,5 +1,127 @@
 // Telemetry module for generating and displaying telemetry data
 
+// Add data source integration
+let dataSourceManager = null;
+
+// Initialize data source integration
+export function initializeDataSources() {
+    // Import and initialize data source manager if available
+    import('./data-source-ui.js').then(({ dataSourceUI }) => {
+        dataSourceManager = dataSourceUI.getDataManager();
+        
+        // Subscribe to data updates
+        dataSourceManager.subscribe((event, data) => {
+            if (event === 'data' || event === 'data-refreshed') {
+                handleExternalTelemetryData(data);
+            }
+        });
+        
+        // Set default source to static files
+        dataSourceManager.setActiveSource('static_bulldog').catch(console.error);
+    }).catch(() => {
+        console.log('Data source system not available, using static telemetry');
+    });
+}
+
+// Handle external telemetry data
+function handleExternalTelemetryData(data) {
+    if (!data) return;
+    
+    // Convert external data format to internal format
+    if (Array.isArray(data)) {
+        // Handle batch data (from files, APIs, etc.)
+        data.forEach(item => processExternalTelemetryItem(item));
+    } else {
+        // Handle single data point (from WebSocket, etc.)
+        processExternalTelemetryItem(data);
+    }
+}
+
+function processExternalTelemetryItem(item) {
+    // Normalize external data to internal telemetry format
+    const satelliteName = item.satellite || item.name || 'Unknown';
+    
+    // Convert external format to internal telemetry structure
+    const telemetry = {
+        timestamp: item.timestamp,
+        altitude: item.altitude_km || item.altitude,
+        latitude: item.latitude_deg || item.latitude,
+        longitude: item.longitude_deg || item.longitude,
+        speed: item.velocity_kmps || item.velocity || item.speed,
+        velocity: item.velocity_eci || item.velocity,
+        position_eci: item.position_eci || item.position,
+        
+        // Add computed values if missing
+        ...generateComputedTelemetryValues(item)
+    };
+    
+    // Update global telemetry data
+    if (window.telemetryData) {
+        window.telemetryData[satelliteName] = telemetry;
+        
+        // Trigger UI update if this satellite is currently selected
+        if (window.activeSatellite === satelliteName) {
+            updateTelemetryUI(satelliteName, window.telemetryData);
+        }
+    }
+}
+
+function generateComputedTelemetryValues(item) {
+    // Generate missing telemetry values from available data
+    const computed = {};
+    
+    // Calculate period if missing
+    if (!item.period && item.altitude_km) {
+        const altitude = item.altitude_km;
+        const r = 6371 + altitude; // km
+        computed.period = 2 * Math.PI * Math.sqrt((r * r * r) / 398600.4418) / 60; // minutes
+    }
+    
+    // Calculate inclination if missing (placeholder)
+    if (!item.inclination) {
+        computed.inclination = 97.4; // Default to sun-synchronous
+    }
+    
+    // Generate realistic systems data based on orbital position
+    computed.systems = generateSystemsFromPosition(item);
+    
+    return computed;
+}
+
+function generateSystemsFromPosition(item) {
+    // Generate realistic systems telemetry based on position and time
+    const isInSunlight = calculateSunlightStatus(item);
+    const isOverPoles = Math.abs(item.latitude_deg || item.latitude || 0) > 60;
+    
+    return {
+        power: {
+            battery: Math.round(75 + (isInSunlight ? 15 : -5) + Math.random() * 10),
+            solar_array: isInSunlight ? Math.round(75 + Math.random() * 25) : 0,
+            power_consumption: Math.round(8 + Math.random() * 4 + (isOverPoles ? 2 : 0))
+        },
+        thermal: {
+            core_temp: Math.round((isInSunlight ? 25 : -10) + Math.random() * 8),
+            solar_array_temp: Math.round((isInSunlight ? 35 : -20) + Math.random() * 15),
+            battery_temp: Math.round(15 + Math.random() * 10)
+        },
+        comms: {
+            signal_strength: Math.round(80 + Math.random() * 20 - (isOverPoles ? 10 : 0)),
+            data_rate: Math.round(70 + Math.random() * 30),
+            packet_loss: Math.round(Math.random() * (isOverPoles ? 8 : 3))
+        }
+    };
+}
+
+function calculateSunlightStatus(item) {
+    // Simplified sunlight calculation
+    const hour = new Date(item.timestamp).getUTCHours();
+    const longitude = item.longitude_deg || item.longitude || 0;
+    
+    // Rough calculation of local solar time
+    const localHour = (hour + longitude / 15) % 24;
+    return localHour > 6 && localHour < 18;
+}
+
 export function generateRealTimeTelemetry(position, velocity, elements, satName) {
     // Calculate basic telemetry values from orbital elements
     const altitude = Math.sqrt(

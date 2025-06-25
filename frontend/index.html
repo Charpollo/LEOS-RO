@@ -6,6 +6,7 @@
     <title>LEOS: First Orbit - Satellite Visualization</title>
     <link rel="stylesheet" href="css/brand-ui.css">
     <link rel="stylesheet" href="css/sda-styles.css">
+    <link rel="stylesheet" href="css/data-sources.css">
     <!-- Load the bundled JavaScript only once -->
     <script defer src="dist/js/bundle.js"></script>
     <style>
@@ -65,6 +66,9 @@
     <div id="renderCanvas-container">
         <!-- Help Sphere Button (hidden until simulation starts) -->
         <button id="help-sphere-btn" title="Help" style="position:absolute; top:16px; left:16px; width:36px; height:36px; border-radius:50%; background:rgba(102,217,255,0.7); border:2px solid #00cfff; cursor:pointer; z-index:5000; display:none; pointer-events:auto;">i</button>
+        
+        <!-- Data Sources Button -->
+        <button id="data-sources-btn" title="Data Sources (Ctrl+D)" onclick="window.dataSourceUI?.toggle()" style="position:absolute; top:16px; left:60px; width:36px; height:36px; border-radius:50%; background:rgba(255,140,0,0.7); border:2px solid #ff8c00; cursor:pointer; z-index:5000; display:none; pointer-events:auto; font-size:16px; color:white;">📊</button>
 
         <!-- SDA Toggle Button (hidden until simulation starts) -->
         <button id="sda-toggle-btn" title="Toggle SDA" style="position:absolute; top:60px; left:16px; width:36px; height:36px; border-radius:50%; background:rgba(102,217,255,0.7); border:2px solid #00cfff; cursor:pointer; z-index:5000; display:none; pointer-events:auto; text-align:center; line-height:36px; font-size:16px;">🛰️</button>
@@ -426,18 +430,21 @@
         (function() {
             const loadingScreen = document.getElementById('loading-screen');
             const helpBtn = document.getElementById('help-sphere-btn');
-            function updateHelpVisibility() {
+            const dataBtn = document.getElementById('data-sources-btn');
+            function updateButtonVisibility() {
                 if (loadingScreen.style.display === 'none') {
                     helpBtn.style.display = 'block';
+                    dataBtn.style.display = 'block';
                 } else {
                     helpBtn.style.display = 'none';
+                    dataBtn.style.display = 'none';
                 }
             }
             // Observe loading screen hiding
-            const observer = new MutationObserver(updateHelpVisibility);
+            const observer = new MutationObserver(updateButtonVisibility);
             observer.observe(loadingScreen, { attributes: true, attributeFilter: ['style'] });
             // Initial check
-            updateHelpVisibility();
+            updateButtonVisibility();
         })();
         // Help sphere toggle and close on canvas click
         (function() {

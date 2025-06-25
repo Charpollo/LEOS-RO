@@ -1,6 +1,12 @@
 // Constants for the simulation
 export const EARTH_RADIUS = 6371; // km
 export const EARTH_SCALE = 1 / EARTH_RADIUS; // 1 Babylon unit = 6371 km
+
+// Visual scaling adjustment to account for atmosphere layers
+// The Earth mesh has radius=1.0, but with atmosphere layers the visual radius is ~1.025
+// So we need to scale satellite positions to appear at correct visual altitude
+export const VISUAL_EARTH_RADIUS_BABYLON = 1.025; // Babylon units (accounts for atmosphere)
+export const SATELLITE_POSITION_SCALE = VISUAL_EARTH_RADIUS_BABYLON / 1.0; // Scale factor for satellite positions
 export const MIN_LEO_ALTITUDE_KM = 160; // Minimum altitude above Earth surface for LEO
 export const MOON_DISTANCE = 384400 * EARTH_SCALE;
 export const MOON_SCALE = 0.27;

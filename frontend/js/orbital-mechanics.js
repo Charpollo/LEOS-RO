@@ -4,7 +4,7 @@
  */
 
 import * as BABYLON from '@babylonjs/core';
-import { EARTH_SCALE } from './constants.js';
+import { EARTH_SCALE, SATELLITE_POSITION_SCALE } from './constants.js';
 
 // Earth constants
 const EARTH_RADIUS_KM = 6371.0;
@@ -217,11 +217,22 @@ export function generateRealTimeTelemetry(position, velocity, elements, satName)
 export function toBabylonPosition(position, scale = EARTH_SCALE) {
     // Convert from orbital mechanics coordinates to Babylon.js
     // Swap Y and Z, and apply scaling
-    return new BABYLON.Vector3(
+    // Apply satellite position scaling to account for visual Earth radius (atmosphere layers)
+    const babylonPos = new BABYLON.Vector3(
         position.x * scale,
         position.z * scale,
         position.y * scale
     );
+    
+    // Scale satellite positions to account for visual Earth radius
+    // This ensures satellites appear at correct altitude above the visible Earth surface
+    const distanceFromCenter = babylonPos.length();
+    if (distanceFromCenter > 1.0) { // Only scale objects outside Earth's core
+        const scaledDistance = 1.0 + (distanceFromCenter - 1.0) * SATELLITE_POSITION_SCALE;
+        babylonPos.scaleInPlace(scaledDistance / distanceFromCenter);
+    }
+    
+    return babylonPos;
 }
 
 /**
