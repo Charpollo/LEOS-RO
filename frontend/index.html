@@ -68,7 +68,9 @@
         <button id="help-sphere-btn" title="Help" style="position:absolute; top:16px; left:16px; width:36px; height:36px; border-radius:50%; background:rgba(102,217,255,0.7); border:2px solid #00cfff; cursor:pointer; z-index:5000; display:none; pointer-events:auto;">i</button>
         
         <!-- SDA Toggle Button (hidden until simulation starts) -->
-        <button id="sda-toggle-btn" title="Toggle SDA" style="position:absolute; top:60px; left:16px; width:36px; height:36px; border-radius:50%; background:rgba(102,217,255,0.7); border:2px solid #00cfff; cursor:pointer; z-index:5000; display:none; pointer-events:auto; text-align:center; line-height:36px; font-size:16px;">🛰️</button>
+        <button id="sda-toggle-btn" title="Toggle SDA" style="position:absolute; top:60px; left:16px; width:36px; height:36px; border-radius:50%; background:rgba(102,217,255,0.7); border:2px solid #00cfff; cursor:pointer; z-index:5000; display:none; pointer-events:auto; display:flex; align-items:center; justify-content:center;">
+            <img src="/assets/sat.svg" style="width:18px; height:18px; filter:brightness(0) invert(1);" alt="SDA">
+        </button>
         
         <canvas id="renderCanvas" touch-action="none"></canvas>
         <!-- Loading Screen with Space Facts -->
@@ -165,13 +167,13 @@
                 <div class="modal-subtitle" style="margin:0.5em 0; font-style:italic;">Discover. Engage. Explore.</div>
                 <p class="section-content">LEOS: First Orbit places you in the heart of real-time space operations. Track CRTS-1 and Bulldog as they move through Low Earth Orbit, observe orbital mechanics in action, and explore a fully interactive 3D view of Earth, the Moon, and surrounding space.</p>
                 <div class="section-content" style="margin-top:1em;">
-                    <p>🛰 <strong>CRTS-1</strong> captures Earth imagery with advanced optical sensors</p>
-                    <p>🛰 <strong>Bulldog</strong> functions as an experimental support and research platform</p>
+                    <p><img src="/assets/sat.svg" style="width:16px; height:16px; vertical-align:middle; margin-right:4px;"> <strong>CRTS-1</strong> captures Earth imagery with advanced optical sensors</p>
+                    <p><img src="/assets/sat.svg" style="width:16px; height:16px; vertical-align:middle; margin-right:4px;"> <strong>Bulldog</strong> functions as an experimental support and research platform</p>
                 </div>
                 <p class="section-content" style="margin-top:1em;">Rotate the planet, zoom through space, follow satellite paths, and uncover the dynamics of orbit in motion. From launch to passover, LEOS invites you to experience the flow of space like never before.</p>
                 <p class="section-content" style="margin-top:1em; font-weight:bold;">Your simulation has started. The orbit is live.</p>
                 <p class="section-content" style="margin-top:1em; font-style:italic;">
-                    Use the 🛰️ icon below to access the Space Domain Awareness overlay (in beta).
+                    Use the <img src="/assets/sat.svg" style="width:16px; height:16px; vertical-align:middle;"> icon below to access the Space Domain Awareness overlay (in beta).
                 </p>
                 <div class="modal-actions" style="margin-top:auto;">
                     <button id="help-show-tutorial" class="primary-button">Show Tutorial</button>
@@ -283,7 +285,7 @@
                     <div class="info-section">
                         <h3>Controls & Tips</h3>
                         <ul class="tips-list">
-                            <li><strong>Toggle SDA:</strong> Click the 🛰️ button</li>
+                            <li><strong>Toggle SDA:</strong> Click the <img src="/assets/sat.svg" style="width:14px; height:14px; vertical-align:middle;"> button</li>
                             <li><strong>Hover objects:</strong> View detailed satellite information</li>
                             <li><strong>Object density:</strong> 15,000+ objects for realistic scale</li>
                         </ul>

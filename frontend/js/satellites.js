@@ -543,7 +543,8 @@ function showSatelliteTelemetryPanel(satName, telemetryData, advancedTexture, me
     function updatePanel() {
         const t = telemetryData[satName];
         if (!t) {
-            content.text = `🛰️  ${satName}\n\nNo telemetry data available.`;
+            content.text = `  ${satName}\n\nNo telemetry data available.`;
+            content.icon = '/assets/sat.svg';
             return;
         }
         
@@ -559,7 +560,8 @@ function showSatelliteTelemetryPanel(satName, telemetryData, advancedTexture, me
         }
         
         // Basic orbital data
-        let displayText = `🛰️  ${satName}\n\n`;
+        let displayText = `  ${satName}\n\n`;
+        content.icon = '/assets/sat.svg';
         displayText += `Altitude: ${t.altitude !== undefined ? t.altitude.toFixed(1) : 'N/A'} km\n`;
         displayText += `Velocity: ${velocityValue} km/s\n`;
         displayText += `Period: ${t.period !== undefined ? t.period.toFixed(1) : 'N/A'} min\n`;
