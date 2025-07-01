@@ -90,6 +90,23 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
             
             addSatelliteLabel(satName, satelliteMesh, advancedTexture, activeSatellite, meshColor);
             
+            // Add simple comet-like trail for each satellite
+            const cometMat = new BABYLON.StandardMaterial(`${satName}_cometMat`, scene);
+            cometMat.emissiveColor = meshColor.clone();
+            cometMat.alpha = 0.6;
+            cometMat.backFaceCulling = false;
+            const TRAIL_DIAMETER = 0.05; // smaller diameter for smoother, continuous points
+            const TRAIL_LENGTH = 600;   // more points for a longer trail
+            const cometTrail = new BABYLON.TrailMesh(`${satName}_cometTrail`, satelliteMesh, scene, TRAIL_DIAMETER, TRAIL_LENGTH, true);
+            cometTrail.material = cometMat;
+            // Prevent initial artifact (line from earth center) by clearing points on first render
+            scene.onAfterRenderObservable.addOnce(() => {
+                if (typeof cometTrail._reset === 'function') {
+                    cometTrail._reset();
+                }
+            });
+            satelliteMesh.cometTrail = cometTrail;
+            
             satelliteMesh.isPickable = true;
             satelliteMesh.actionManager = new BABYLON.ActionManager(scene);
             satelliteMesh.actionManager.registerAction(
@@ -110,93 +127,6 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
                     }
                 )
             );
-            
-            // --- Add enhanced comet-like orbit trail with distance-adaptive scaling ---
-            // Create trails AFTER positioning the satellite to avoid trails from origin
-            if (!satelliteMesh.orbitTrail) {
-                const trailMaterial = new BABYLON.StandardMaterial(`${satName}_trailMat`, scene);
-                
-                // Enhanced trail appearance for better visibility at all distances
-                trailMaterial.emissiveColor = meshColor.clone().scale(1.2); // Brighter emissive only
-                trailMaterial.diffuseColor = BABYLON.Color3.Black(); // No diffuse to avoid white shading
-                trailMaterial.specularColor = BABYLON.Color3.Black(); // No specular highlights
-                const DEFAULT_TRAIL_ALPHA = 0.6; // store default max alpha (60% visible)
-                const DEFAULT_GLOW_ALPHA = 0.2; // store default glow alpha (20% visible)
-                trailMaterial.alpha = 0; // initially invisible until fade-in
-                trailMaterial.alphaMode = BABYLON.Engine.ALPHA_PREMULTIPLIED;
-                trailMaterial.backFaceCulling = false; // Visible from all angles
-                trailMaterial.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
-                trailMaterial.needDepthPrePass = true; // Helps with transparency ordering
-                
-                // Adaptive trail dimensions - longer and more visible from distance
-                const TRAIL_LENGTH = 4096; // Further increased resolution for smoother curve
-                const TRAIL_WIDTH = 0.8;   // Wider trail for improved visibility
-                
-                // Create trail without emitter to avoid initial origin cluster
-                const trail = new BABYLON.TrailMesh(`${satName}_trail`, null, scene, TRAIL_WIDTH, TRAIL_LENGTH, true);
-                trail.material = trailMaterial;
-                trail.renderingGroupId = 1; // Render after opaque objects
-                
-                // Start trail invisible, will show after movement threshold and delay
-                const TRAIL_DELAY = 0; // no delay, activate immediately to avoid origin cluster
-                const MOVEMENT_THRESHOLD = 0; // no movement threshold
-                // trail geometry exists but hidden via alpha until activation
-
-                // Add glow trail for better distance visibility
-                const glowMaterial = new BABYLON.StandardMaterial(`${satName}_glowMat`, scene);
-                glowMaterial.emissiveColor = meshColor.clone().scale(0.6);
-                glowMaterial.alpha = 0; // hidden until fade-in
-                glowMaterial.alphaMode = BABYLON.Engine.ALPHA_PREMULTIPLIED;
-                glowMaterial.backFaceCulling = false;
-                glowMaterial.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
-                glowMaterial.needDepthPrePass = true; // Helps with transparency ordering
-                
-                // Create glow trail without emitter initially
-                const glowTrail = new BABYLON.TrailMesh(`${satName}_glowTrail`, null, scene, TRAIL_WIDTH * 2.5, TRAIL_LENGTH * 0.8, true);
-                glowTrail.material = glowMaterial;
-                glowTrail.renderingGroupId = 0; // Render behind main trail
-                
-                glowTrail.isVisible = false;
-                // glow geometry hidden via alpha until activation
-
-                // Store trails and add dynamic fading observer via alpha
-                satelliteMesh.orbitTrail = trail;
-                satelliteMesh.glowTrail = glowTrail;
-                satelliteMesh.trailsActive = false;
-                // Track creation time and position to delay initial trail
-                satelliteMesh.trailCreationTime = performance.now();
-                satelliteMesh.initialPosition = satelliteMesh.position.clone();
-                scene.onBeforeRenderObservable.add(() => {
-                    const now = performance.now();
-                    // Activate trails after delay and movement threshold
-                    if (!satelliteMesh.trailsActive) {
-                        const moved = BABYLON.Vector3.Distance(satelliteMesh.position, satelliteMesh.initialPosition);
-                        if (now - satelliteMesh.trailCreationTime > TRAIL_DELAY && moved > MOVEMENT_THRESHOLD) {
-                            satelliteMesh.trailsActive = true;
-                            // Start emitter to collect from current orbit position
-                            trail.emitter = satelliteMesh;
-                            glowTrail.emitter = satelliteMesh;
-                        }
-                     }
-                    // After activation, update trail alpha unless simulation is sped up
-                    if (satelliteMesh.trailsActive) {
-                        const tm = window.currentTimeMultiplier || 1;
-                        if (tm > 1) {
-                            // hide trails during speed-up
-                            trailMaterial.alpha = 0;
-                            glowMaterial.alpha = 0;
-                        } else {
-                            const camera = scene.activeCamera;
-                            if (camera) {
-                                const cameraDistance = BABYLON.Vector3.Distance(camera.position, BABYLON.Vector3.Zero());
-                                const opacityScale = Math.max(0.6, Math.min(1.2, cameraDistance / 3.0));
-                                trailMaterial.alpha = Math.min(DEFAULT_TRAIL_ALPHA, DEFAULT_TRAIL_ALPHA * opacityScale);
-                                glowMaterial.alpha = Math.min(DEFAULT_GLOW_ALPHA, DEFAULT_GLOW_ALPHA * opacityScale);
-                            }
-                        }
-                    }
-                });
-            }
             
             // Set active satellite when clicked
             const setActiveSatellite = () => {
@@ -307,7 +237,8 @@ function addSatelliteLabel(satName, mesh, advancedTexture, activeSatellite, mesh
     });
     advancedTexture.addControl(labelBtn);
     labelBtn.linkWithMesh(mesh);
-    labelBtn.linkOffsetY = -30;
+    // Lift label above satellite model
+    labelBtn.linkOffsetY = -60;
     labelBtn.isVisible = true;
     // --- Label scaling with camera distance ---
     const scene = mesh.getScene();

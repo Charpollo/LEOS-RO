@@ -202,20 +202,6 @@ export async function initApp() {
          
       // Sort satellite details by elevation (highest first)
       satelliteDetails.sort((a, b) => b.elevation - a.elevation);
-     // draw pulsing green LOS lines
-     inView.forEach(name => {
-       const mesh = satelliteMeshes[name];
-       const satPos = mesh.absolutePosition || mesh.position;
-       const line = BABYLON.MeshBuilder.CreateLines(`los_${stationKey}_${name}`, { points: [stationPos, satPos] }, scene);
-       line.color = new BABYLON.Color3(0,1,0);
-       const obs = scene.onBeforeRenderObservable.add(() => {
-         const t = performance.now() * 0.005;
-         const strength = 0.5 + 0.5 * Math.sin(t);
-         line.color = new BABYLON.Color3(0, strength, 0);
-       });
-       line.pulseObserver = obs;
-       currentLOS.push(line);
-     });
       // build enhanced telemetry-card HTML with comprehensive ground station data
       const card = document.createElement('telemetry-card');
       card.setAttribute('title', station.name);
