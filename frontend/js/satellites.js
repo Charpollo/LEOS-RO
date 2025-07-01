@@ -76,7 +76,7 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
             // Make satellites smaller for better zoom-in experience
             const isCRTS = satName.toUpperCase().includes('CRTS');
             const isBulldog = satName.toUpperCase().includes('BULLDOG');
-            const SATELLITE_VISUAL_SCALE = isBulldog ? 0.0003 : 0.001; // BULLDOG is half the size
+            const SATELLITE_VISUAL_SCALE = isBulldog ? 0.0006 : 0.002; // Increased scale for better visibility
             satelliteMesh.scaling = new BABYLON.Vector3(SATELLITE_VISUAL_SCALE, SATELLITE_VISUAL_SCALE, SATELLITE_VISUAL_SCALE);
             // Set mesh color by satellite type
             const meshColor = isCRTS ? new BABYLON.Color3(0.8, 0.35, 0) : isBulldog ? new BABYLON.Color3(0, 1, 1) : new BABYLON.Color3(0.1, 0.4, 0.8);
@@ -117,90 +117,85 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
                 const trailMaterial = new BABYLON.StandardMaterial(`${satName}_trailMat`, scene);
                 
                 // Enhanced trail appearance for better visibility at all distances
-                trailMaterial.emissiveColor = meshColor.clone().scale(1.2); // Brighter emissive
-                trailMaterial.diffuseColor = meshColor.clone().scale(0.4); // Add diffuse component
-                trailMaterial.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1); // Minimal specular
-                trailMaterial.alpha = 0.8; // Good transparency for blending
+                trailMaterial.emissiveColor = meshColor.clone().scale(1.2); // Brighter emissive only
+                trailMaterial.diffuseColor = BABYLON.Color3.Black(); // No diffuse to avoid white shading
+                trailMaterial.specularColor = BABYLON.Color3.Black(); // No specular highlights
+                const DEFAULT_TRAIL_ALPHA = 0.6; // store default max alpha (60% visible)
+                const DEFAULT_GLOW_ALPHA = 0.2; // store default glow alpha (20% visible)
+                trailMaterial.alpha = 0; // initially invisible until fade-in
                 trailMaterial.alphaMode = BABYLON.Engine.ALPHA_PREMULTIPLIED;
                 trailMaterial.backFaceCulling = false; // Visible from all angles
                 trailMaterial.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
                 trailMaterial.needDepthPrePass = true; // Helps with transparency ordering
                 
                 // Adaptive trail dimensions - longer and more visible from distance
-                const TRAIL_LENGTH = 1200; // Much longer trail for better distant visibility
-                const TRAIL_WIDTH = 0.4;   // Wider trail for better rendering at distance
+                const TRAIL_LENGTH = 4096; // Further increased resolution for smoother curve
+                const TRAIL_WIDTH = 0.8;   // Wider trail for improved visibility
                 
-                const trail = new BABYLON.TrailMesh(`${satName}_trail`, satelliteMesh, scene, TRAIL_WIDTH, TRAIL_LENGTH, true);
+                // Create trail without emitter to avoid initial origin cluster
+                const trail = new BABYLON.TrailMesh(`${satName}_trail`, null, scene, TRAIL_WIDTH, TRAIL_LENGTH, true);
                 trail.material = trailMaterial;
                 trail.renderingGroupId = 1; // Render after opaque objects
                 
-                // Start trail as invisible to prevent dark square at beginning
-                trail.isVisible = false;
-                
+                // Start trail invisible, will show after movement threshold and delay
+                const TRAIL_DELAY = 0; // no delay, activate immediately to avoid origin cluster
+                const MOVEMENT_THRESHOLD = 0; // no movement threshold
+                // trail geometry exists but hidden via alpha until activation
+
                 // Add glow trail for better distance visibility
                 const glowMaterial = new BABYLON.StandardMaterial(`${satName}_glowMat`, scene);
                 glowMaterial.emissiveColor = meshColor.clone().scale(0.6);
-                glowMaterial.alpha = 0.4;
+                glowMaterial.alpha = 0; // hidden until fade-in
                 glowMaterial.alphaMode = BABYLON.Engine.ALPHA_PREMULTIPLIED;
                 glowMaterial.backFaceCulling = false;
                 glowMaterial.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
                 glowMaterial.needDepthPrePass = true; // Helps with transparency ordering
                 
-                const glowTrail = new BABYLON.TrailMesh(`${satName}_glowTrail`, satelliteMesh, scene, TRAIL_WIDTH * 2.5, TRAIL_LENGTH * 0.8, true);
+                // Create glow trail without emitter initially
+                const glowTrail = new BABYLON.TrailMesh(`${satName}_glowTrail`, null, scene, TRAIL_WIDTH * 2.5, TRAIL_LENGTH * 0.8, true);
                 glowTrail.material = glowMaterial;
                 glowTrail.renderingGroupId = 0; // Render behind main trail
                 
-                // Start glow trail as invisible too
                 glowTrail.isVisible = false;
-                
-                // Store both trails and add dynamic scaling based on camera distance
+                // glow geometry hidden via alpha until activation
+
+                // Store trails and add dynamic fading observer via alpha
                 satelliteMesh.orbitTrail = trail;
                 satelliteMesh.glowTrail = glowTrail;
-                
-                // Track when trails were created to delay visibility
+                satelliteMesh.trailsActive = false;
+                // Track creation time and position to delay initial trail
                 satelliteMesh.trailCreationTime = performance.now();
                 satelliteMesh.initialPosition = satelliteMesh.position.clone();
-                
-                // Add distance-adaptive scaling observer
-                const scaleObserver = scene.onBeforeRenderObservable.add(() => {
-                    const camera = scene.activeCamera;
-                    if (!camera) return;
-                    
-                    // Only show trails after they've had time to build up (5 seconds) AND satellite has moved
-                    const timeSinceCreation = performance.now() - satelliteMesh.trailCreationTime;
-                    const trailsReady = timeSinceCreation > 5000; // 5 seconds delay
-                    const hasMovedEnough = BABYLON.Vector3.Distance(satelliteMesh.position, satelliteMesh.initialPosition) > 0.5;
-                    
-                    if (trailsReady && hasMovedEnough && !trail.isVisible) {
-                        // Fade in the trails gradually
-                        trail.isVisible = true;
-                        glowTrail.isVisible = true;
-                    }
-                    
-                    if (trailsReady && hasMovedEnough) {
-                        const cameraDistance = BABYLON.Vector3.Distance(camera.position, BABYLON.Vector3.Zero());
-                        
-                        // Scale trails based on camera distance for better visibility
-                        // Close up: normal size, Far away: larger and more opaque
-                        const distanceScale = Math.max(0.8, Math.min(3.0, cameraDistance / 2.0));
-                        const opacityScale = Math.max(0.6, Math.min(1.2, cameraDistance / 3.0));
-                        
-                        // Apply scaling to trail materials
-                        if (trail.material) {
-                            trail.material.alpha = Math.min(0.95, 0.8 * opacityScale);
-                            // Boost emissive color for distance visibility
-                            trail.material.emissiveColor = meshColor.clone().scale(1.2 * opacityScale);
+                scene.onBeforeRenderObservable.add(() => {
+                    const now = performance.now();
+                    // Activate trails after delay and movement threshold
+                    if (!satelliteMesh.trailsActive) {
+                        const moved = BABYLON.Vector3.Distance(satelliteMesh.position, satelliteMesh.initialPosition);
+                        if (now - satelliteMesh.trailCreationTime > TRAIL_DELAY && moved > MOVEMENT_THRESHOLD) {
+                            satelliteMesh.trailsActive = true;
+                            // Start emitter to collect from current orbit position
+                            trail.emitter = satelliteMesh;
+                            glowTrail.emitter = satelliteMesh;
                         }
-                        
-                        if (glowTrail.material) {
-                            glowTrail.material.alpha = Math.min(0.7, 0.4 * opacityScale);
-                            glowTrail.material.emissiveColor = meshColor.clone().scale(0.6 * opacityScale);
+                     }
+                    // After activation, update trail alpha unless simulation is sped up
+                    if (satelliteMesh.trailsActive) {
+                        const tm = window.currentTimeMultiplier || 1;
+                        if (tm > 1) {
+                            // hide trails during speed-up
+                            trailMaterial.alpha = 0;
+                            glowMaterial.alpha = 0;
+                        } else {
+                            const camera = scene.activeCamera;
+                            if (camera) {
+                                const cameraDistance = BABYLON.Vector3.Distance(camera.position, BABYLON.Vector3.Zero());
+                                const opacityScale = Math.max(0.6, Math.min(1.2, cameraDistance / 3.0));
+                                trailMaterial.alpha = Math.min(DEFAULT_TRAIL_ALPHA, DEFAULT_TRAIL_ALPHA * opacityScale);
+                                glowMaterial.alpha = Math.min(DEFAULT_GLOW_ALPHA, DEFAULT_GLOW_ALPHA * opacityScale);
+                            }
                         }
                     }
                 });
-                
-                // Store the observer for cleanup
-                satelliteMesh.trailScaleObserver = scaleObserver;
             }
             
             // Set active satellite when clicked

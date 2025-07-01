@@ -34,14 +34,15 @@ export function startSimulationLoop(scene, satelliteData, orbitalElements, simul
     let lastFrameTime = performance.now();
     // Use a less frequent update for better performance
     scene.registerBeforeRender(() => {
-        // Run only every 3 frames to reduce CPU load
-        if (frameCounter++ % 3 !== 0) {
-            return;
-        }
+        // Always run update each frame for smoother orbital paths
+        frameCounter++;
+
         const now = performance.now();
         const deltaRealSeconds = (now - lastFrameTime) / 1000;
         lastFrameTime = now;
         const timeMultiplier = getTimeMultiplier();
+        // Expose current time multiplier globally for trail control
+        window.currentTimeMultiplier = timeMultiplier;
         // Advance simulation time by real elapsed time * timeMultiplier * TIME_ACCELERATION
         const timeIncrement = timeMultiplier * TIME_ACCELERATION * deltaRealSeconds * 1000; // ms
         simulationTime = new Date(simulationTime.getTime() + timeIncrement);
