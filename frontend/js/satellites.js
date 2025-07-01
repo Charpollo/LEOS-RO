@@ -123,6 +123,8 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
                     scene
                 );
                 orbitPath.color = meshColor.clone().scale(0.6);
+                // Attach to mesh for toggling
+                satelliteMesh.orbitPath = orbitPath;
             }
             
             satelliteMesh.isPickable = true;
@@ -505,3 +507,13 @@ async function loadDetailedTelemetryData() {
 }
 
 export { getDetailedTelemetryForSatellite };
+// Toggle static orbit paths on/off with the 'O' key
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'o' || e.key === 'O') {
+    Object.values(satelliteMeshes).forEach(mesh => {
+      if (mesh.orbitPath) {
+        mesh.orbitPath.isVisible = !mesh.orbitPath.isVisible;
+      }
+    });
+  }
+});
