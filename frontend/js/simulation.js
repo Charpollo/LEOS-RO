@@ -1,5 +1,4 @@
 import { TIME_ACCELERATION } from './constants.js';
-import { updateSatellitePosition } from './satellites.js';
 import { updateTelemetryUI } from './telemetry.js';
 
 let currentSimTime = null;
@@ -53,10 +52,7 @@ export function startSimulationLoop(scene, satelliteData, orbitalElements, simul
             activeSatelliteList.slice(0, Math.min(Math.floor(frameCounter/12), activeSatelliteList.length)) : 
             activeSatelliteList;
 
-        // Update positions
-        for (const satName of visibleSats) {
-            updateSatellitePosition(satName, 0, orbitalElements, simulationTime, scene, advancedTexture);
-        }
+        // Position updates are handled in app.js render observer
 
         // Always update time display every simulation frame
         updateTimeDisplay(simulationTime);

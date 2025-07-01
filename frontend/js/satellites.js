@@ -1,7 +1,6 @@
 import * as BABYLON from '@babylonjs/core';
-import { EARTH_RADIUS, EARTH_SCALE, MIN_LEO_ALTITUDE_KM } from './constants.js';
+import { EARTH_SCALE } from './constants.js';
 import { generateRealTimeTelemetry } from './orbital-mechanics.js';
-import { calculateSatellitePosition, toBabylonPosition } from './orbital-mechanics.js';
 import { TextBlock, Rectangle, Control, Button } from '@babylonjs/gui';
 
 let satelliteMeshes = {};
@@ -88,9 +87,6 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
             //     }
             // });
             satelliteMeshes[satName] = satelliteMesh;
-            
-            // Position the satellite BEFORE creating trails to avoid trail from origin
-            updateSatellitePosition(satName, 0, orbitalElements, simulationTime, scene, advancedTexture);
             
             addSatelliteLabel(satName, satelliteMesh, advancedTexture, activeSatellite, meshColor);
             
@@ -220,7 +216,7 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
                     // Calculate a safer offset position to avoid going inside Earth
                     const directionToEarthCenter = target.clone().normalize().scale(-1);
                     const distanceToEarthCenter = target.length();
-                    const minSafeDistance = EARTH_RADIUS * EARTH_SCALE * 1.2; // 20% margin
+                    const minSafeDistance = EARTH_SCALE * 1.2; // 20% margin
                     
                     // Create a safer offset in a direction away from Earth
                     const offsetDirection = new BABYLON.Vector3(0.2, 0.1, 0.2);
@@ -329,136 +325,6 @@ function addSatelliteLabel(satName, mesh, advancedTexture, activeSatellite, mesh
         if (dist > 2) scale = Math.max(0.3, 2.5 / dist); // 2.5 is a visual fudge factor
         labelBtn.scaleX = labelBtn.scaleY = scale;
     });
-}
-
-export function updateSatellitePosition(satName, timeIndex, orbitalElements, simulationTime, scene, advancedTexture) {
-    if (!satelliteMeshes[satName] || !orbitalElements[satName]) return null;
-    try {
-        // Get orbital elements for this satellite (now directly on the object)
-        const elements = orbitalElements[satName];
-        const epochTime = new Date(orbitalElements[satName].epoch);
-        
-        // Check if this satellite is currently selected and the camera is tracking it
-        const isActiveTracking = satName === window.activeSatellite && scene.activeCamera;
-        
-        // Calculate satellite position using orbital mechanics
-        const result = calculateSatellitePosition(elements, simulationTime, epochTime);
-        
-        // Generate enhanced telemetry data
-        const baseTelemetry = generateRealTimeTelemetry(
-            result.position, 
-            result.velocity, 
-            elements, 
-            satName
-        );
-        
-        // Merge with detailed static telemetry data
-        const detailedData = getDetailedTelemetryForSatellite(satName);
-        telemetryData[satName] = {
-            ...baseTelemetry,
-            ...detailedData
-        };
-        
-        // Convert position to Babylon coordinates (scaling happens here only)
-        let posKm = { ...result.position };
-        // Clamp: if inside Earth, move to min allowed altitude along same direction
-        const earthRadiusKm = EARTH_RADIUS;
-        const minAltitudeKm = 400; // Hard minimum perigee
-        const positionLengthKm = Math.sqrt(posKm.x * posKm.x + posKm.y * posKm.y + posKm.z * posKm.z);
-        if (positionLengthKm < earthRadiusKm + minAltitudeKm) {
-            // Move to min altitude along same direction
-            const scale = (earthRadiusKm + minAltitudeKm) / positionLengthKm;
-            posKm.x *= scale;
-            posKm.y *= scale;
-            posKm.z *= scale;
-        }
-        const babylonPos = toBabylonPosition(posKm, EARTH_SCALE);
-        // Apply the calculated position to the satellite mesh
-        satelliteMeshes[satName].position = babylonPos;
-        // Debug: log mesh and label positions
-        const mesh = satelliteMeshes[satName];
-        const labelControl = advancedTexture ? advancedTexture.getControlByName(`${satName}_label`) : null;
-        
-        // Enhanced satellite orientation based on velocity vector
-        const babylonVel = new BABYLON.Vector3(
-            result.velocity.x * EARTH_SCALE,
-            result.velocity.z * EARTH_SCALE,
-            result.velocity.y * EARTH_SCALE
-        );
-        
-        if (babylonVel.length() > 0) {
-            // Normalize velocity vector to create direction vector
-            babylonVel.normalize();
-            
-            // Calculate the direction from Earth's center to the satellite (up vector)
-            const upVector = babylonPos.normalize();
-            
-            // Use velocity as forward direction
-            const forwardVector = babylonVel;
-            
-            // Calculate right vector using cross product
-            const rightVector = BABYLON.Vector3.Cross(forwardVector, upVector);
-            rightVector.normalize();
-            
-            // Recalculate forward vector to ensure orthogonal basis
-            const correctedForwardVector = BABYLON.Vector3.Cross(upVector, rightVector);
-            correctedForwardVector.normalize();
-            
-            // Create rotation matrix from vectors
-            const rotationMatrix = BABYLON.Matrix.FromXYZAxesToRef(
-                rightVector,
-                upVector,
-                correctedForwardVector,
-                new BABYLON.Matrix()
-            );
-            
-            // Convert to quaternion and apply to satellite
-            const quaternion = BABYLON.Quaternion.FromRotationMatrix(rotationMatrix);
-            satelliteMeshes[satName].rotationQuaternion = quaternion;
-        }
-        
-        // Update label position to stay above satellite
-        if (advancedTexture) {
-            const labelControl = advancedTexture.getControlByName(`${satName}_label`);
-            if (labelControl) {
-                labelControl.linkOffsetY = -70;
-            }
-        }
-        
-        // Enhanced eclipse calculation using realistic sun direction
-        try {
-            const sunDirection = scene.sunLight.direction.negate();
-            const satelliteToSun = sunDirection.clone();
-            const satelliteToEarth = babylonPos.normalizeToNew().negate();
-            
-            // Calculate if satellite is in Earth's shadow
-            const earthAngularRadius = Math.atan2(earthRadius, positionLength);
-            const sunAngle = Math.acos(BABYLON.Vector3.Dot(satelliteToSun, satelliteToEarth));
-            
-            const inEclipse = sunAngle < earthAngularRadius;
-            
-            // Apply eclipse effects
-            if (inEclipse) {
-                satelliteMeshes[satName].visibility = 0.3;
-                if (labelControl) {
-                    labelControl.alpha = 0.3;
-                }
-            } else {
-                satelliteMeshes[satName].visibility = 1.0;
-                if (labelControl) {
-                    labelControl.alpha = 0.8;
-                }
-            }
-        } catch(e) {
-            // Fallback - keep satellite visible if eclipse calculation fails
-            satelliteMeshes[satName].visibility = 1.0;
-        }
-        
-        return babylonPos;
-    } catch (error) {
-        console.error(`Error updating satellite position for ${satName}:`, error);
-        return null;
-    }
 }
 
 // Add showSatelliteTelemetryPanel function

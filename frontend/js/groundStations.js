@@ -1,5 +1,5 @@
 import * as BABYLON from '@babylonjs/core';
-import { EARTH_RADIUS, EARTH_SCALE, LOS_DEFAULT_KM, LOS_DEFAULT_BABYLON, LOS_BEAM_CONFIG, calculateHorizonDistance } from './constants.js';
+import { EARTH_RADIUS_KM, EARTH_SCALE, LOS_DEFAULT_KM, LOS_DEFAULT_BABYLON, LOS_BEAM_CONFIG, calculateHorizonDistance } from './constants.js';
 import { toBabylonPosition } from './orbital-mechanics.js';
 import { getSatelliteMeshes } from './satellites.js';
 import { Button } from '@babylonjs/gui';
@@ -29,7 +29,7 @@ function toRadians(deg) {
 function geodeticToCartesian(lat, lon, alt = 0) {
   const phi = toRadians(lat);
   const lambda = toRadians(lon); // Use original longitude - texture flip is handled in shader
-  const radius = EARTH_RADIUS + alt; // Use EARTH_RADIUS constant + alt
+  const radius = EARTH_RADIUS_KM + alt; // Use EARTH_RADIUS_KM constant + alt
   const x = radius * Math.cos(phi) * Math.cos(lambda);
   const y = radius * Math.cos(phi) * Math.sin(lambda);
   const z = radius * Math.sin(phi);
@@ -581,7 +581,7 @@ export function getGroundStationDefinitions() {
  * @param {number} segments - Number of segments for circle resolution
  */
 export function createCoverageCircles(scene, maxSatAltKm = 2000, segments = 64) {
-  const re = EARTH_RADIUS; // Use EARTH_RADIUS constant
+  const re = EARTH_RADIUS_KM; // Use EARTH_RADIUS_KM constant
   
   GROUND_STATIONS.forEach(station => {
     // Calculate horizon distance for this specific station based on its elevation

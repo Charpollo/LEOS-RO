@@ -1,5 +1,5 @@
 import * as BABYLON from '@babylonjs/core';
-import { EARTH_RADIUS, EARTH_SCALE, SATELLITE_POSITION_SCALE } from './constants.js';
+import { EARTH_RADIUS, EARTH_SCALE, EARTH_VISUAL_SURFACE_RADIUS, EARTH_CORE_RADIUS } from './constants.js';
 import { calculateSatellitePosition, toBabylonPosition } from './orbital-mechanics.js';
 
 // SDA Visualization Module - Self-contained and modular
@@ -465,9 +465,13 @@ class SDAVisualization {
     // Apply the same satellite position scaling as in orbital-mechanics.js
     // This ensures SDA objects and satellites use consistent visual positioning
     const distanceFromCenter = babylonPos.length();
-    if (distanceFromCenter > 1.0) { // Only scale objects outside Earth's core
-        const scaledDistance = 1.0 + (distanceFromCenter - 1.0) * SATELLITE_POSITION_SCALE;
-        babylonPos.scaleInPlace(scaledDistance / distanceFromCenter);
+    if (distanceFromCenter > EARTH_CORE_RADIUS) {
+        // Calculate how far above the mathematical Earth surface the satellite is
+        const altitudeAboveCore = distanceFromCenter - EARTH_CORE_RADIUS;
+        
+        // Position relative to visual Earth surface
+        const newDistance = EARTH_VISUAL_SURFACE_RADIUS + altitudeAboveCore;
+        babylonPos.scaleInPlace(newDistance / distanceFromCenter);
     }
     
     return babylonPos;

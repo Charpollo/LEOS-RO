@@ -2,7 +2,7 @@
   "satellites": {
     "CRTS1": {
       "name": "CRTS1",
-      "semi_major_axis_km": 6791.0,
+      "semi_major_axis_km": 7171.0,
       "eccentricity": 0.001,
       "inclination_deg": 97.4,
       "raan_deg": 0.0,
@@ -14,7 +14,7 @@
     },
     "Bulldog": {
       "name": "Bulldog",
-      "semi_major_axis_km": 6871.0,
+      "semi_major_axis_km": 7171.0,
       "eccentricity": 0.002,
       "inclination_deg": 98.2,
       "raan_deg": 45.0,

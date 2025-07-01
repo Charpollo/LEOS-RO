@@ -16,7 +16,7 @@ import { dataLoader } from './data-loader.js';
 import { initSDAVisualization, createTLEInputModal } from './sda-visualization.js';
 
 // Import our modular components
-import { EARTH_RADIUS, EARTH_SCALE, MIN_LEO_ALTITUDE_KM, MOON_DISTANCE, MOON_SCALE, LOS_DEFAULT_KM, LOS_DEFAULT_BABYLON, calculateHorizonDistance } from './constants.js';
+import { EARTH_RADIUS_KM, EARTH_SCALE, MIN_LEO_ALTITUDE_KM, MOON_DISTANCE, MOON_SCALE, LOS_DEFAULT_KM, LOS_DEFAULT_BABYLON, calculateHorizonDistance } from './constants.js';
 import { createSkybox } from './skybox.js';
 import { createEarth } from './earth.js';
 import { createMoon } from './moon.js';
@@ -26,6 +26,9 @@ import { startSimulationLoop, updateTimeDisplay, getCurrentSimTime } from './sim
 import { setupKeyboardControls } from './controls.js';
 import { createGroundStations, updateGroundStationsLOS, createCoverageCircles, getGroundStationMeshes, clearAutoLOSBeams, getGroundStationDefinitions, createTestConnection } from './groundStations.js';
 import { initAuroraBackground, cleanupAuroraBackground } from './aurora-background.js';
+
+// Import orbital mechanics functions
+import { calculateSatellitePosition, toBabylonPosition } from './orbital-mechanics.js';
 
 // Globals
 let engine;
@@ -121,7 +124,7 @@ export async function initApp() {
       const minElevationKm = 0.1;
       const stationAlt = (typeof station.alt === 'number' && station.alt > 0) ? station.alt : minElevationKm;
       const horizonKm = stationInfo.horizonDistanceKm || 
-        Math.sqrt((EARTH_RADIUS + stationAlt) * (EARTH_RADIUS + stationAlt) - EARTH_RADIUS * EARTH_RADIUS);
+        Math.sqrt((EARTH_RADIUS_KM + stationAlt) * (EARTH_RADIUS_KM + stationAlt) - EARTH_RADIUS_KM * EARTH_RADIUS_KM);
       
       // Get current simulation time for calculations
       const currentTime = getCurrentSimTime();
@@ -605,7 +608,7 @@ export async function initApp() {
             
             if (isLabelClick) {
                 // For label clicks, use a safer distance to prevent going inside Earth
-                const safeDistance = EARTH_RADIUS * EARTH_SCALE * 2.5;
+                const safeDistance = EARTH_RADIUS_KM * EARTH_SCALE * 2.5;
                 const distanceToSat = BABYLON.Vector3.Distance(BABYLON.Vector3.Zero(), satMesh.position);
                 targetR = Math.max(safeDistance, distanceToSat * 1.1); // 10% farther than the satellite
                 camera.beta = 0.4; // Less steep angle to see more context around the satellite
@@ -724,7 +727,7 @@ export async function initApp() {
             // Ensure we're at a safe distance with a slight delay
             setTimeout(() => {
                 try {
-                    const safeRadius = EARTH_RADIUS * EARTH_SCALE * 3.5; // A comfortable viewing distance, slightly farther back
+                    const safeRadius = EARTH_RADIUS_KM * EARTH_SCALE * 3.5; // A comfortable viewing distance, slightly farther back
                     const radiusAnim = BABYLON.Animation.CreateAndStartAnimation(
                         'radiusReset', camera, 'radius', 60, 50, // Longer animation (50 frames)
                         camera.radius, safeRadius,
@@ -832,8 +835,8 @@ async function createScene() {
     camera.attachControl(canvas, true);
     camera.minZ = 0.01;
     camera.maxZ = 10000;
-    camera.lowerRadiusLimit = EARTH_RADIUS * EARTH_SCALE * 1.05; // Increased safety margin to prevent going inside Earth
-    camera.upperRadiusLimit = EARTH_RADIUS * EARTH_SCALE * 100; // Allow zoom far out
+    camera.lowerRadiusLimit = EARTH_RADIUS_KM * EARTH_SCALE * 1.05; // Increased safety margin to prevent going inside Earth
+    camera.upperRadiusLimit = EARTH_RADIUS_KM * EARTH_SCALE * 100; // Allow zoom far out
     camera.useAutoRotationBehavior = false;
     camera.inertia = 0.7; // Slightly higher for smoother movement
     camera.wheelDeltaPercentage = 0.04; // Smoother zoom
@@ -844,9 +847,9 @@ async function createScene() {
     
     // Set initial camera position for better Earth view
     camera.setPosition(new BABYLON.Vector3(
-        EARTH_RADIUS * EARTH_SCALE * 3,
-        EARTH_RADIUS * EARTH_SCALE * 2,
-        EARTH_RADIUS * EARTH_SCALE * 3
+        EARTH_RADIUS_KM * EARTH_SCALE * 3,
+        EARTH_RADIUS_KM * EARTH_SCALE * 2,
+        EARTH_RADIUS_KM * EARTH_SCALE * 3
     ));
     
     // Create proper lighting system - Realistic directional sunlight
@@ -862,7 +865,7 @@ async function createScene() {
         if (camera) {
             // Calculate distance from camera to Earth center
             const distanceToCenter = camera.position.length();
-            const minSafeDistance = EARTH_RADIUS * EARTH_SCALE * 1.05; // Safe distance threshold
+            const minSafeDistance = EARTH_RADIUS_KM * EARTH_SCALE * 1.05; // Safe distance threshold
             
             // If camera is too close to Earth, move it out to the safe distance
             if (distanceToCenter < minSafeDistance) {
@@ -1401,7 +1404,6 @@ async function loadSatelliteData() {
         // Create satellites using the imported module
         await createSatellites(scene, satelliteData, orbitalElements, activeSatellite, advancedTexture, simulationTime);
         
-        // Start the simulation loop using the imported module
         console.log('Starting simulation loop with time:', simulationStartTime);
         simulationTime = startSimulationLoop(scene, satelliteData, orbitalElements, simulationStartTime, () => simState.timeMultiplier, advancedTexture, activeSatellite, getTelemetryData());
         
@@ -1412,6 +1414,21 @@ async function loadSatelliteData() {
         }
         
         console.log('Simulation initialized successfully with time:', simulationTime);
+
+    // --- New: Drive satellite meshes by SDA orbital logic in render loop ---
+    scene.onBeforeRenderObservable.add(() => {
+      const currentSimTime = getCurrentSimTime();
+      const meshes = getSatelliteMeshes();
+      Object.entries(orbitalElements).forEach(([satName, elems]) => {
+        const mesh = meshes[satName];
+        if (!mesh) return;
+        const epochTime = new Date(elems.epoch);
+        const result = calculateSatellitePosition(elems, currentSimTime, epochTime);
+        const pos = toBabylonPosition(result.position);
+        mesh.position.copyFrom(pos);
+      });
+    });
+
     } catch (error) {
         console.error('Error loading satellite data:', error);
     }

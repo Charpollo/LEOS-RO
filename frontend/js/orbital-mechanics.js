@@ -4,11 +4,9 @@
  */
 
 import * as BABYLON from '@babylonjs/core';
-import { EARTH_SCALE, SATELLITE_POSITION_SCALE } from './constants.js';
+import { EARTH_SCALE, EARTH_VISUAL_SURFACE_RADIUS, EARTH_CORE_RADIUS, EARTH_RADIUS_KM, EARTH_MU } from './constants.js';
 
 // Earth constants
-const EARTH_RADIUS_KM = 6371.0;
-const EARTH_MU = 398600.4418; // Earth's gravitational parameter (km³/s²)
 const EARTH_ROTATION_RATE = 7.2921159e-5; // rad/s
 
 /**
@@ -80,10 +78,12 @@ export function calculateSatellitePosition(elements, currentTime, epochTime) {
         const vy = velocityMagnitude * Math.cos(trueAnomaly + omegaRad);
         const vz = velocityMagnitude * Math.sin(trueAnomaly + omegaRad) * Math.sin(iRad);
         
+        const calculatedAltitude = Math.sqrt(x*x + y*y + z*z) - EARTH_RADIUS_KM;
+        
         return {
             position: { x, y, z },
             velocity: { x: vx, y: vy, z: vz },
-            altitude: Math.sqrt(x*x + y*y + z*z) - EARTH_RADIUS_KM,
+            altitude: calculatedAltitude,
             trueAnomaly: trueAnomaly * 180 / Math.PI
         };
         
@@ -211,28 +211,28 @@ export function generateRealTimeTelemetry(position, velocity, elements, satName)
 /**
  * Convert position to Babylon.js coordinate system
  * @param {Object} position - Position in km
- * @param {number} scale - Scaling factor
+ * @param {number} scale - Scaling factor (default: EARTH_SCALE)
  * @returns {BABYLON.Vector3} Babylon.js position
  */
-export function toBabylonPosition(position, scale = EARTH_SCALE) {
-    // Convert from orbital mechanics coordinates to Babylon.js
-    // Swap Y and Z, and apply scaling
-    // Apply satellite position scaling to account for visual Earth radius (atmosphere layers)
-    const babylonPos = new BABYLON.Vector3(
-        position.x * scale,
-        position.z * scale,
-        position.y * scale
-    );
-    
-    // Scale satellite positions to account for visual Earth radius
-    // This ensures satellites appear at correct altitude above the visible Earth surface
-    const distanceFromCenter = babylonPos.length();
-    if (distanceFromCenter > 1.0) { // Only scale objects outside Earth's core
-        const scaledDistance = 1.0 + (distanceFromCenter - 1.0) * SATELLITE_POSITION_SCALE;
-        babylonPos.scaleInPlace(scaledDistance / distanceFromCenter);
-    }
-    
-    return babylonPos;
+/**
+ * Convert position to Babylon.js coordinate system with proper scaling
+ * @param {Object} position - Position in km from Earth center
+ * @param {number} scale - Scaling factor (default: EARTH_SCALE)
+ * @returns {BABYLON.Vector3} Babylon.js position
+ */
+export function toBabylonPosition(position) {
+    const positionVector = new BABYLON.Vector3(position.x, position.z, position.y);
+    const distanceFromCenterKm = positionVector.length();
+
+    const altitudeKm = distanceFromCenterKm - EARTH_RADIUS_KM;
+
+    const visualAltitude = altitudeKm * (EARTH_VISUAL_SURFACE_RADIUS / EARTH_RADIUS_KM);
+
+    const newDistance = EARTH_VISUAL_SURFACE_RADIUS + visualAltitude;
+
+    const babylonPosition = positionVector.normalize().scale(newDistance);
+
+    return babylonPosition;
 }
 
 /**

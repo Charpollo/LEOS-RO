@@ -1,11 +1,11 @@
 import * as BABYLON from '@babylonjs/core';
-import { EARTH_RADIUS, EARTH_SCALE, MOON_DISTANCE, MOON_SCALE } from './constants.js';
+import { EARTH_CORE_RADIUS, MOON_DISTANCE, MOON_SCALE } from './constants.js';
 
 export async function createMoon(scene, getTimeMultiplier) {
     // Create Moon with balanced polygon count
     const moonMesh = BABYLON.MeshBuilder.CreateSphere('moon', { 
         segments: 24, // Reduced from 32 for better performance
-        diameter: EARTH_RADIUS * 2 * EARTH_SCALE * MOON_SCALE 
+        diameter: EARTH_CORE_RADIUS * 2 * MOON_SCALE
     }, scene);
     
     // Position moon properly in orbit
