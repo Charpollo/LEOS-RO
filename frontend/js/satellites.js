@@ -1,6 +1,6 @@
 import * as BABYLON from '@babylonjs/core';
 import { EARTH_SCALE } from './constants.js';
-import { generateRealTimeTelemetry } from './orbital-mechanics.js';
+import { generateRealTimeTelemetry, toBabylonPosition } from './orbital-mechanics.js';
 import { TextBlock, Rectangle, Control, Button } from '@babylonjs/gui';
 
 let satelliteMeshes = {};
@@ -90,22 +90,40 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
             
             addSatelliteLabel(satName, satelliteMesh, advancedTexture, activeSatellite, meshColor);
             
-            // Add simple comet-like trail for each satellite
-            const cometMat = new BABYLON.StandardMaterial(`${satName}_cometMat`, scene);
-            cometMat.emissiveColor = meshColor.clone();
-            cometMat.alpha = 0.6;
-            cometMat.backFaceCulling = false;
-            const TRAIL_DIAMETER = 0.05; // smaller diameter for smoother, continuous points
-            const TRAIL_LENGTH = 600;   // more points for a longer trail
-            const cometTrail = new BABYLON.TrailMesh(`${satName}_cometTrail`, satelliteMesh, scene, TRAIL_DIAMETER, TRAIL_LENGTH, true);
-            cometTrail.material = cometMat;
-            // Prevent initial artifact (line from earth center) by clearing points on first render
-            scene.onAfterRenderObservable.addOnce(() => {
-                if (typeof cometTrail._reset === 'function') {
-                    cometTrail._reset();
+            // Draw static full orbit path as a closed loop using orbitalElements
+            const elements = orbitalElements[satName];
+            if (elements) {
+                const ORBIT_SAMPLES = 180;
+                const orbitPoints = [];
+                const deg2rad = Math.PI / 180;
+                const e = elements.eccentricity;
+                const a = elements.semi_major_axis_km;
+                const iRad = elements.inclination_deg * deg2rad;
+                const omegaRad = elements.argument_of_perigee_deg * deg2rad;
+                const OmegaRad = elements.raan_deg * deg2rad;
+                const cosI = Math.cos(iRad), sinI = Math.sin(iRad);
+                const cosOmega = Math.cos(omegaRad), sinOmega = Math.sin(omegaRad);
+                const cosCapOmega = Math.cos(OmegaRad), sinCapOmega = Math.sin(OmegaRad);
+                for (let j = 0; j <= ORBIT_SAMPLES; j++) {
+                    const TA = 2 * Math.PI * j / ORBIT_SAMPLES;
+                    const r = a * (1 - e * e) / (1 + e * Math.cos(TA));
+                    const xOrb = r * Math.cos(TA);
+                    const yOrb = r * Math.sin(TA);
+                    const x = (cosCapOmega * cosOmega - sinCapOmega * sinOmega * cosI) * xOrb +
+                              (-cosCapOmega * sinOmega - sinCapOmega * cosOmega * cosI) * yOrb;
+                    const y = (sinCapOmega * cosOmega + cosCapOmega * sinOmega * cosI) * xOrb +
+                              (-sinCapOmega * sinOmega + cosCapOmega * cosOmega * cosI) * yOrb;
+                    const z = (sinI * sinOmega) * xOrb + (sinI * cosOmega) * yOrb;
+                    // Convert ECI (km) into Babylon coords
+                    orbitPoints.push(toBabylonPosition({ x, y, z }));
                 }
-            });
-            satelliteMesh.cometTrail = cometTrail;
+                const orbitPath = BABYLON.MeshBuilder.CreateLines(
+                    `${satName}_orbitPath`,
+                    { points: orbitPoints, close: true, updatable: false },
+                    scene
+                );
+                orbitPath.color = meshColor.clone().scale(0.6);
+            }
             
             satelliteMesh.isPickable = true;
             satelliteMesh.actionManager = new BABYLON.ActionManager(scene);
