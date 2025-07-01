@@ -20,7 +20,7 @@ import { EARTH_RADIUS_KM, EARTH_SCALE, MIN_LEO_ALTITUDE_KM, MOON_DISTANCE, MOON_
 import { createSkybox } from './skybox.js';
 import { createEarth } from './earth.js';
 import { createMoon } from './moon.js';
-import { createSatellites, getSatelliteMeshes, getTelemetryData } from './satellites.js';
+import { createSatellites, getSatelliteMeshes, getTelemetryData, getDetailedTelemetryForSatellite } from './satellites.js';
 import { updateTelemetryUI } from './telemetry.js';
 import { startSimulationLoop, updateTimeDisplay, getCurrentSimTime } from './simulation.js';
 import { setupKeyboardControls } from './controls.js';
@@ -28,7 +28,7 @@ import { createGroundStations, updateGroundStationsLOS, createCoverageCircles, g
 import { initAuroraBackground, cleanupAuroraBackground } from './aurora-background.js';
 
 // Import orbital mechanics functions
-import { calculateSatellitePosition, toBabylonPosition } from './orbital-mechanics.js';
+import { calculateSatellitePosition, toBabylonPosition, generateRealTimeTelemetry } from './orbital-mechanics.js';
 
 // Globals
 let engine;
@@ -1419,13 +1419,25 @@ async function loadSatelliteData() {
     scene.onBeforeRenderObservable.add(() => {
       const currentSimTime = getCurrentSimTime();
       const meshes = getSatelliteMeshes();
+      const telemetryObj = getTelemetryData();
       Object.entries(orbitalElements).forEach(([satName, elems]) => {
         const mesh = meshes[satName];
         if (!mesh) return;
         const epochTime = new Date(elems.epoch);
+        // calculate position & velocity
         const result = calculateSatellitePosition(elems, currentSimTime, epochTime);
+        // update mesh position
         const pos = toBabylonPosition(result.position);
         mesh.position.copyFrom(pos);
+        // --- new telemetry merge ---
+        const baseTelemetry = generateRealTimeTelemetry(
+          result.position,
+          result.velocity,
+          elems,
+          satName
+        );
+        const detailed = getDetailedTelemetryForSatellite(satName);
+        telemetryObj[satName] = { ...baseTelemetry, ...detailed };
       });
     });
 

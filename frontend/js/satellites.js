@@ -559,3 +559,5 @@ async function loadDetailedTelemetryData() {
         staticTelemetryData = {};
     }
 }
+
+export { getDetailedTelemetryForSatellite };
