@@ -28,12 +28,11 @@
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
 
-# Preload critical assets
+# Preload critical assets - removed static bundle reference since webpack generates dynamic names
 [[headers]]
   for = "/"
   [headers.values]
     Link = '''
-    </dist/js/bundle.js>; rel=preload; as=script,
     </assets/earth_diffuse.png>; rel=preload; as=image,
     </assets/stars.png>; rel=preload; as=image
     '''
