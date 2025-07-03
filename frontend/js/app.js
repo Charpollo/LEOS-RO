@@ -24,7 +24,7 @@ import { createSatellites, getSatelliteMeshes, getTelemetryData, getDetailedTele
 import { updateTelemetryUI } from './telemetry.js';
 import { startSimulationLoop, updateTimeDisplay, getCurrentSimTime } from './simulation.js';
 import { setupKeyboardControls } from './controls.js';
-import { createGroundStations, updateGroundStationsLOS, createCoverageCircles, getGroundStationMeshes, clearAutoLOSBeams, getGroundStationDefinitions, createTestConnection } from './groundStations.js';
+import { createGroundStations, updateGroundStationsLOS, createCoverageCircles, getGroundStationMeshes, clearAutoLOSBeams, getGroundStationDefinitions } from './groundStations.js';
 import { initAuroraBackground, cleanupAuroraBackground } from './aurora-background.js';
 
 // Import orbital mechanics functions
@@ -847,9 +847,6 @@ async function createScene() {
     
     // Finally load satellite data
     await loadSatelliteData();
-    
-    // Add test connection for debugging LOS system
-    createTestConnection(scene);
 }
 
 // Preview model viewer globals
