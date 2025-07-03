@@ -436,12 +436,14 @@ export async function initApp() {
                 hideLoadingScreen();
             }, 3000); // 3 second delay for smooth object loading
             
-            // Initialize SDA visualization
-            initSDAVisualization(scene).then(controller => {
-                sdaController = controller;
-                // Make available globally for keyboard shortcuts
-                window.sdaController = controller;
-                console.log("SDA visualization initialized");
+            // Delay SDA initialization to improve initial load time
+            setTimeout(() => {
+                // Initialize SDA visualization
+                initSDAVisualization(scene).then(controller => {
+                    sdaController = controller;
+                    // Make available globally for keyboard shortcuts
+                    window.sdaController = controller;
+                    console.log("SDA visualization initialized");
 
                 // After binding SDA button behavior, set up modal controls
                 const sdaModal = document.getElementById('sda-welcome-modal');
@@ -514,6 +516,7 @@ export async function initApp() {
             }).catch(err => {
                 console.error("Failed to initialize SDA visualization:", err);
             });
+            }, 5000); // Delay SDA loading by 5 seconds to prioritize main scene
             
             // Add event listener for the Add TLE button
             const addTleBtn = document.getElementById('add-tle-button');

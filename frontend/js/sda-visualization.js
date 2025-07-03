@@ -28,12 +28,10 @@ class SDAVisualization {
 
   async initialize(scene) {
     this.scene = scene;
+    this.isInitialized = false;
     
-    // Load TLE data first
-    await this.loadTLEData();
-    
-    // Create the visualization system
-    this.createParticleSystem();
+    // Defer heavy initialization until first activation
+    this.scene = scene;
     
     // Set up UI interactions
     this.setupUI();
@@ -42,6 +40,158 @@ class SDAVisualization {
     this.setVisible(false);
     
     return this;
+  }
+
+  async lazyInitialize() {
+    if (this.isInitialized) return;
+    
+    console.log('Lazy initializing SDA visualization...');
+    
+    // Show loading indicator
+    this.showLoadingIndicator();
+    
+    // Load TLE data first
+    await this.loadTLEData();
+    
+    // Create the visualization system progressively
+    await this.createParticleSystemProgressive();
+    
+    this.isInitialized = true;
+    
+    // Hide loading indicator
+    this.hideLoadingIndicator();
+  }
+
+  showLoadingIndicator() {
+    let loadingDiv = document.getElementById('sda-loading');
+    if (!loadingDiv) {
+      loadingDiv = document.createElement('div');
+      loadingDiv.id = 'sda-loading';
+      loadingDiv.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 0, 0, 0.8);
+        color: #00cfff;
+        padding: 20px;
+        border-radius: 10px;
+        font-family: 'Orbitron', monospace;
+        font-size: 16px;
+        z-index: 10000;
+        border: 2px solid #00cfff;
+      `;
+      loadingDiv.innerHTML = `
+        <div>Loading SDA Visualization...</div>
+        <div id="sda-loading-progress" style="margin-top: 10px;">0 / 17000 objects</div>
+      `;
+      document.body.appendChild(loadingDiv);
+    }
+    loadingDiv.style.display = 'block';
+  }
+
+  hideLoadingIndicator() {
+    const loadingDiv = document.getElementById('sda-loading');
+    if (loadingDiv) {
+      loadingDiv.style.display = 'none';
+    }
+  }
+
+  async createParticleSystemProgressive() {
+    // Clean up existing system
+    if (this.mesh) {
+      this.mesh.dispose();
+      this.objectData = {};
+    }
+
+    if (this.tleData.length === 0) {
+      console.warn('No TLE data available for visualization');
+      return;
+    }
+
+    // Create parent node for all SDA objects
+    this.mesh = new BABYLON.TransformNode("sdaObjects", this.scene);
+    
+    // Create shared materials for better performance
+    this.sharedMaterials = {};
+    Object.keys(this.COLORS).forEach(orbitClass => {
+      const material = new BABYLON.StandardMaterial(`sdaMaterial_${orbitClass}`, this.scene);
+      material.emissiveColor = this.COLORS[orbitClass];
+      material.disableLighting = true;
+      material.freeze(); // Freeze material for better performance
+      this.sharedMaterials[orbitClass] = material;
+    });
+    
+    // Create meshes in batches for progressive loading
+    const batchSize = 500;
+    const now = new Date();
+    this.objectData = {};
+    
+    for (let batchStart = 0; batchStart < this.tleData.length; batchStart += batchSize) {
+      const batchEnd = Math.min(batchStart + batchSize, this.tleData.length);
+      
+      // Process batch
+      for (let index = batchStart; index < batchEnd; index++) {
+        const obj = this.tleData[index];
+        if (!obj.tle1 || !obj.tle2) continue;
+
+        try {
+          const position = this.calculateSimpleOrbitPosition(obj.tle1, obj.tle2, now);
+          if (!position) continue;
+
+          const babylonPos = this.positionToBabylon(position);
+          
+          // Use instances instead of individual meshes for better performance
+          const sphere = BABYLON.MeshBuilder.CreateSphere(`sda_${obj.norad || index}`, {
+            diameter: 0.012,
+            segments: 3 // Even fewer segments
+          }, this.scene);
+          
+          sphere.position.set(babylonPos.x, babylonPos.y, babylonPos.z);
+          sphere.parent = this.mesh;
+          sphere.freezeWorldMatrix(); // Freeze for performance
+          
+          const orbitClass = obj.class || this.determineOrbitClass(position.altitude);
+          sphere.material = this.sharedMaterials[orbitClass] || this.sharedMaterials.LEO;
+          
+          this.objectData[obj.norad || `obj-${index}`] = {
+            mesh: sphere,
+            name: obj.name || `Object ${index}`,
+            noradId: obj.norad || `obj-${index}`,
+            class: orbitClass,
+            tle1: obj.tle1,
+            tle2: obj.tle2,
+            altitude: position.altitude.toFixed(0),
+            inclination: position.inclination.toFixed(1)
+          };
+        } catch (error) {
+          // Silently skip errors
+        }
+      }
+      
+      // Update progress
+      const progress = document.getElementById('sda-loading-progress');
+      if (progress) {
+        progress.textContent = `${batchEnd} / ${this.tleData.length} objects`;
+      }
+      
+      // Yield to browser for smooth loading
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
+
+    // Cache object keys for efficient batched updates
+    this.objectKeys = Object.keys(this.objectData);
+    this.updateIndex = 0;
+
+    // Set up update loop
+    this.scene.registerBeforeRender(() => {
+      if (this.isVisible && this.isInitialized) {
+        this.updateMeshes();
+      }
+    });
+    
+    // Set up mouse interaction
+    this.setupMouseInteraction();
   }
 
   async loadTLEData() {
@@ -571,12 +721,17 @@ class SDAVisualization {
     return 'HEO';
   }
 
-  setVisible(visible) {
+  async setVisible(visible) {
+    // Lazy initialize on first show
+    if (visible && !this.isInitialized) {
+      await this.lazyInitialize();
+    }
+    
     this.isVisible = visible;
     
     if (this.mesh) {
       this.mesh.setEnabled(visible);
-    } else {
+    } else if (visible) {
       console.warn('No mesh available to set visibility');
     }
     
@@ -584,8 +739,8 @@ class SDAVisualization {
     this.updateUI();
   }
 
-  toggle() {
-    this.setVisible(!this.isVisible);
+  async toggle() {
+    await this.setVisible(!this.isVisible);
     return this.isVisible;
   }
 

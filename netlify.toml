@@ -1,0 +1,45 @@
+[build]
+  command = "npm install && npm run build:prod"
+  publish = "frontend"
+
+# Enable Brotli compression
+[build.processing]
+  skip_processing = false
+
+[build.processing.css]
+  bundle = true
+  minify = true
+
+[build.processing.js]
+  bundle = true
+  minify = true
+
+[build.processing.images]
+  compress = true
+
+# Aggressive caching for assets
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/dist/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Preload critical assets
+[[headers]]
+  for = "/"
+  [headers.values]
+    Link = '''
+    </dist/js/bundle.js>; rel=preload; as=script,
+    </assets/earth_diffuse.png>; rel=preload; as=image,
+    </assets/stars.png>; rel=preload; as=image
+    '''
+
+# SPA redirect
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
