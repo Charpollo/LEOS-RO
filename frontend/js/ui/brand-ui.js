@@ -281,6 +281,12 @@ export function showHelpButton() {
         sdaToggleBtn.style.display = 'block';
     }
     
+    // Show simulation settings button now that the simulation is loaded
+    const simulationSettingsBtn = document.getElementById('simulation-settings-btn');
+    if (simulationSettingsBtn) {
+        simulationSettingsBtn.style.display = 'flex';
+    }
+    
     // Don't show Add TLE button initially - only when SDA is active
 }
 

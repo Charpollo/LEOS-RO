@@ -9,6 +9,10 @@ let staticTelemetryData = {}; // Store the detailed telemetry from Telem_example
 let telemetryPanel = null;
 let telemetryPanelUpdateInterval = null;
 
+// Orbit display state: 0 = solid lines, 1 = comet trails, 2 = off
+let orbitDisplayMode = 0;
+let cometTrails = {}; // Store comet trail data for each satellite
+
 export function getSatelliteMeshes() {
     return satelliteMeshes;
 }
@@ -36,6 +40,11 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
                 satellite.glowTrail.dispose();
             }
             
+            // Dispose of comet trail if it exists
+            if (satellite.cometTrail) {
+                satellite.cometTrail.dispose();
+            }
+            
             // Remove trail scale observer if it exists
             if (satellite.trailScaleObserver) {
                 scene.onBeforeRenderObservable.remove(satellite.trailScaleObserver);
@@ -45,6 +54,9 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
             satellite.dispose();
         }
     }
+    
+    // Clear comet trail data
+    clearAllCometTrails();
     satelliteMeshes = {};
     
     // Create new satellites - ONLY for real satellites, not simulated debris/SDA objects
@@ -507,13 +519,227 @@ async function loadDetailedTelemetryData() {
 }
 
 export { getDetailedTelemetryForSatellite };
-// Toggle static orbit paths on/off with the 'O' key
-window.addEventListener('keydown', (e) => {
-  if (e.key === 'o' || e.key === 'O') {
-    Object.values(satelliteMeshes).forEach(mesh => {
-      if (mesh.orbitPath) {
-        mesh.orbitPath.isVisible = !mesh.orbitPath.isVisible;
-      }
+
+// Ultra-realistic historical 3D comet trail system
+function initializeCometTrail(satName, satelliteMesh, scene) {
+    const maxHistoryMinutes = 180; // 3 hours of orbital history for multiple complete orbits
+    cometTrails[satName] = {
+        historicalPositions: [], // Array of {position: Vector3, timestamp: Date}
+        maxHistoryLength: maxHistoryMinutes * 60, // Convert to seconds
+        lastUpdateTime: new Date(),
+        trailMesh: null,
+        scene: scene,
+        satelliteMesh: satelliteMesh,
+        samplingIntervalSeconds: 2, // Sample every 2 seconds for smooth curves
+        lastSampleTime: 0,
+        isInitialized: true
+    };
+    
+    console.log(`Initialized ultra-realistic comet trail for ${satName}`);
+}
+
+// Convert satellite position to latitude/longitude for ground track detection
+function satelliteToLatLon(position) {
+    const distance = position.length();
+    const lat = Math.asin(position.y / distance) * 180 / Math.PI;
+    const lon = Math.atan2(position.z, position.x) * 180 / Math.PI;
+    return { lat, lon };
+}
+
+// Check if we've started a new orbit (longitude wrapped around)
+function detectNewOrbit(currentLon, lastLon) {
+    if (lastLon === null) return false;
+    // Detect when longitude wraps around significantly (crossing 180/-180 boundary)
+    const lonDiff = Math.abs(currentLon - lastLon);
+    return lonDiff > 300; // Large jump indicates orbit completion
+}
+
+function updateCometTrail(satName, satelliteMesh) {
+    if (!cometTrails[satName] || !cometTrails[satName].isInitialized) return;
+    
+    const trail = cometTrails[satName];
+    const currentTime = window.getCurrentSimTime ? window.getCurrentSimTime() : new Date();
+    const currentPosition = satelliteMesh.position.clone();
+    
+    // Adaptive sampling based on simulation speed for optimal performance and realism
+    const timeMultiplier = window.currentTimeMultiplier || 1;
+    const adaptiveSamplingInterval = Math.max(1, trail.samplingIntervalSeconds / Math.sqrt(timeMultiplier));
+    const timeSinceLastSample = (currentTime.getTime() - trail.lastSampleTime) / 1000; // Convert to seconds
+    
+    if (timeSinceLastSample >= adaptiveSamplingInterval) {
+        // Add new historical position
+        trail.historicalPositions.push({
+            position: currentPosition.clone(),
+            timestamp: new Date(currentTime)
+        });
+        
+        trail.lastSampleTime = currentTime.getTime();
+        
+        // Remove old positions beyond our history window
+        const cutoffTime = currentTime.getTime() - (trail.maxHistoryLength * 1000);
+        trail.historicalPositions = trail.historicalPositions.filter(
+            entry => entry.timestamp.getTime() > cutoffTime
+        );
+        
+        // Update the visual trail mesh less frequently for better performance
+        // Only update mesh every 5 samples or when we have significant new data
+        if (trail.historicalPositions.length % 5 === 0 || trail.historicalPositions.length < 10) {
+            updateRealisticTrailMesh(satName);
+        }
+        
+        // Reduce console logging frequency for performance
+        if (trail.historicalPositions.length % 20 === 0) {
+            console.log(`${satName}: Updated trail with ${trail.historicalPositions.length} historical positions spanning ${Math.round((currentTime.getTime() - (trail.historicalPositions[0]?.timestamp.getTime() || currentTime.getTime())) / 60000)} minutes`);
+        }
+    }
+}
+
+
+function updateRealisticTrailMesh(satName) {
+    const trail = cometTrails[satName];
+    
+    if (trail.historicalPositions.length < 2) {
+        return; // Need at least 2 points to create a line
+    }
+    
+    try {
+        const scene = trail.scene;
+        
+        // Dispose of old trail mesh
+        if (trail.trailMesh && !trail.trailMesh.isDisposed()) {
+            trail.trailMesh.dispose();
+        }
+        
+        // Extract positions for the line mesh
+        const trailPoints = trail.historicalPositions.map(entry => entry.position);
+        
+        // Create smooth, continuous trail mesh
+        const trailMesh = BABYLON.MeshBuilder.CreateLines(
+            `${satName}_historicalTrail`,
+            { 
+                points: trailPoints,
+                updatable: false // For better performance since we recreate when needed
+            },
+            scene
+        );
+        
+        // Set trail appearance based on satellite
+        const isCRTS = satName.toUpperCase().includes('CRTS');
+        const isBulldog = satName.toUpperCase().includes('BULLDOG');
+        
+        if (isCRTS) {
+            trailMesh.color = new BABYLON.Color3(1.0, 0.5, 0.1); // Bright orange for CRTS
+        } else if (isBulldog) {
+            trailMesh.color = new BABYLON.Color3(0.1, 0.8, 1.0); // Bright cyan for Bulldog
+        } else {
+            trailMesh.color = new BABYLON.Color3(0.3, 0.7, 1.0); // Blue for others
+        }
+        
+        // Make trail slightly transparent and glowing
+        trailMesh.alpha = 0.8;
+        trailMesh.isVisible = true;
+        
+        // Optional: Add gradient effect (newer parts brighter)
+        // This could be enhanced with a custom shader for even better effects
+        
+        trail.trailMesh = trailMesh;
+        trail.satelliteMesh.cometTrail = trailMesh;
+        
+        // Only log mesh creation occasionally to reduce console spam
+        if (trailPoints.length % 50 === 0) {
+            console.log(`Created realistic trail mesh for ${satName} with ${trailPoints.length} points`);
+        }
+        
+    } catch (error) {
+        console.error(`Error creating realistic trail mesh for ${satName}:`, error);
+    }
+}
+
+function clearCometTrail(satName) {
+    if (cometTrails[satName]) {
+        // Dispose historical trail mesh
+        if (cometTrails[satName].trailMesh && !cometTrails[satName].trailMesh.isDisposed()) {
+            cometTrails[satName].trailMesh.dispose();
+        }
+        
+        // Clear all historical data
+        cometTrails[satName].historicalPositions = [];
+        
+        delete cometTrails[satName];
+        console.log(`Cleared comet trail for ${satName}`);
+    }
+}
+
+function clearAllCometTrails() {
+    Object.keys(cometTrails).forEach(satName => {
+        clearCometTrail(satName);
     });
-  }
+}
+
+function setOrbitDisplayMode(mode) {
+    orbitDisplayMode = mode;
+    
+    Object.entries(satelliteMeshes).forEach(([satName, mesh]) => {
+        switch (mode) {
+            case 0: // Solid lines
+                // Show static orbit paths
+                if (mesh.orbitPath) {
+                    mesh.orbitPath.isVisible = true;
+                }
+                // Hide comet trails when switching to solid lines
+                if (cometTrails[satName] && cometTrails[satName].trailMesh) {
+                    cometTrails[satName].trailMesh.isVisible = false;
+                }
+                break;
+                
+            case 1: // Historical 3D comet trails
+                // Hide static orbit paths
+                if (mesh.orbitPath) {
+                    mesh.orbitPath.isVisible = false;
+                }
+                // Initialize comet trail if it doesn't exist
+                if (!cometTrails[satName] || !cometTrails[satName].isInitialized) {
+                    initializeCometTrail(satName, mesh, mesh.getScene());
+                }
+                // Show comet trails
+                if (cometTrails[satName] && cometTrails[satName].trailMesh) {
+                    cometTrails[satName].trailMesh.isVisible = true;
+                }
+                break;
+                
+            case 2: // Off
+                // Hide both static orbit paths and comet trails
+                if (mesh.orbitPath) {
+                    mesh.orbitPath.isVisible = false;
+                }
+                if (cometTrails[satName] && cometTrails[satName].trailMesh) {
+                    cometTrails[satName].trailMesh.isVisible = false;
+                }
+                break;
+        }
+    });
+}
+
+// Export function to update comet trails from simulation loop
+export function updateCometTrails() {
+    if (orbitDisplayMode === 1) { // Only update when in comet trail mode
+        console.log(`DEBUG: updateCometTrails called, mode=${orbitDisplayMode}, satellites=${Object.keys(satelliteMeshes).length}`);
+        Object.entries(satelliteMeshes).forEach(([satName, mesh]) => {
+            updateCometTrail(satName, mesh);
+        });
+    }
+}
+
+// Three-state toggle for orbit display with the 'O' key
+window.addEventListener('keydown', (e) => {
+    if (e.key === 'o' || e.key === 'O') {
+        // Cycle through states: 0 -> 1 -> 2 -> 0
+        orbitDisplayMode = (orbitDisplayMode + 1) % 3;
+        console.log(`DEBUG: Switching to mode ${orbitDisplayMode}, satelliteMeshes count: ${Object.keys(satelliteMeshes).length}`);
+        setOrbitDisplayMode(orbitDisplayMode);
+        
+        // Optional: Show a brief status message
+        const modeNames = ['Solid Orbit Lines', 'Historical 3D Trails', 'Off'];
+        console.log(`Orbit Display: ${modeNames[orbitDisplayMode]}`);
+    }
 });

@@ -59,6 +59,15 @@
         justify-content: center;
         color: #fff;
       }
+      
+      /* Apply pulse animation to simulation settings button */
+      #simulation-settings-btn {
+        animation: pulse 3s ease-in-out infinite;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+      }
 
     </style>
 </head>
@@ -70,6 +79,13 @@
         <!-- SDA Toggle Button (hidden until simulation starts) -->
         <button id="sda-toggle-btn" title="Toggle SDA" style="position:absolute; top:60px; left:16px; width:36px; height:36px; border-radius:50%; background:rgba(102,217,255,0.7); border:2px solid #00cfff; cursor:pointer; z-index:5000; display:none; pointer-events:auto; display:flex; align-items:center; justify-content:center;">
             <img src="/assets/sat.svg" style="width:18px; height:18px; filter:brightness(0) invert(1);" alt="SDA">
+        </button>
+        
+        <!-- Simulation Settings Button (hidden until simulation starts) -->
+        <button id="simulation-settings-btn" title="Simulation Settings" style="position:absolute; top:104px; left:16px; width:36px; height:36px; border-radius:50%; background:rgba(102,217,255,0.7); border:2px solid #00cfff; cursor:pointer; z-index:5000; display:none; pointer-events:auto; display:flex; align-items:center; justify-content:center;">
+            <svg style="width:18px; height:18px; fill:#ffffff;" viewBox="0 0 24 24">
+                <path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/>
+            </svg>
         </button>
         
         <canvas id="renderCanvas" touch-action="none"></canvas>
@@ -145,7 +161,7 @@
                     </div>
                     <div class="control-item">
                         <span class="control-key">O Key</span>
-                        <span class="control-desc">Toggle orbit paths</span>
+                        <span class="control-desc">Cycle orbit display: Lines → Historical Trails → Off</span>
                     </div>
                     <div class="control-item">
                         <span class="control-key">Space Key</span>
@@ -298,6 +314,63 @@
                 <div class="modal-footer">
                     <button class="primary-button" id="sda-activate-button">Activate SDA Visualization</button>
                     <button class="secondary-button" id="sda-modal-close-footer">Close</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Simulation Settings Modal -->
+        <div id="simulation-settings-modal" class="modal-overlay" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header" style="position: relative;">
+                    <button class="close-button" id="settings-modal-close" style="position: absolute; top: -5px; right: 5px; background: none; border: none; color: #66d9ff; font-size: 24px; cursor: pointer; z-index: 10;">&times;</button>
+                    <h2 class="modal-title">Simulation Settings</h2>
+                    <p class="modal-subtitle">Configure simulation parameters and display options</p>
+                </div>
+                <div class="modal-body">
+                    <div class="setting-section">
+                        <h3>Time Control</h3>
+                        <div class="setting-item">
+                            <label for="time-multiplier-range">Time Multiplier:</label>
+                            <input type="range" id="time-multiplier-range" min="0.1" max="1000" step="0.1" value="10">
+                            <span id="time-multiplier-value">10x</span>
+                        </div>
+                    </div>
+                    <div class="setting-section">
+                        <h3>Display Options</h3>
+                        <div class="setting-item">
+                            <label>
+                                <input type="checkbox" id="show-orbit-paths" checked>
+                                Show Orbit Paths (O key toggles)
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <label>
+                                <input type="checkbox" id="show-satellite-labels" checked>
+                                Show Satellite Labels
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <label>
+                                <input type="checkbox" id="show-ground-tracks" checked>
+                                Show Ground Tracks
+                            </label>
+                        </div>
+                    </div>
+                    <div class="setting-section">
+                        <h3>Performance</h3>
+                        <div class="setting-item">
+                            <label for="trail-quality">Trail Quality:</label>
+                            <select id="trail-quality">
+                                <option value="low">Low (better performance)</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="high">High (best quality)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="primary-button" id="settings-apply-button">Apply Settings</button>
+                    <button class="secondary-button" id="settings-modal-close-footer">Close</button>
                 </div>
             </div>
         </div>

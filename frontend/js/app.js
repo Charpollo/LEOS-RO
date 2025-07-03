@@ -523,6 +523,15 @@ export async function initApp() {
                 });
             }
             
+            // Add event listener for the Simulation Settings button
+            const simulationSettingsBtn = document.getElementById('simulation-settings-btn');
+            if (simulationSettingsBtn) {
+                simulationSettingsBtn.addEventListener('click', () => {
+                    console.log('Simulation Settings Button clicked');
+                    showSimulationSettingsModal();
+                });
+            }
+            
             sceneLoaded = true;
             // Show help button now that simulation is loaded
             showHelpButton();
@@ -1334,6 +1343,90 @@ function showNotification(message, duration = 3000) {
     window.notificationTimeout = setTimeout(() => {
         notification.style.opacity = '0';
     }, duration);
+}
+
+// Global flag to track if settings modal listeners are initialized
+let settingsModalInitialized = false;
+
+function initializeSettingsModal() {
+    if (settingsModalInitialized) return;
+    
+    const modal = document.getElementById('simulation-settings-modal');
+    const timeMultiplierRange = document.getElementById('time-multiplier-range');
+    const timeMultiplierValue = document.getElementById('time-multiplier-value');
+    const closeBtn = document.getElementById('settings-modal-close');
+    const closeFooterBtn = document.getElementById('settings-modal-close-footer');
+    const applyBtn = document.getElementById('settings-apply-button');
+    
+    if (!modal) return;
+    
+    const closeModal = () => {
+        modal.style.display = 'none';
+    };
+    
+    // Update time multiplier display when range changes
+    if (timeMultiplierRange && timeMultiplierValue) {
+        timeMultiplierRange.addEventListener('input', (e) => {
+            const value = parseFloat(e.target.value);
+            timeMultiplierValue.textContent = `${value}x`;
+        });
+    }
+    
+    // Close button handlers
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeModal);
+    }
+    if (closeFooterBtn) {
+        closeFooterBtn.addEventListener('click', closeModal);
+    }
+    
+    // Apply settings button
+    if (applyBtn) {
+        applyBtn.addEventListener('click', () => {
+            // Apply time multiplier
+            if (timeMultiplierRange && window.simState) {
+                const newValue = parseFloat(timeMultiplierRange.value);
+                window.simState.timeMultiplier = newValue;
+                window.currentTimeMultiplier = newValue;
+                console.log(`Time multiplier set to: ${newValue}x`);
+            }
+            
+            // Apply other settings (placeholder for future functionality)
+            console.log('Settings applied');
+            closeModal();
+            showNotification('Settings applied successfully!');
+        });
+    }
+    
+    // Close modal when clicking outside
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            closeModal();
+        }
+    });
+    
+    settingsModalInitialized = true;
+}
+
+function showSimulationSettingsModal() {
+    // Initialize modal listeners if not done yet
+    initializeSettingsModal();
+    
+    const modal = document.getElementById('simulation-settings-modal');
+    if (!modal) return;
+    
+    // Show the modal
+    modal.style.display = 'flex';
+    
+    // Update controls with current values
+    const timeMultiplierRange = document.getElementById('time-multiplier-range');
+    const timeMultiplierValue = document.getElementById('time-multiplier-value');
+    
+    // Set current time multiplier value
+    if (timeMultiplierRange && window.currentTimeMultiplier) {
+        timeMultiplierRange.value = window.currentTimeMultiplier;
+        timeMultiplierValue.textContent = `${window.currentTimeMultiplier}x`;
+    }
 }
 
 async function loadSatelliteData() {
