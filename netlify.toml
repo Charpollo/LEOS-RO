@@ -1,6 +1,6 @@
 [build]
-  command = "npm install && npm run build:prod"
-  publish = "frontend"
+  command = "npm install && npm run build"
+  publish = "frontend/dist"
 
 # Enable Brotli compression
 [build.processing]
@@ -23,12 +23,7 @@
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
 
-[[headers]]
-  for = "/dist/*"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
-
-# Preload critical assets - removed static bundle reference since webpack generates dynamic names
+# Preload critical assets only
 [[headers]]
   for = "/"
   [headers.values]

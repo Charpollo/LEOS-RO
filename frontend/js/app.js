@@ -431,109 +431,8 @@ export async function initApp() {
         scene.render();
         
         if (scene.isReady() && !sceneLoaded) {
-            // Delay hiding loading screen to ensure all SDA objects are loaded
-            setTimeout(() => {
-                hideLoadingScreen();
-            }, 3000); // 3 second delay for smooth object loading
-            
-            // Delay SDA initialization to improve initial load time
-            setTimeout(() => {
-                // Initialize SDA visualization
-                initSDAVisualization(scene).then(controller => {
-                    sdaController = controller;
-                    // Make available globally for keyboard shortcuts
-                    window.sdaController = controller;
-                    console.log("SDA visualization initialized");
-
-                // After binding SDA button behavior, set up modal controls
-                const sdaModal = document.getElementById('sda-welcome-modal');
-                const sdaCloseBtn = document.getElementById('sda-modal-close');
-                const sdaCloseBtnFooter = document.getElementById('sda-modal-close-footer');
-                const sdaActivateBtn = document.getElementById('sda-activate-button');
-
-                if (sdaCloseBtn) {
-                    sdaCloseBtn.addEventListener('click', () => {
-                        sdaModal.style.display = 'none';
-                        localStorage.setItem('sda-welcome-seen', 'true');
-                    });
-                }
-                if (sdaCloseBtnFooter) {
-                    sdaCloseBtnFooter.addEventListener('click', () => {
-                        sdaModal.style.display = 'none';
-                        localStorage.setItem('sda-welcome-seen', 'true');
-                    });
-                }
-                if (sdaActivateBtn) {
-                    sdaActivateBtn.addEventListener('click', () => {
-                        console.log('SDA Activate Button clicked');
-                        // Close modal and mark as seen
-                        sdaModal.style.display = 'none';
-                        localStorage.setItem('sda-welcome-seen', 'true');
-                        
-                        // Activate SDA (turn it on)
-                        if (window.sdaController) {
-                            // Force SDA to be visible
-                            window.sdaController.setVisible(true);
-                            // Update Add TLE button
-                            const addTle = document.getElementById('add-tle-button');
-                            if (addTle) addTle.style.display = 'block';
-                        }
-                    });
-                }
-                // Close modal on background click
-                if (sdaModal) {
-                    sdaModal.addEventListener('click', (e) => {
-                        if (e.target === sdaModal) {
-                            sdaModal.style.display = 'none';
-                            localStorage.setItem('sda-welcome-seen', 'true');
-                        }
-                    });
-                }
-                // Bind click on SDA toggle button to invoke welcome modal or toggle
-                const sdaToggleBtn = document.getElementById('sda-toggle-btn');
-                if (sdaToggleBtn) {
-                    sdaToggleBtn.addEventListener('click', () => {
-                        console.log('SDA Toggle Button clicked');
-                        const hasSeenWelcome = localStorage.getItem('sda-welcome-seen') === 'true';
-                        
-                        if (!hasSeenWelcome) {
-                            // First time: show welcome modal
-                            console.log('Showing welcome modal for first time');
-                            if (sdaModal) sdaModal.style.display = 'flex';
-                        } else {
-                            // After first time: simply toggle SDA on/off
-                            console.log('Toggling SDA overlay');
-                            if (window.sdaController) {
-                                const active = window.sdaController.toggle();
-                                console.log('SDA is now:', active ? 'ON' : 'OFF');
-                                // Update Add TLE button visibility
-                                const addTleBtn = document.getElementById('add-tle-button');
-                                if (addTleBtn) addTleBtn.style.display = active ? 'block' : 'none';
-                            }
-                        }
-                    });
-                }
-            }).catch(err => {
-                console.error("Failed to initialize SDA visualization:", err);
-            });
-            }, 5000); // Delay SDA loading by 5 seconds to prioritize main scene
-            
-            // Add event listener for the Add TLE button
-            const addTleBtn = document.getElementById('add-tle-button');
-            if (addTleBtn) {
-                addTleBtn.addEventListener('click', () => {
-                    showNotification('Coming Soon! TLE import functionality will be available in a future update.');
-                });
-            }
-            
-            // Add event listener for the Simulation Settings button
-            const simulationSettingsBtn = document.getElementById('simulation-settings-btn');
-            if (simulationSettingsBtn) {
-                simulationSettingsBtn.addEventListener('click', () => {
-                    console.log('Simulation Settings Button clicked');
-                    showSimulationSettingsModal();
-                });
-            }
+            // Hide loading screen IMMEDIATELY when scene is ready
+            hideLoadingScreen();
             
             sceneLoaded = true;
             // Show help button now that simulation is loaded
@@ -549,6 +448,26 @@ export async function initApp() {
             setTimeout(() => {
                 showWelcomeModal();
             }, 500);
+            
+            // Initialize SDA in the background as optional feature
+            // This runs completely independent and won't block the main app
+            initSDAInBackground(scene);
+            
+            // Add event listener for the Add TLE button
+            const addTleBtn = document.getElementById('add-tle-button');
+            if (addTleBtn) {
+                addTleBtn.addEventListener('click', () => {
+                    showNotification('Coming Soon! TLE import functionality will be available in a future update.');
+                });
+            }
+            
+            // Add event listener for the Simulation Settings button
+            const simulationSettingsBtn = document.getElementById('simulation-settings-btn');
+            if (simulationSettingsBtn) {
+                simulationSettingsBtn.addEventListener('click', () => {
+                    showSimulationSettingsModal();
+                });
+            }
         }
         // Only update automatic LOS beams when ground station dashboard is NOT open
         if (!groundStationDashboardOpen) {
@@ -1920,6 +1839,107 @@ async function loadSatelliteData() {
 // All satellite related functions have been moved to satellites.js
 
 // Removed all Brand UI functions since they've been moved
+
+/**
+ * Initialize SDA in the background without blocking the main app
+ * This runs completely independently and won't affect app responsiveness
+ */
+function initSDAInBackground(scene) {
+    // Use setTimeout to ensure this runs after the main thread is free
+    setTimeout(() => {
+        try {
+            // Initialize SDA visualization with error handling
+            initSDAVisualization(scene).then(controller => {
+                sdaController = controller;
+                window.sdaController = controller;
+                
+                // Setup SDA modal controls after initialization
+                setupSDAModalControls();
+                setupSDAToggleButton();
+                
+            }).catch(err => {
+                // SDA is optional - app continues to work without it
+                // In production, errors are silent but don't break the app
+                setupSDAToggleButton(); // Still setup button for future attempts
+            });
+        } catch (err) {
+            // Silent error handling for production builds
+            setupSDAToggleButton(); // Still setup button for future attempts
+        }
+    }, 1000); // Small delay to ensure main app is fully loaded
+}
+
+/**
+ * Setup SDA modal controls
+ */
+function setupSDAModalControls() {
+    const sdaModal = document.getElementById('sda-welcome-modal');
+    const sdaCloseBtn = document.getElementById('sda-modal-close');
+    const sdaCloseBtnFooter = document.getElementById('sda-modal-close-footer');
+    const sdaActivateBtn = document.getElementById('sda-activate-button');
+
+    if (sdaCloseBtn) {
+        sdaCloseBtn.addEventListener('click', () => {
+            sdaModal.style.display = 'none';
+            localStorage.setItem('sda-welcome-seen', 'true');
+        });
+    }
+    if (sdaCloseBtnFooter) {
+        sdaCloseBtnFooter.addEventListener('click', () => {
+            sdaModal.style.display = 'none';
+            localStorage.setItem('sda-welcome-seen', 'true');
+        });
+    }
+    if (sdaActivateBtn) {
+        sdaActivateBtn.addEventListener('click', () => {
+            // Close modal and mark as seen
+            sdaModal.style.display = 'none';
+            localStorage.setItem('sda-welcome-seen', 'true');
+            
+            // Activate SDA (turn it on)
+            if (window.sdaController) {
+                window.sdaController.setVisible(true);
+                const addTle = document.getElementById('add-tle-button');
+                if (addTle) addTle.style.display = 'block';
+            }
+        });
+    }
+    // Close modal on background click
+    if (sdaModal) {
+        sdaModal.addEventListener('click', (e) => {
+            if (e.target === sdaModal) {
+                sdaModal.style.display = 'none';
+                localStorage.setItem('sda-welcome-seen', 'true');
+            }
+        });
+    }
+}
+
+/**
+ * Setup SDA toggle button
+ */
+function setupSDAToggleButton() {
+    const sdaToggleBtn = document.getElementById('sda-toggle-btn');
+    if (sdaToggleBtn) {
+        sdaToggleBtn.addEventListener('click', () => {
+            const hasSeenWelcome = localStorage.getItem('sda-welcome-seen') === 'true';
+            const sdaModal = document.getElementById('sda-welcome-modal');
+            
+            if (!hasSeenWelcome) {
+                // First time: show welcome modal
+                if (sdaModal) sdaModal.style.display = 'flex';
+            } else {
+                // After first time: simply toggle SDA on/off
+                if (window.sdaController) {
+                    const active = window.sdaController.toggle();
+                    // Update Add TLE button visibility
+                    const addTleBtn = document.getElementById('add-tle-button');
+                    if (addTleBtn) addTleBtn.style.display = active ? 'block' : 'none';
+                }
+            }
+        });
+    }
+}
 
 window.addEventListener('DOMContentLoaded', () => {
     initApp();

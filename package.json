@@ -6,10 +6,8 @@
   "scripts": {
     "clean": "rimraf frontend/dist",
     "build": "webpack --config webpack.config.js",
-    "build:prod": "NODE_ENV=production webpack --config webpack.config.js",
     "watch": "webpack --config webpack.config.js --watch",
     "start": "./run-frontend.sh",
-    "start:clean": "./run-frontend.sh --clean",
     "dev": "./run-frontend.sh --clean --port 8000",
     "optimize:models": "node scripts/optimize-models.js",
     "optimize:models:replace": "node scripts/optimize-models.js --replace"
