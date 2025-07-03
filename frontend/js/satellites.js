@@ -520,11 +520,11 @@ async function loadDetailedTelemetryData() {
 
 export { getDetailedTelemetryForSatellite };
 
-// Ultra-realistic historical 3D comet trail system
+// Earth-relative historical 3D comet trail system
 function initializeCometTrail(satName, satelliteMesh, scene) {
     const maxHistoryMinutes = 180; // 3 hours of orbital history for multiple complete orbits
     cometTrails[satName] = {
-        historicalPositions: [], // Array of {position: Vector3, timestamp: Date}
+        historicalPositions: [], // Array of {eciPosition: Vector3, earthRotation: number, timestamp: Date}
         maxHistoryLength: maxHistoryMinutes * 60, // Convert to seconds
         lastUpdateTime: new Date(),
         trailMesh: null,
@@ -532,10 +532,11 @@ function initializeCometTrail(satName, satelliteMesh, scene) {
         satelliteMesh: satelliteMesh,
         samplingIntervalSeconds: 2, // Sample every 2 seconds for smooth curves
         lastSampleTime: 0,
-        isInitialized: true
+        isInitialized: true,
+        earthRotationAtStart: 0 // Track Earth's rotation reference point
     };
     
-    console.log(`Initialized ultra-realistic comet trail for ${satName}`);
+    console.log(`Initialized Earth-relative comet trail for ${satName}`);
 }
 
 // Convert satellite position to latitude/longitude for ground track detection
@@ -567,9 +568,14 @@ function updateCometTrail(satName, satelliteMesh) {
     const timeSinceLastSample = (currentTime.getTime() - trail.lastSampleTime) / 1000; // Convert to seconds
     
     if (timeSinceLastSample >= adaptiveSamplingInterval) {
-        // Add new historical position
+        // Calculate Earth's rotation angle at this time (Earth rotates 360° in 24 hours = 15°/hour = 0.25°/minute)
+        const earthRotationRate = 0.25 / 60; // degrees per second
+        const earthRotationAngle = (currentTime.getTime() / 1000) * earthRotationRate;
+        
+        // Store position in Earth-Centered Inertial (ECI) coordinates with Earth rotation reference
         trail.historicalPositions.push({
-            position: currentPosition.clone(),
+            eciPosition: currentPosition.clone(), // Position in space-fixed coordinates
+            earthRotation: earthRotationAngle, // Earth's rotation at this time
             timestamp: new Date(currentTime)
         });
         
@@ -581,15 +587,18 @@ function updateCometTrail(satName, satelliteMesh) {
             entry => entry.timestamp.getTime() > cutoffTime
         );
         
-        // Update the visual trail mesh less frequently for better performance
-        // Only update mesh every 5 samples or when we have significant new data
-        if (trail.historicalPositions.length % 5 === 0 || trail.historicalPositions.length < 10) {
-            updateRealisticTrailMesh(satName);
-        }
+        // Update trail mesh to show Earth rotation effect
+        updateRealisticTrailMesh(satName);
         
         // Reduce console logging frequency for performance
         if (trail.historicalPositions.length % 20 === 0) {
             console.log(`${satName}: Updated trail with ${trail.historicalPositions.length} historical positions spanning ${Math.round((currentTime.getTime() - (trail.historicalPositions[0]?.timestamp.getTime() || currentTime.getTime())) / 60000)} minutes`);
+        }
+    } else if (trail.historicalPositions.length > 2) {
+        // Even when not adding new points, update the trail mesh periodically to show Earth rotation effect
+        // Update every few frames for smooth Earth rotation visualization
+        if (Math.floor(currentTime.getTime() / 1000) % 2 === 0) { // Update every 2 seconds
+            updateRealisticTrailMesh(satName);
         }
     }
 }
@@ -604,14 +613,30 @@ function updateRealisticTrailMesh(satName) {
     
     try {
         const scene = trail.scene;
+        const currentTime = window.getCurrentSimTime ? window.getCurrentSimTime() : new Date();
         
         // Dispose of old trail mesh
         if (trail.trailMesh && !trail.trailMesh.isDisposed()) {
             trail.trailMesh.dispose();
         }
         
-        // Extract positions for the line mesh
-        const trailPoints = trail.historicalPositions.map(entry => entry.position);
+        // Calculate current Earth rotation
+        const earthRotationRate = 0.25 / 60; // degrees per second
+        const currentEarthRotation = (currentTime.getTime() / 1000) * earthRotationRate;
+        
+        // Convert historical ECI positions to current Earth-relative coordinates
+        const trailPoints = trail.historicalPositions.map(entry => {
+            // Calculate how much Earth has rotated since this position was recorded
+            const rotationDifference = currentEarthRotation - entry.earthRotation;
+            const rotationRadians = (rotationDifference * Math.PI) / 180;
+            
+            // Rotate the historical position to show where it would be relative to current Earth orientation
+            const x = entry.eciPosition.x * Math.cos(rotationRadians) - entry.eciPosition.z * Math.sin(rotationRadians);
+            const y = entry.eciPosition.y; // Y axis (north-south) doesn't change with Earth rotation
+            const z = entry.eciPosition.x * Math.sin(rotationRadians) + entry.eciPosition.z * Math.cos(rotationRadians);
+            
+            return new BABYLON.Vector3(x, y, z);
+        });
         
         // Create smooth, continuous trail mesh
         const trailMesh = BABYLON.MeshBuilder.CreateLines(
@@ -647,7 +672,7 @@ function updateRealisticTrailMesh(satName) {
         
         // Only log mesh creation occasionally to reduce console spam
         if (trailPoints.length % 50 === 0) {
-            console.log(`Created realistic trail mesh for ${satName} with ${trailPoints.length} points`);
+            console.log(`Created realistic trail mesh for ${satName} with ${trailPoints.length} points, Earth rotation: ${currentEarthRotation.toFixed(2)}°`);
         }
         
     } catch (error) {
