@@ -32,8 +32,9 @@
     </assets/stars.png>; rel=preload; as=image
     '''
 
-# SPA redirect
+# SPA redirect - but don't redirect files that exist
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+  force = false

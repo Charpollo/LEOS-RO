@@ -39,7 +39,8 @@ module.exports = {
       patterns: [
         { from: 'frontend/css', to: 'css' },
         { from: 'frontend/assets', to: 'assets' },
-        { from: 'frontend/templates', to: 'templates' }
+        { from: 'frontend/templates', to: 'templates' },
+        { from: 'frontend/data', to: 'data' }
       ]
     })
   ],
