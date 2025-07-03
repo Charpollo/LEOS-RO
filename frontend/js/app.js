@@ -1352,51 +1352,317 @@ function initializeSettingsModal() {
     if (settingsModalInitialized) return;
     
     const modal = document.getElementById('simulation-settings-modal');
-    const timeMultiplierRange = document.getElementById('time-multiplier-range');
-    const timeMultiplierValue = document.getElementById('time-multiplier-value');
-    const closeBtn = document.getElementById('settings-modal-close');
-    const closeFooterBtn = document.getElementById('settings-modal-close-footer');
-    const applyBtn = document.getElementById('settings-apply-button');
-    
     if (!modal) return;
+    
+    // Global settings object to store all simulation settings
+    window.simulationSettings = {
+        // Time Control
+        timeMultiplier: 10,
+        autoPauseEvents: true,
+        simulationStartTime: new Date(),
+        
+        // Visual Display
+        showOrbitPaths: true,
+        showSatelliteLabels: true,
+        showGroundStations: true,
+        showLineOfSight: true,
+        showEarthAtmosphere: true,
+        showSunlight: true,
+        
+        // Orbit Trails
+        trailLength: 180, // minutes
+        trailQuality: 'medium',
+        trailOpacity: 0.8,
+        trailFadeGradient: true,
+        
+        // Satellite Appearance
+        satelliteScale: 1.0,
+        showSatelliteGlow: true,
+        realisticLighting: true,
+        labelScale: 1.0,
+        
+        // Camera & Controls
+        cameraSensitivity: 1.0,
+        zoomSpeed: 1.0,
+        smoothCamera: true,
+        autoFollowSatellite: false,
+        
+        // Performance
+        renderQuality: 'medium',
+        updateFrequency: 60,
+        adaptiveQuality: true,
+        showFpsCounter: false,
+        
+        // Advanced
+        showCoordinateSystem: false,
+        showOrbitalMechanics: false,
+        enablePhysicsDebug: false,
+        earthRotationRate: 1.0
+    };
     
     const closeModal = () => {
         modal.style.display = 'none';
     };
     
-    // Update time multiplier display when range changes
-    if (timeMultiplierRange && timeMultiplierValue) {
-        timeMultiplierRange.addEventListener('input', (e) => {
-            const value = parseFloat(e.target.value);
-            timeMultiplierValue.textContent = `${value}x`;
+    // Initialize all range inputs with value display updates
+    const initializeRangeInput = (rangeId, valueId, suffix = '') => {
+        const range = document.getElementById(rangeId);
+        const value = document.getElementById(valueId);
+        if (range && value) {
+            const updateValue = () => {
+                const val = parseFloat(range.value);
+                if (suffix === '%') {
+                    value.textContent = `${Math.round(val * 100)}%`;
+                } else if (suffix === 'x') {
+                    value.textContent = `${val}x`;
+                } else if (suffix === ' min') {
+                    value.textContent = `${val} min`;
+                } else if (suffix === ' FPS') {
+                    value.textContent = `${val} FPS`;
+                } else {
+                    value.textContent = `${Math.round(val * 100)}%`;
+                }
+            };
+            range.addEventListener('input', updateValue);
+            updateValue(); // Set initial value
+        }
+    };
+    
+    // Initialize all range inputs
+    initializeRangeInput('time-multiplier-range', 'time-multiplier-value', 'x');
+    initializeRangeInput('trail-length', 'trail-length-value', ' min');
+    initializeRangeInput('trail-opacity', 'trail-opacity-value', '%');
+    initializeRangeInput('satellite-scale', 'satellite-scale-value', '%');
+    initializeRangeInput('label-scale', 'label-scale-value', '%');
+    initializeRangeInput('camera-sensitivity', 'camera-sensitivity-value', '%');
+    initializeRangeInput('zoom-speed', 'zoom-speed-value', '%');
+    initializeRangeInput('update-frequency', 'update-frequency-value', ' FPS');
+    initializeRangeInput('earth-rotation-rate', 'earth-rotation-rate-value', '%');
+    
+    // Settings presets
+    const presets = {
+        performance: {
+            trailQuality: 'low',
+            renderQuality: 'low',
+            updateFrequency: 30,
+            showEarthAtmosphere: false,
+            showSatelliteGlow: false,
+            adaptiveQuality: true,
+            trailLength: 60
+        },
+        quality: {
+            trailQuality: 'ultra',
+            renderQuality: 'ultra',
+            updateFrequency: 120,
+            showEarthAtmosphere: true,
+            showSatelliteGlow: true,
+            realisticLighting: true,
+            trailLength: 360
+        },
+        cinematic: {
+            smoothCamera: true,
+            autoFollowSatellite: true,
+            showSatelliteGlow: true,
+            realisticLighting: true,
+            trailFadeGradient: true,
+            showEarthAtmosphere: true,
+            satelliteScale: 1.5,
+            trailOpacity: 0.9
+        },
+        educational: {
+            showCoordinateSystem: true,
+            showOrbitalMechanics: true,
+            showFpsCounter: true,
+            autoPauseEvents: true,
+            timeMultiplier: 5,
+            labelScale: 1.3
+        },
+        developer: {
+            enablePhysicsDebug: true,
+            showCoordinateSystem: true,
+            showOrbitalMechanics: true,
+            showFpsCounter: true,
+            adaptiveQuality: false,
+            renderQuality: 'medium'
+        }
+    };
+    
+    // Preset selector
+    const presetsSelect = document.getElementById('settings-presets');
+    if (presetsSelect) {
+        presetsSelect.addEventListener('change', (e) => {
+            const presetName = e.target.value;
+            if (presetName && presets[presetName]) {
+                applyPreset(presets[presetName]);
+                showNotification(`${presetName.charAt(0).toUpperCase() + presetName.slice(1)} preset loaded!`);
+            }
+            presetsSelect.value = ''; // Reset selector
+        });
+    }
+    
+    // Apply preset function
+    const applyPreset = (preset) => {
+        Object.assign(window.simulationSettings, preset);
+        updateModalFromSettings();
+    };
+    
+    // Update modal UI from settings object
+    const updateModalFromSettings = () => {
+        const settings = window.simulationSettings;
+        
+        // Update all controls based on settings
+        Object.keys(settings).forEach(key => {
+            const element = document.getElementById(key.replace(/([A-Z])/g, '-$1').toLowerCase());
+            if (element) {
+                if (element.type === 'checkbox') {
+                    element.checked = settings[key];
+                } else if (element.type === 'range') {
+                    element.value = settings[key];
+                    element.dispatchEvent(new Event('input')); // Trigger value display update
+                } else if (element.tagName === 'SELECT') {
+                    element.value = settings[key];
+                }
+            }
+        });
+    };
+    
+    // Reset to defaults
+    const resetBtn = document.getElementById('settings-reset-button');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', () => {
+            // Reset to default values
+            window.simulationSettings = {
+                timeMultiplier: 10,
+                autoPauseEvents: true,
+                showOrbitPaths: true,
+                showSatelliteLabels: true,
+                showGroundStations: true,
+                showLineOfSight: true,
+                showEarthAtmosphere: true,
+                showSunlight: true,
+                trailLength: 180,
+                trailQuality: 'medium',
+                trailOpacity: 0.8,
+                trailFadeGradient: true,
+                satelliteScale: 1.0,
+                showSatelliteGlow: true,
+                realisticLighting: true,
+                labelScale: 1.0,
+                cameraSensitivity: 1.0,
+                zoomSpeed: 1.0,
+                smoothCamera: true,
+                autoFollowSatellite: false,
+                renderQuality: 'medium',
+                updateFrequency: 60,
+                adaptiveQuality: true,
+                showFpsCounter: false,
+                showCoordinateSystem: false,
+                showOrbitalMechanics: false,
+                enablePhysicsDebug: false,
+                earthRotationRate: 1.0
+            };
+            updateModalFromSettings();
+            showNotification('Settings reset to defaults!');
         });
     }
     
     // Close button handlers
-    if (closeBtn) {
-        closeBtn.addEventListener('click', closeModal);
-    }
-    if (closeFooterBtn) {
-        closeFooterBtn.addEventListener('click', closeModal);
-    }
+    const closeBtn = document.getElementById('settings-modal-close');
+    const closeFooterBtn = document.getElementById('settings-modal-close-footer');
+    if (closeBtn) closeBtn.addEventListener('click', closeModal);
+    if (closeFooterBtn) closeFooterBtn.addEventListener('click', closeModal);
     
     // Apply settings button
+    const applyBtn = document.getElementById('settings-apply-button');
     if (applyBtn) {
         applyBtn.addEventListener('click', () => {
-            // Apply time multiplier
-            if (timeMultiplierRange && window.simState) {
-                const newValue = parseFloat(timeMultiplierRange.value);
-                window.simState.timeMultiplier = newValue;
-                window.currentTimeMultiplier = newValue;
-                console.log(`Time multiplier set to: ${newValue}x`);
-            }
-            
-            // Apply other settings (placeholder for future functionality)
-            console.log('Settings applied');
+            applyAllSettings();
             closeModal();
             showNotification('Settings applied successfully!');
         });
     }
+    
+    // Apply all settings to simulation
+    const applyAllSettings = () => {
+        const settings = window.simulationSettings;
+        
+        // Read all values from modal controls
+        const inputs = modal.querySelectorAll('input, select');
+        inputs.forEach(input => {
+            const key = input.id.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
+            if (key && settings.hasOwnProperty(key)) {
+                if (input.type === 'checkbox') {
+                    settings[key] = input.checked;
+                } else if (input.type === 'range' || input.type === 'number') {
+                    settings[key] = parseFloat(input.value);
+                } else {
+                    settings[key] = input.value;
+                }
+            }
+        });
+        
+        // Apply time multiplier
+        if (window.simState) {
+            window.simState.timeMultiplier = settings.timeMultiplier;
+            window.currentTimeMultiplier = settings.timeMultiplier;
+        }
+        
+        // Apply trail settings to existing trails
+        applyTrailSettings(settings);
+        
+        // Apply visual settings
+        applyVisualSettings(settings);
+        
+        // Apply camera settings
+        applyCameraSettings(settings);
+        
+        console.log('All simulation settings applied:', settings);
+    };
+    
+    // Tab switching functionality
+    const tabButtons = modal.querySelectorAll('.tab-button');
+    const tabContents = modal.querySelectorAll('.tab-content');
+    
+    tabButtons.forEach(button => {
+        // Add hover effects
+        button.addEventListener('mouseenter', () => {
+            if (!button.classList.contains('active')) {
+                button.style.background = 'rgba(0,207,255,0.1)';
+            }
+        });
+        
+        button.addEventListener('mouseleave', () => {
+            if (!button.classList.contains('active')) {
+                button.style.background = 'rgba(0,23,40,0.5)';
+            }
+        });
+        
+        button.addEventListener('click', () => {
+            const targetTab = button.getAttribute('data-tab');
+            
+            // Remove active class from all buttons and contents
+            tabButtons.forEach(btn => {
+                btn.classList.remove('active');
+                btn.style.background = 'rgba(0,23,40,0.5)';
+                btn.style.borderBottom = '2px solid transparent';
+            });
+            tabContents.forEach(content => {
+                content.classList.remove('active');
+                content.style.display = 'none';
+            });
+            
+            // Add active class to clicked button and corresponding content
+            button.classList.add('active');
+            button.style.background = 'rgba(0,207,255,0.2)';
+            button.style.borderBottom = '2px solid #00cfff';
+            
+            const targetContent = modal.querySelector(`#${targetTab}-tab`);
+            if (targetContent) {
+                targetContent.classList.add('active');
+                targetContent.style.display = 'block';
+            }
+        });
+    });
     
     // Close modal when clicking outside
     modal.addEventListener('click', (e) => {
@@ -1408,6 +1674,105 @@ function initializeSettingsModal() {
     settingsModalInitialized = true;
 }
 
+// Helper functions to apply specific setting categories
+
+function applyTrailSettings(settings) {
+    // Apply trail settings to satellites module
+    if (window.cometTrails) {
+        Object.keys(window.cometTrails).forEach(satName => {
+            const trail = window.cometTrails[satName];
+            if (trail) {
+                // Update trail length (convert minutes to seconds)
+                trail.maxHistoryLength = settings.trailLength * 60;
+                
+                // Update trail opacity
+                if (trail.trailMesh) {
+                    trail.trailMesh.alpha = settings.trailOpacity;
+                }
+                
+                // Update sampling interval based on quality
+                switch (settings.trailQuality) {
+                    case 'low':
+                        trail.samplingIntervalSeconds = 5;
+                        break;
+                    case 'medium':
+                        trail.samplingIntervalSeconds = 2;
+                        break;
+                    case 'high':
+                        trail.samplingIntervalSeconds = 1;
+                        break;
+                    case 'ultra':
+                        trail.samplingIntervalSeconds = 0.5;
+                        break;
+                }
+            }
+        });
+    }
+}
+
+function applyVisualSettings(settings) {
+    // Apply satellite visibility settings
+    if (window.satelliteMeshes) {
+        Object.values(window.satelliteMeshes).forEach(mesh => {
+            if (mesh) {
+                // Satellite scale
+                const scale = settings.satelliteScale;
+                mesh.scaling = new BABYLON.Vector3(scale, scale, scale);
+                
+                // Satellite labels
+                const labelControl = scene?.gui?.getControlByName(`${mesh.name}_label`);
+                if (labelControl) {
+                    labelControl.isVisible = settings.showSatelliteLabels;
+                    const labelScale = settings.labelScale;
+                    labelControl.scaleX = labelControl.scaleY = labelScale;
+                }
+                
+                // Orbit paths visibility
+                if (mesh.orbitPath) {
+                    mesh.orbitPath.isVisible = settings.showOrbitPaths;
+                }
+            }
+        });
+    }
+    
+    // Apply ground station visibility
+    if (window.groundStationMeshes) {
+        Object.values(window.groundStationMeshes).forEach(mesh => {
+            if (mesh) {
+                mesh.isVisible = settings.showGroundStations;
+            }
+        });
+    }
+    
+    // Apply Earth atmosphere effects
+    if (window.earthMesh && settings.showEarthAtmosphere) {
+        // Add atmosphere effect (this would require atmosphere shader implementation)
+        console.log('Earth atmosphere effects:', settings.showEarthAtmosphere);
+    }
+}
+
+function applyCameraSettings(settings) {
+    if (window.camera) {
+        // Camera sensitivity (affects rotation speed)
+        if (window.camera.attachControl) {
+            window.camera.angularSensibilityX = 1000 / settings.cameraSensitivity;
+            window.camera.angularSensibilityY = 1000 / settings.cameraSensitivity;
+        }
+        
+        // Zoom speed (affects wheel sensitivity)
+        if (window.camera.wheelPrecision) {
+            window.camera.wheelPrecision = 50 / settings.zoomSpeed;
+        }
+        
+        // Smooth camera transitions
+        window.smoothCameraEnabled = settings.smoothCamera;
+        
+        // Auto-follow satellite
+        window.autoFollowEnabled = settings.autoFollowSatellite;
+    }
+}
+
+
 function showSimulationSettingsModal() {
     // Initialize modal listeners if not done yet
     initializeSettingsModal();
@@ -1415,18 +1780,42 @@ function showSimulationSettingsModal() {
     const modal = document.getElementById('simulation-settings-modal');
     if (!modal) return;
     
+    // Initialize settings if not done yet
+    if (!window.simulationSettings) {
+        initializeSettingsModal();
+    }
+    
+    // Update current time multiplier from simulation state
+    if (window.currentTimeMultiplier) {
+        window.simulationSettings.timeMultiplier = window.currentTimeMultiplier;
+    }
+    
+    // Update modal UI to reflect current settings
+    const updateModalFromSettings = () => {
+        const settings = window.simulationSettings;
+        
+        // Update all controls based on settings
+        Object.keys(settings).forEach(key => {
+            const elementId = key.replace(/([A-Z])/g, '-$1').toLowerCase();
+            const element = document.getElementById(elementId);
+            if (element) {
+                if (element.type === 'checkbox') {
+                    element.checked = settings[key];
+                } else if (element.type === 'range') {
+                    element.value = settings[key];
+                    element.dispatchEvent(new Event('input')); // Trigger value display update
+                } else if (element.tagName === 'SELECT') {
+                    element.value = settings[key];
+                }
+            }
+        });
+    };
+    
+    // Update modal with current settings
+    updateModalFromSettings();
+    
     // Show the modal
     modal.style.display = 'flex';
-    
-    // Update controls with current values
-    const timeMultiplierRange = document.getElementById('time-multiplier-range');
-    const timeMultiplierValue = document.getElementById('time-multiplier-value');
-    
-    // Set current time multiplier value
-    if (timeMultiplierRange && window.currentTimeMultiplier) {
-        timeMultiplierRange.value = window.currentTimeMultiplier;
-        timeMultiplierValue.textContent = `${window.currentTimeMultiplier}x`;
-    }
 }
 
 async function loadSatelliteData() {
