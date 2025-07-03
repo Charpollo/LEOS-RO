@@ -329,10 +329,10 @@
                 <!-- Tab Navigation -->
                 <div class="tab-nav" style="display: flex; border-bottom: 1px solid #00cfff; margin-bottom: 20px;">
                     <button class="tab-button active" data-tab="general" style="flex: 1; padding: 12px; background: rgba(0,207,255,0.2); border: none; color: #66d9ff; cursor: pointer; border-bottom: 2px solid #00cfff; transition: all 0.3s ease; font-size: 14px; font-weight: 500;">⏱️ General</button>
-                    <button class="tab-button" data-tab="visual" style="flex: 1; padding: 12px; background: rgba(0,23,40,0.5); border: none; color: #66d9ff; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.3s ease; font-size: 14px; font-weight: 500;">🎨 Visual</button>
-                    <button class="tab-button" data-tab="trails" style="flex: 1; padding: 12px; background: rgba(0,23,40,0.5); border: none; color: #66d9ff; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.3s ease; font-size: 14px; font-weight: 500;">🌌 Trails</button>
-                    <button class="tab-button" data-tab="camera" style="flex: 1; padding: 12px; background: rgba(0,23,40,0.5); border: none; color: #66d9ff; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.3s ease; font-size: 14px; font-weight: 500;">📹 Camera</button>
-                    <button class="tab-button" data-tab="advanced" style="flex: 1; padding: 12px; background: rgba(0,23,40,0.5); border: none; color: #66d9ff; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.3s ease; font-size: 14px; font-weight: 500;">🔬 Advanced</button>
+                    <button class="tab-button disabled" data-tab="visual" style="flex: 1; padding: 12px; background: rgba(0,23,40,0.3); border: none; color: #555; cursor: not-allowed; border-bottom: 2px solid transparent; transition: all 0.3s ease; font-size: 14px; font-weight: 500;">🎨 Visual<br><small>Coming Soon</small></button>
+                    <button class="tab-button disabled" data-tab="trails" style="flex: 1; padding: 12px; background: rgba(0,23,40,0.3); border: none; color: #555; cursor: not-allowed; border-bottom: 2px solid transparent; transition: all 0.3s ease; font-size: 14px; font-weight: 500;">🌌 Trails<br><small>Coming Soon</small></button>
+                    <button class="tab-button disabled" data-tab="camera" style="flex: 1; padding: 12px; background: rgba(0,23,40,0.3); border: none; color: #555; cursor: not-allowed; border-bottom: 2px solid transparent; transition: all 0.3s ease; font-size: 14px; font-weight: 500;">📹 Camera<br><small>Coming Soon</small></button>
+                    <button class="tab-button disabled" data-tab="advanced" style="flex: 1; padding: 12px; background: rgba(0,23,40,0.3); border: none; color: #555; cursor: not-allowed; border-bottom: 2px solid transparent; transition: all 0.3s ease; font-size: 14px; font-weight: 500;">🔬 Advanced<br><small>Coming Soon</small></button>
                 </div>
                 
                 <div class="modal-body" style="max-height: 60vh; overflow-y: auto; padding-right: 10px;">
@@ -346,14 +346,17 @@
                                 <span id="time-multiplier-value">10x</span>
                             </div>
                             <div class="setting-item">
-                                <label>
-                                    <input type="checkbox" id="auto-pause-events" checked>
-                                    Auto-pause for important orbital events
-                                </label>
-                            </div>
-                            <div class="setting-item">
-                                <label for="simulation-start-time">Start Time:</label>
-                                <input type="datetime-local" id="simulation-start-time">
+                                <label for="timezone-select">Display Timezone:</label>
+                                <select id="timezone-select">
+                                    <option value="UTC" selected>UTC (Universal)</option>
+                                    <option value="local">Local Time</option>
+                                    <option value="EST">EST (Eastern)</option>
+                                    <option value="CST">CST (Central)</option>
+                                    <option value="MST">MST (Mountain)</option>
+                                    <option value="PST">PST (Pacific)</option>
+                                    <option value="CET">CET (Central European)</option>
+                                    <option value="JST">JST (Japan)</option>
+                                </select>
                             </div>
                         </div>
 
@@ -562,7 +565,7 @@
                     </div>
                     <div style="display: flex; gap: 10px;">
                         <button class="primary-button" id="settings-apply-button">Apply Settings</button>
-                        <button class="secondary-button" id="settings-modal-close-footer">Close</button>
+                        <button class="primary-button" id="settings-modal-close-footer" style="background: rgba(102,217,255,0.1); border-color: #66d9ff;">Close</button>
                     </div>
                 </div>
             </div>

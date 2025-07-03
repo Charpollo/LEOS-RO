@@ -747,6 +747,10 @@ async function createScene() {
     scene.autoClear = true; // Enable auto clear to prevent dark artifacts
     scene.autoClearDepthAndStencil = true;
     
+    // Make scene and engine globally accessible for FPS counter and settings
+    window.scene = scene;
+    window.engine = engine;
+    
     // Create camera with optimized settings first (before any rendering pipelines)
     camera = new BABYLON.ArcRotateCamera('camera', -Math.PI / 2, Math.PI / 2, 20, BABYLON.Vector3.Zero(), scene);
     camera.attachControl(canvas, true);
@@ -1280,8 +1284,13 @@ function initializeSettingsModal() {
     window.simulationSettings = {
         // Time Control
         timeMultiplier: 10,
-        autoPauseEvents: true,
-        simulationStartTime: new Date(),
+        timezone: 'UTC',
+        
+        // Performance
+        renderQuality: 'medium',
+        updateFrequency: 60,
+        adaptiveQuality: true,
+        showFpsCounter: false,
         
         // Visual Display
         showOrbitPaths: true,
@@ -1434,7 +1443,14 @@ function initializeSettingsModal() {
         
         // Update all controls based on settings
         Object.keys(settings).forEach(key => {
-            const element = document.getElementById(key.replace(/([A-Z])/g, '-$1').toLowerCase());
+            let elementId = key.replace(/([A-Z])/g, '-$1').toLowerCase();
+            
+            // Handle special cases for field mapping
+            if (key === 'timezone') {
+                elementId = 'timezone-select';
+            }
+            
+            const element = document.getElementById(elementId);
             if (element) {
                 if (element.type === 'checkbox') {
                     element.checked = settings[key];
@@ -1442,6 +1458,8 @@ function initializeSettingsModal() {
                     element.value = settings[key];
                     element.dispatchEvent(new Event('input')); // Trigger value display update
                 } else if (element.tagName === 'SELECT') {
+                    element.value = settings[key];
+                } else {
                     element.value = settings[key];
                 }
             }
@@ -1455,7 +1473,7 @@ function initializeSettingsModal() {
             // Reset to default values
             window.simulationSettings = {
                 timeMultiplier: 10,
-                autoPauseEvents: true,
+                timezone: 'UTC',
                 showOrbitPaths: true,
                 showSatelliteLabels: true,
                 showGroundStations: true,
@@ -1498,9 +1516,32 @@ function initializeSettingsModal() {
     const applyBtn = document.getElementById('settings-apply-button');
     if (applyBtn) {
         applyBtn.addEventListener('click', () => {
+            // Save old values for comparison
+            const oldRenderQuality = window.simulationSettings.renderQuality;
+            const oldFpsCounter = window.simulationSettings.showFpsCounter;
+            const oldUpdateFreq = window.simulationSettings.updateFrequency;
+            
             applyAllSettings();
+            
+            // Show specific feedback about what changed
+            let changes = [];
+            if (window.simulationSettings.renderQuality !== oldRenderQuality) {
+                changes.push(`Render quality: ${window.simulationSettings.renderQuality}`);
+            }
+            if (window.simulationSettings.showFpsCounter !== oldFpsCounter) {
+                changes.push(`FPS counter: ${window.simulationSettings.showFpsCounter ? 'ON' : 'OFF'}`);
+            }
+            if (window.simulationSettings.updateFrequency !== oldUpdateFreq) {
+                changes.push(`Target FPS: ${window.simulationSettings.updateFrequency}`);
+            }
+            
             closeModal();
-            showNotification('Settings applied successfully!');
+            
+            if (changes.length > 0) {
+                showNotification(`Settings applied: ${changes.join(', ')}`, 4000);
+            } else {
+                showNotification('Settings applied successfully!', 3000);
+            }
         });
     }
     
@@ -1511,7 +1552,13 @@ function initializeSettingsModal() {
         // Read all values from modal controls
         const inputs = modal.querySelectorAll('input, select');
         inputs.forEach(input => {
-            const key = input.id.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
+            let key = input.id.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
+            
+            // Handle special cases for field mapping
+            if (input.id === 'timezone-select') {
+                key = 'timezone';
+            }
+            
             if (key && settings.hasOwnProperty(key)) {
                 if (input.type === 'checkbox') {
                     settings[key] = input.checked;
@@ -1528,6 +1575,14 @@ function initializeSettingsModal() {
             window.simState.timeMultiplier = settings.timeMultiplier;
             window.currentTimeMultiplier = settings.timeMultiplier;
         }
+        
+        // Apply timezone setting
+        window.displayTimezone = settings.timezone;
+        
+        // Apply performance settings (render quality, FPS limiting)
+        applyRenderQuality(settings);
+        applyFpsCounter(settings);
+        applyFpsLimiting(settings);
         
         // Apply trail settings to existing trails
         applyTrailSettings(settings);
@@ -1546,27 +1601,34 @@ function initializeSettingsModal() {
     const tabContents = modal.querySelectorAll('.tab-content');
     
     tabButtons.forEach(button => {
-        // Add hover effects
+        // Add hover effects (skip disabled buttons)
         button.addEventListener('mouseenter', () => {
-            if (!button.classList.contains('active')) {
+            if (!button.classList.contains('active') && !button.classList.contains('disabled')) {
                 button.style.background = 'rgba(0,207,255,0.1)';
             }
         });
         
         button.addEventListener('mouseleave', () => {
-            if (!button.classList.contains('active')) {
+            if (!button.classList.contains('active') && !button.classList.contains('disabled')) {
                 button.style.background = 'rgba(0,23,40,0.5)';
             }
         });
         
         button.addEventListener('click', () => {
+            // Skip if button is disabled
+            if (button.classList.contains('disabled')) {
+                return;
+            }
+            
             const targetTab = button.getAttribute('data-tab');
             
             // Remove active class from all buttons and contents
             tabButtons.forEach(btn => {
                 btn.classList.remove('active');
-                btn.style.background = 'rgba(0,23,40,0.5)';
-                btn.style.borderBottom = '2px solid transparent';
+                if (!btn.classList.contains('disabled')) {
+                    btn.style.background = 'rgba(0,23,40,0.5)';
+                    btn.style.borderBottom = '2px solid transparent';
+                }
             });
             tabContents.forEach(content => {
                 content.classList.remove('active');
@@ -1629,6 +1691,199 @@ function applyTrailSettings(settings) {
                 }
             }
         });
+    }
+}
+
+function applyRenderQuality(settings) {
+    // Only apply render quality changes if it's different from current
+    if (window.scene && window.scene.getEngine) {
+        const engine = window.scene.getEngine();
+        
+        // Store current settings to avoid unnecessary changes
+        if (!window.currentRenderSettings) {
+            window.currentRenderSettings = {
+                renderQuality: 'medium',
+                scaling: 1.0,
+                samples: 2
+            };
+        }
+        
+        // Only apply changes if render quality actually changed
+        if (settings.renderQuality !== window.currentRenderSettings.renderQuality) {
+            let newScaling, newSamples;
+            
+            switch (settings.renderQuality) {
+                case 'low':
+                    newScaling = 2.0; // 50% resolution
+                    newSamples = 1;
+                    window.scene.skipPointerMovePicking = true;
+                    window.scene.autoClear = false;
+                    break;
+                case 'medium':
+                    newScaling = 1.0; // 100% resolution
+                    newSamples = 2;
+                    window.scene.skipPointerMovePicking = true;
+                    window.scene.autoClear = true;
+                    break;
+                case 'high':
+                    newScaling = 0.8; // 125% resolution
+                    newSamples = 4;
+                    window.scene.skipPointerMovePicking = false;
+                    window.scene.autoClear = true;
+                    break;
+                case 'ultra':
+                    newScaling = 0.5; // 200% resolution
+                    newSamples = 8;
+                    window.scene.skipPointerMovePicking = false;
+                    window.scene.autoClear = true;
+                    break;
+            }
+            
+            // Apply changes only if they're different
+            if (newScaling !== window.currentRenderSettings.scaling) {
+                engine.setHardwareScalingLevel(newScaling);
+                window.currentRenderSettings.scaling = newScaling;
+            }
+            
+            if (newSamples !== window.currentRenderSettings.samples) {
+                engine.samples = newSamples;
+                window.currentRenderSettings.samples = newSamples;
+            }
+            
+            window.currentRenderSettings.renderQuality = settings.renderQuality;
+            
+            // Force a resize to apply the new scaling level
+            engine.resize();
+            
+            console.log(`Render quality set to: ${settings.renderQuality}, Hardware scaling: ${engine.getHardwareScalingLevel()}`);
+        }
+    }
+}
+
+function applyFpsCounter(settings) {
+    // Update FPS counter
+    if (settings.showFpsCounter) {
+        if (!window.fpsCounter) {
+            // Create FPS counter
+            const fpsDiv = document.createElement('div');
+            fpsDiv.id = 'fps-counter';
+            fpsDiv.style.cssText = 'position: fixed; top: 60px; right: 20px; background: rgba(0,23,40,0.9); color: #66d9ff; padding: 8px 12px; border-radius: 4px; font-family: monospace; font-size: 14px; z-index: 1000; border: 1px solid #00cfff;';
+            fpsDiv.textContent = 'FPS: 0';
+            document.body.appendChild(fpsDiv);
+            window.fpsCounter = fpsDiv;
+        }
+        
+        // Show FPS counter
+        window.fpsCounter.style.display = 'block';
+        
+        // Clear any existing interval
+        if (window.fpsUpdateInterval) {
+            clearInterval(window.fpsUpdateInterval);
+            window.fpsUpdateInterval = null;
+        }
+        
+        // Initialize custom FPS tracking
+        if (!window.fpsTracker) {
+            window.fpsTracker = {
+                frameCount: 0,
+                lastTime: performance.now(),
+                currentFps: 0
+            };
+        }
+        
+        // Start FPS monitoring using custom frame counting
+        window.fpsUpdateInterval = setInterval(() => {
+            if (window.fpsCounter && window.fpsCounter.style.display !== 'none') {
+                window.fpsCounter.textContent = `FPS: ${Math.round(window.fpsTracker.currentFps)}`;
+            }
+        }, 250); // Update display every 250ms for responsiveness
+        
+        // Hook into the render loop for accurate FPS counting
+        if (window.scene && !window.fpsRenderObserver) {
+            window.fpsRenderObserver = window.scene.onBeforeRenderObservable.add(() => {
+                const now = performance.now();
+                window.fpsTracker.frameCount++;
+                
+                // Calculate FPS every second
+                if (now - window.fpsTracker.lastTime >= 1000) {
+                    window.fpsTracker.currentFps = (window.fpsTracker.frameCount * 1000) / (now - window.fpsTracker.lastTime);
+                    window.fpsTracker.frameCount = 0;
+                    window.fpsTracker.lastTime = now;
+                }
+            });
+        }
+    } else if (window.fpsCounter) {
+        window.fpsCounter.style.display = 'none';
+        // Clear FPS update interval
+        if (window.fpsUpdateInterval) {
+            clearInterval(window.fpsUpdateInterval);
+            window.fpsUpdateInterval = null;
+        }
+        // Clean up render observer
+        if (window.fpsRenderObserver && window.scene) {
+            window.scene.onBeforeRenderObservable.remove(window.fpsRenderObserver);
+            window.fpsRenderObserver = null;
+        }
+    }
+}
+
+function applyFpsLimiting(settings) {
+    // Update target FPS and performance settings
+    if (window.scene && window.scene.getEngine) {
+        const engine = window.scene.getEngine();
+        
+        // Apply target FPS limit
+        if (settings.updateFrequency && settings.updateFrequency < 60) {
+            // For lower FPS targets, introduce frame limiting
+            if (!window.fpsLimiter) {
+                window.fpsLimiter = {
+                    targetInterval: 1000 / settings.updateFrequency,
+                    lastFrame: 0
+                };
+                
+                // Hook into render loop to limit FPS
+                if (!window.fpsLimitObserver) {
+                    window.fpsLimitObserver = window.scene.onBeforeRenderObservable.add(() => {
+                        const now = performance.now();
+                        if (now - window.fpsLimiter.lastFrame < window.fpsLimiter.targetInterval) {
+                            return; // Skip this frame
+                        }
+                        window.fpsLimiter.lastFrame = now;
+                    });
+                }
+            } else {
+                window.fpsLimiter.targetInterval = 1000 / settings.updateFrequency;
+            }
+        } else {
+            // Remove FPS limiting for higher targets
+            if (window.fpsLimitObserver) {
+                window.scene.onBeforeRenderObservable.remove(window.fpsLimitObserver);
+                window.fpsLimitObserver = null;
+                window.fpsLimiter = null;
+            }
+        }
+        
+        // Set adaptive quality based on target FPS
+        if (settings.adaptiveQuality) {
+            if (settings.updateFrequency >= 120) {
+                // High FPS target - optimize for performance
+                window.scene.particlesEnabled = false;
+                window.scene.spritesEnabled = false;
+                window.scene.lensFlaresEnabled = false;
+            } else if (settings.updateFrequency <= 30) {
+                // Low FPS target - enable all effects
+                window.scene.particlesEnabled = true;
+                window.scene.spritesEnabled = true;
+                window.scene.lensFlaresEnabled = true;
+            } else {
+                // Medium FPS - balanced
+                window.scene.particlesEnabled = true;
+                window.scene.spritesEnabled = true;
+                window.scene.lensFlaresEnabled = false;
+            }
+        }
+        
+        console.log(`Target FPS set to: ${settings.updateFrequency}, Adaptive quality: ${settings.adaptiveQuality}`);
     }
 }
 
@@ -1695,7 +1950,7 @@ function applyCameraSettings(settings) {
 }
 
 
-function showSimulationSettingsModal() {
+window.showSimulationSettingsModal = function showSimulationSettingsModal() {
     // Initialize modal listeners if not done yet
     initializeSettingsModal();
     
@@ -1718,7 +1973,13 @@ function showSimulationSettingsModal() {
         
         // Update all controls based on settings
         Object.keys(settings).forEach(key => {
-            const elementId = key.replace(/([A-Z])/g, '-$1').toLowerCase();
+            let elementId = key.replace(/([A-Z])/g, '-$1').toLowerCase();
+            
+            // Handle special cases for field mapping
+            if (key === 'timezone') {
+                elementId = 'timezone-select';
+            }
+            
             const element = document.getElementById(elementId);
             if (element) {
                 if (element.type === 'checkbox') {
@@ -1727,6 +1988,8 @@ function showSimulationSettingsModal() {
                     element.value = settings[key];
                     element.dispatchEvent(new Event('input')); // Trigger value display update
                 } else if (element.tagName === 'SELECT') {
+                    element.value = settings[key];
+                } else {
                     element.value = settings[key];
                 }
             }
@@ -1882,12 +2145,18 @@ function setupSDAModalControls() {
         sdaCloseBtn.addEventListener('click', () => {
             sdaModal.style.display = 'none';
             localStorage.setItem('sda-welcome-seen', 'true');
+            // Hide Add TLE button when closing without activating
+            const addTle = document.getElementById('add-tle-button');
+            if (addTle) addTle.style.display = 'none';
         });
     }
     if (sdaCloseBtnFooter) {
         sdaCloseBtnFooter.addEventListener('click', () => {
             sdaModal.style.display = 'none';
             localStorage.setItem('sda-welcome-seen', 'true');
+            // Hide Add TLE button when closing without activating
+            const addTle = document.getElementById('add-tle-button');
+            if (addTle) addTle.style.display = 'none';
         });
     }
     if (sdaActivateBtn) {
@@ -1910,6 +2179,9 @@ function setupSDAModalControls() {
             if (e.target === sdaModal) {
                 sdaModal.style.display = 'none';
                 localStorage.setItem('sda-welcome-seen', 'true');
+                // Hide Add TLE button when closing without activating
+                const addTle = document.getElementById('add-tle-button');
+                if (addTle) addTle.style.display = 'none';
             }
         });
     }
@@ -1931,10 +2203,8 @@ function setupSDAToggleButton() {
             } else {
                 // After first time: simply toggle SDA on/off
                 if (window.sdaController) {
-                    const active = window.sdaController.toggle();
-                    // Update Add TLE button visibility
-                    const addTleBtn = document.getElementById('add-tle-button');
-                    if (addTleBtn) addTleBtn.style.display = active ? 'block' : 'none';
+                    window.sdaController.toggle();
+                    // updateUI is called internally by the SDA controller
                 }
             }
         });

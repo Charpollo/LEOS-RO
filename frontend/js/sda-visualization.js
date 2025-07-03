@@ -757,6 +757,12 @@ class SDAVisualization {
       legend.style.display = this.isVisible ? 'block' : 'none';
     }
     
+    // Update Add TLE button visibility
+    const addTleBtn = document.getElementById('add-tle-button');
+    if (addTleBtn) {
+      addTleBtn.style.display = this.isVisible ? 'block' : 'none';
+    }
+    
     // Update toggle button
     const toggleBtn = document.getElementById('sda-toggle-btn');
     if (toggleBtn) {

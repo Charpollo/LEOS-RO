@@ -36,6 +36,18 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
         if (satelliteMeshes[satName]) {
             const satellite = satelliteMeshes[satName];
             
+            // Stop all running animations before disposing
+            if (scene.animatables) {
+                const meshAnimatables = scene.animatables.filter(animatable => 
+                    animatable.target === satellite || 
+                    (satellite.getChildren && satellite.getChildren().includes(animatable.target))
+                );
+                meshAnimatables.forEach(animatable => {
+                    animatable.stop();
+                    scene.removeAnimatable(animatable);
+                });
+            }
+            
             // Dispose of orbit trail if it exists
             if (satellite.orbitTrail) {
                 satellite.orbitTrail.dispose();
@@ -54,6 +66,27 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
             // Remove trail scale observer if it exists
             if (satellite.trailScaleObserver) {
                 scene.onBeforeRenderObservable.remove(satellite.trailScaleObserver);
+            }
+            
+            // Stop camera animation if it exists
+            if (satellite._cameraAnimation) {
+                satellite._cameraAnimation.stop();
+                satellite._cameraAnimation = null;
+            }
+            
+            // Dispose of action manager to prevent memory leaks
+            if (satellite.actionManager) {
+                satellite.actionManager.dispose();
+                satellite.actionManager = null;
+            }
+            
+            // Dispose of all child meshes first to prevent floating pieces
+            if (satellite.getChildren) {
+                satellite.getChildren().forEach(child => {
+                    if (child.dispose) {
+                        child.dispose();
+                    }
+                });
             }
             
             // Dispose of the satellite mesh itself
@@ -201,7 +234,11 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
                             camera.setTarget(target);
                         }
                     );
-                    if (anim) anim.disposeOnEnd = true;
+                    if (anim) {
+                        anim.disposeOnEnd = true;
+                        // Store reference for cleanup if needed
+                        satelliteMesh._cameraAnimation = anim;
+                    }
                 }
                 window.dispatchEvent(new CustomEvent('satelliteSelected', { detail: { name: satName, source: 'mesh' } }));
             };

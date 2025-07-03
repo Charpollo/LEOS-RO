@@ -8,8 +8,15 @@ export function getCurrentSimTime() {
     return currentSimTime || new Date();
 }
 
+export function setCurrentSimTime(newTime) {
+    currentSimTime = new Date(newTime);
+    // Update display immediately
+    updateTimeDisplay(currentSimTime);
+}
+
 // Make it accessible globally for other modules
 window.getCurrentSimTime = getCurrentSimTime;
+window.setCurrentSimTime = setCurrentSimTime;
 
 export function startSimulationLoop(scene, satelliteData, orbitalElements, simulationStartTime, getTimeMultiplier, advancedTexture, activeSatellite, telemetryData) {
     // Initialize simulation time from start time or use current time
@@ -81,7 +88,48 @@ export function updateTimeDisplay(simulationTime) {
         simulationTime = new Date(); // Fallback to current time
     }
     
-    // Always show UTC: ISO-style full date + time with seconds
-    const iso = simulationTime.toISOString().replace('T', ' ').substring(0, 19);
-    el.textContent = `${iso} UTC`;
+    // Get timezone setting from global settings
+    const timezone = window.displayTimezone || 'UTC';
+    
+    let timeString;
+    let tzLabel;
+    
+    switch (timezone) {
+        case 'local':
+            timeString = simulationTime.toLocaleString();
+            tzLabel = 'Local';
+            break;
+        case 'EST':
+            timeString = simulationTime.toLocaleString('en-US', { timeZone: 'America/New_York' });
+            tzLabel = 'EST';
+            break;
+        case 'CST':
+            timeString = simulationTime.toLocaleString('en-US', { timeZone: 'America/Chicago' });
+            tzLabel = 'CST';
+            break;
+        case 'MST':
+            timeString = simulationTime.toLocaleString('en-US', { timeZone: 'America/Denver' });
+            tzLabel = 'MST';
+            break;
+        case 'PST':
+            timeString = simulationTime.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' });
+            tzLabel = 'PST';
+            break;
+        case 'CET':
+            timeString = simulationTime.toLocaleString('en-US', { timeZone: 'Europe/Berlin' });
+            tzLabel = 'CET';
+            break;
+        case 'JST':
+            timeString = simulationTime.toLocaleString('en-US', { timeZone: 'Asia/Tokyo' });
+            tzLabel = 'JST';
+            break;
+        case 'UTC':
+        default:
+            const iso = simulationTime.toISOString().replace('T', ' ').substring(0, 19);
+            timeString = iso;
+            tzLabel = 'UTC';
+            break;
+    }
+    
+    el.textContent = `${timeString} ${tzLabel}`;
 }

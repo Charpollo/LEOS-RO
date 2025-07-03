@@ -27,6 +27,7 @@ export function initBrandUI() {
     initTelemetryDashboard();
     initHelpModal();
     initSdaButton();
+    initModalManager();
 }
 
 /**
@@ -305,5 +306,106 @@ function initLoadingWave() {
             }
             target.appendChild(span);
         }
+    }
+}
+
+// Modal management system to ensure only one modal is open at a time
+function initModalManager() {
+    // Define all modal IDs and their toggle methods
+    const modals = {
+        'help-modal': {
+            element: null,
+            toggleClass: 'open',
+            closeMethod: 'removeClass'
+        },
+        'sda-welcome-modal': {
+            element: null,
+            toggleClass: null,
+            closeMethod: 'display'
+        },
+        'simulation-settings-modal': {
+            element: null,
+            toggleClass: null,
+            closeMethod: 'display'
+        },
+        'welcome-modal': {
+            element: null,
+            toggleClass: null,
+            closeMethod: 'display'
+        }
+    };
+
+    // Get references to modal elements
+    Object.keys(modals).forEach(modalId => {
+        modals[modalId].element = document.getElementById(modalId);
+    });
+
+    // Function to close all modals
+    window.closeAllModals = function() {
+        Object.keys(modals).forEach(modalId => {
+            const modal = modals[modalId];
+            if (modal.element) {
+                if (modal.closeMethod === 'removeClass' && modal.toggleClass) {
+                    modal.element.classList.remove(modal.toggleClass);
+                } else if (modal.closeMethod === 'display') {
+                    modal.element.style.display = 'none';
+                }
+            }
+        });
+    };
+
+    // Function to open a specific modal (closes others first)
+    window.openModal = function(modalId) {
+        // Close all other modals first
+        window.closeAllModals();
+        
+        // Open the requested modal
+        const modal = modals[modalId];
+        if (modal && modal.element) {
+            if (modal.closeMethod === 'removeClass' && modal.toggleClass) {
+                modal.element.classList.add(modal.toggleClass);
+            } else if (modal.closeMethod === 'display') {
+                modal.element.style.display = 'flex';
+            }
+        }
+    };
+
+    // Override existing modal open functions to use the manager
+    // Help modal override
+    const helpBtn = document.getElementById('help-sphere-btn');
+    if (helpBtn) {
+        // Remove existing listeners by cloning
+        const newHelpBtn = helpBtn.cloneNode(true);
+        helpBtn.parentNode.replaceChild(newHelpBtn, helpBtn);
+        
+        newHelpBtn.addEventListener('click', () => {
+            const helpModal = document.getElementById('help-modal');
+            if (helpModal && helpModal.classList.contains('open')) {
+                window.closeAllModals();
+            } else {
+                window.openModal('help-modal');
+            }
+        });
+    }
+
+    // Settings modal override
+    const settingsBtn = document.getElementById('simulation-settings-btn');
+    if (settingsBtn) {
+        // Remove existing listeners by cloning
+        const newSettingsBtn = settingsBtn.cloneNode(true);
+        settingsBtn.parentNode.replaceChild(newSettingsBtn, settingsBtn);
+        
+        newSettingsBtn.addEventListener('click', () => {
+            const settingsModal = document.getElementById('simulation-settings-modal');
+            if (settingsModal && settingsModal.style.display === 'flex') {
+                window.closeAllModals();
+            } else {
+                window.openModal('simulation-settings-modal');
+                // Call the original settings modal function to populate data
+                if (window.showSimulationSettingsModal) {
+                    window.showSimulationSettingsModal();
+                }
+            }
+        });
     }
 }
