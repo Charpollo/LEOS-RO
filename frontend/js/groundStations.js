@@ -1,8 +1,8 @@
 import * as BABYLON from '@babylonjs/core';
-import { EARTH_RADIUS_KM, EARTH_SCALE, LOS_DEFAULT_KM, LOS_DEFAULT_BABYLON, LOS_BEAM_CONFIG, calculateHorizonDistance } from './constants.js';
+import { EARTH_RADIUS_KM, EARTH_SCALE, EARTH_VISUAL_SURFACE_RADIUS, LOS_DEFAULT_KM, LOS_DEFAULT_BABYLON, LOS_BEAM_CONFIG, calculateHorizonDistance } from './constants.js';
 import { toBabylonPosition } from './orbital-mechanics.js';
 import { getSatelliteMeshes } from './satellites.js';
-import { Button } from '@babylonjs/gui';
+import { Button, TextBlock, Rectangle, Container } from '@babylonjs/gui';
 
 /**
  * Static ground station definitions (lat, lon in degrees, alt in km)
@@ -43,9 +43,17 @@ function geodeticToCartesian(lat, lon, alt = 0) {
 export function createGroundStations(scene, advancedTexture = null) {
   const earthMesh = scene.getMeshByName('earth');
   GROUND_STATIONS.forEach(station => {
-    // Convert geodetic to Babylon.js coordinate system
-    const ecef = geodeticToCartesian(station.lat, station.lon, station.alt);
-    const pos = toBabylonPosition(ecef, EARTH_SCALE);
+    // Convert geodetic to Babylon.js coordinate system - place on visual Earth surface
+    // Calculate position directly without using toBabylonPosition to avoid visual surface scaling
+    const phi = toRadians(station.lat);
+    const lambda = toRadians(station.lon);
+    // Use EARTH_VISUAL_SURFACE_RADIUS to place directly on the visual Earth surface
+    const radius = EARTH_VISUAL_SURFACE_RADIUS; // Use visual surface radius directly
+    const pos = new BABYLON.Vector3(
+      radius * Math.cos(phi) * Math.cos(lambda),
+      radius * Math.sin(phi), 
+      radius * Math.cos(phi) * Math.sin(lambda)
+    );
     const mesh = BABYLON.MeshBuilder.CreateSphere(
       station.name.replace(/\s+/g, '_'),
       { diameter: 0.008 }, // smaller ground station markers for better scale
@@ -149,51 +157,68 @@ function addGroundStationLabel(stationName, mesh, advancedTexture) {
   // Create a shortened display name for cleaner labels
   const displayName = stationName.replace(/ (Station|Site|DSN)/g, '').replace(', CA', '').replace(', VA', '');
   
-  const labelBtn = Button.CreateSimpleButton(`${stationName.replace(/\s+/g, '_')}_label`, displayName);
-  labelBtn.width = "140px";
-  labelBtn.height = "32px";
-  labelBtn.cornerRadius = 6;
-  labelBtn.background = "rgba(0, 0, 0, 0.7)"; // Match satellite label style
-  labelBtn.color = "#00ff64";
-  labelBtn.fontSize = 11;
-  labelBtn.fontWeight = "bold";
-  labelBtn.thickness = 1;
-  labelBtn.alpha = 0.8; // Match satellite label alpha
-  labelBtn.zIndex = 1500; // Lower than satellite labels to avoid conflicts
-  labelBtn.isPointerBlocker = true;
+  // Use TextBlock instead of Button for cleaner appearance
+  const labelText = new TextBlock(`${stationName.replace(/\s+/g, '_')}_label`, displayName);
+  labelText.width = "140px";
+  labelText.height = "24px";
+  labelText.color = "#00ff64";
+  labelText.fontSize = 11;
+  labelText.fontWeight = "bold";
+  labelText.alpha = 0.8;
+  labelText.zIndex = 1500;
+  labelText.textWrapping = false;
+  labelText.resizeToFit = true;
+  
+  // Add background using a simple rectangle
+  const labelBg = new Rectangle(`${stationName.replace(/\s+/g, '_')}_label_bg`);
+  labelBg.width = "140px";
+  labelBg.height = "24px";
+  labelBg.cornerRadius = 6;
+  labelBg.background = "rgba(0, 0, 0, 0.7)";
+  labelBg.thickness = 1;
+  labelBg.color = "#00ff64";
+  labelBg.alpha = 0.8;
+  labelBg.zIndex = 1499; // Behind the text
+  
+  // Add both background and text to a container
+  const labelContainer = new Container(`${stationName.replace(/\s+/g, '_')}_label_container`);
+  labelContainer.width = "140px";
+  labelContainer.height = "24px";
+  labelContainer.addControl(labelBg);
+  labelContainer.addControl(labelText);
   
   // Hover effects
-  labelBtn.onPointerEnterObservable.add(() => {
-    labelBtn.background = "rgba(0, 100, 200, 0.7)"; // Match satellite label hover style
-    labelBtn.alpha = 1.0;
-    labelBtn.color = "#64ff00";
+  labelContainer.onPointerEnterObservable.add(() => {
+    labelBg.background = "rgba(0, 100, 200, 0.7)"; // Match satellite label hover style
+    labelContainer.alpha = 1.0;
+    labelText.color = "#64ff00";
     document.getElementById('renderCanvas').style.cursor = 'pointer';
   });
   
-  labelBtn.onPointerOutObservable.add(() => {
-    labelBtn.background = "rgba(0, 0, 0, 0.7)"; // Match satellite label style
-    labelBtn.alpha = 0.8;
-    labelBtn.color = "#00ff64";
+  labelContainer.onPointerOutObservable.add(() => {
+    labelBg.background = "rgba(0, 0, 0, 0.7)"; // Match satellite label style
+    labelContainer.alpha = 0.8;
+    labelText.color = "#00ff64";
     document.getElementById('renderCanvas').style.cursor = 'default';
   });
   
   // Click handler - trigger the same event as clicking the station
-  labelBtn.onPointerUpObservable.add(() => {
+  labelContainer.onPointerUpObservable.add(() => {
     const stationInfo = GROUND_STATIONS.find(s => s.name === stationName);
     if (stationInfo) {
       window.dispatchEvent(new CustomEvent('groundStationSelected', { detail: stationInfo }));
     }
     // Reset label appearance after click
-    labelBtn.background = "rgba(0, 20, 0, 0.8)";
-    labelBtn.alpha = 0.9;
-    labelBtn.color = "#00ff64";
+    labelBg.background = "rgba(0, 20, 0, 0.8)";
+    labelContainer.alpha = 0.9;
+    labelText.color = "#00ff64";
   });
   
   // Link label to the ground station mesh
-  advancedTexture.addControl(labelBtn);
-  labelBtn.linkWithMesh(mesh);
-  labelBtn.linkOffsetY = -45; // Position above the station
-  labelBtn.isVisible = true;
+  advancedTexture.addControl(labelContainer);
+  labelContainer.linkWithMesh(mesh);
+  labelContainer.linkOffsetY = -45; // Position above the station
+  labelContainer.isVisible = true;
   
   // Scale label based on camera distance and Earth horizon visibility
   const scene = mesh.getScene();
@@ -235,16 +260,34 @@ function addGroundStationLabel(stationName, mesh, advancedTexture) {
 
       // Fade out when very far to reduce clutter
       if (dist > 8) {
-        labelBtn.alpha = Math.max(0.2, 0.9 * (10 - dist) / 2);
+        labelContainer.alpha = Math.max(0.2, 0.9 * (10 - dist) / 2);
       } else {
-        labelBtn.alpha = 0.9;
+        labelContainer.alpha = 0.9;
       }
 
-      labelBtn.scaleX = labelBtn.scaleY = scale;
-      labelBtn.isVisible = true;
+      labelContainer.scaleX = labelContainer.scaleY = scale;
+      labelContainer.isVisible = true;
+      
+      // Show ground station mesh when visible
+      mesh.isVisible = true;
+      
+      // Also show the click sphere
+      const stationEntry = stationMeshes[mesh.name];
+      if (stationEntry && stationEntry.clickSphere) {
+        stationEntry.clickSphere.isVisible = true;
+      }
     } else {
       // Hide label when station is not visible from camera position
-      labelBtn.isVisible = false;
+      labelContainer.isVisible = false;
+      
+      // Hide ground station mesh when not visible
+      mesh.isVisible = false;
+      
+      // Also hide the click sphere
+      const stationEntry = stationMeshes[mesh.name];
+      if (stationEntry && stationEntry.clickSphere) {
+        stationEntry.clickSphere.isVisible = false;
+      }
     }
   });
 }
@@ -256,22 +299,7 @@ let currentConnections = new Set(); // Track active connections for dashboard up
  * Update LOS beams between stations and satellites each frame
  */
 export function updateGroundStationsLOS(scene) {
-  const sats = getSatelliteMeshes();
-  
-  // Track new connections for dashboard updates
-  const newConnections = new Set();
-  
-  // Debug: Log function call every 60 frames (about once per 2 seconds at 30fps)
-  // (Disabled for performance)
-  // if (typeof updateGroundStationsLOS.frameCount === 'undefined') {
-  //   updateGroundStationsLOS.frameCount = 0;
-  // }
-  // updateGroundStationsLOS.frameCount++;
-  // if (updateGroundStationsLOS.frameCount % 60 === 0) {
-  //   console.log(`[DEBUG] updateGroundStationsLOS called - Frame ${updateGroundStationsLOS.frameCount}, Satellites: ${Object.keys(sats).length}, Stations: ${Object.keys(stationMeshes).length}`);
-  // }
-  
-  // First, clean up all existing beams
+  // LOS lines disabled - just clean up any existing beams
   Object.values(losBeams).forEach(beam => {
     if (beam) {
       // Clean up pulse observer if it exists
@@ -287,60 +315,8 @@ export function updateGroundStationsLOS(scene) {
     delete losBeams[key];
   }
   
-  // Now check each station-satellite pair for LOS
-  Object.entries(stationMeshes).forEach(([stationKey, stationEntry]) => {
-    const stationMesh = stationEntry.mesh;
-    const stationPos = stationMesh.absolutePosition;
-    const stationInfo = stationEntry.info;
-    
-    // Use station-specific horizon distance instead of global constant
-    const stationLosMaxBabylon = stationInfo.horizonDistanceBabylon;
-    
-    Object.entries(sats).forEach(([satName, satMesh]) => {
-      const satPos = satMesh.absolutePosition;
-      const dirVec = satPos.subtract(stationPos);
-      const distanceBabylon = dirVec.length();
-      const distanceKm = distanceBabylon / EARTH_SCALE;
-      
-      // Check distance limit using station-specific horizon distance
-      if (distanceBabylon > stationLosMaxBabylon) {
-        return; // Skip this satellite, too far for this station's horizon
-      }
-      
-      // Check elevation (satellite above horizon)
-      const dir = dirVec.normalize();
-      const stationUp = stationPos.normalize();
-      const elevation = BABYLON.Vector3.Dot(dir, stationUp);
-      
-      if (elevation > 0) {
-        // Satellite is in LOS, create enhanced connection line
-        const beamKey = `${stationKey}_${satName}`;
-        newConnections.add(beamKey);
-        
-        // Debug: Log new connections
-        // if (updateGroundStationsLOS.frameCount % 30 === 0) {
-        //   console.log(`[DEBUG] LOS Connection: ${stationKey} <-> ${satName}, Distance: ${distanceKm.toFixed(1)}km, Elevation: ${(elevation * 180 / Math.PI).toFixed(1)}°`);
-        // }
-        
-        // Create dotted line instead of solid tube for better visual effect
-        const connectionLine = createEnhancedConnectionLine(stationPos, satPos, beamKey, scene, elevation, distanceBabylon);
-        
-        // Store the beam with its metadata
-        losBeams[beamKey] = connectionLine;
-      }
-    });
-  });
-  
-  // Check if connections have changed and update dashboard if needed
-  if (!setsEqual(currentConnections, newConnections)) {
-    currentConnections = newConnections;
-    
-    // Debug: Log connection changes
-    // console.log(`[DEBUG] Connection changes detected. New connections: ${Array.from(newConnections).join(', ')}`);
-    
-    // Trigger dashboard update if open
-    updateActiveDashboard();
-  }
+  // Note: LOS visualization has been disabled as requested
+  // Ground stations will still show coverage circles but no connection lines
 }
 
 /**
@@ -606,9 +582,14 @@ export function createCoverageCircles(scene, maxSatAltKm = 2000, segments = 64) 
         Math.sin(theta) * Math.sin(phi) * Math.cos(lat0),
         Math.cos(phi) - Math.sin(lat0) * Math.sin(lat2)
       );
-      const ecef = geodeticToCartesian(lat2 * 180 / Math.PI, lon2 * 180 / Math.PI, 0);
-      const pos = toBabylonPosition(ecef, EARTH_SCALE);
-      path.push(pos);
+      // Place circle directly on visual Earth surface
+      const circleRadius = EARTH_VISUAL_SURFACE_RADIUS + 0.0005; // Just slightly above visual surface
+      const circlePos = new BABYLON.Vector3(
+        circleRadius * Math.cos(lat2) * Math.cos(lon2),
+        circleRadius * Math.sin(lat2),
+        circleRadius * Math.cos(lat2) * Math.sin(lon2)
+      );
+      path.push(circlePos);
     }
     const circle = BABYLON.MeshBuilder.CreateLines(
       `${station.name.replace(/\s+/g, '_')}_coverage`,
@@ -616,8 +597,13 @@ export function createCoverageCircles(scene, maxSatAltKm = 2000, segments = 64) 
       scene
     );
     circle.color = new BABYLON.Color3(0, 1, 0);
-    // render circles on top of Earth to avoid clipping artifacts
-    circle.renderingGroupId = 1;
+    circle.alpha = 0.7; // Make slightly transparent for better appearance
+    // Render circles just above Earth surface to avoid z-fighting but stay flush
+    circle.renderingGroupId = 0; // Same as Earth to keep them together
+    circle.material = new BABYLON.StandardMaterial(`${station.name.replace(/\s+/g, '_')}_coverage_mat`, scene);
+    circle.material.emissiveColor = new BABYLON.Color3(0, 1, 0);
+    circle.material.disableLighting = true;
+    circle.material.alpha = 0.7;
     const earthMesh = scene.getMeshByName('earth');
     if (earthMesh) circle.parent = earthMesh;
     // toggle coverage circle visibility based on camera hemisphere
