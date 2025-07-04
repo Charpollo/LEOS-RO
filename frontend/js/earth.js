@@ -349,14 +349,10 @@ export async function createEarth(scene, getTimeMultiplier, sunDirection) {
             earthMaterial.setFloat('time', frameCount * 0.01);
             
             // Calculate sun position based on current simulation time
-            // Sun position should be fixed relative to time of day, not orbiting
+            // The sun should appear to move across the sky as Earth rotates
             const hours = currentSimTime.getUTCHours();
             const minutes = currentSimTime.getUTCMinutes();
             const seconds = currentSimTime.getUTCSeconds();
-            
-            // Calculate solar hour angle (sun's position in sky)
-            const timeOfDay = hours + minutes/60 + seconds/3600;
-            const solarHourAngle = (timeOfDay - 12) * 15 * Math.PI / 180; // 15 degrees per hour
             
             // Calculate day of year for seasonal variation
             const dayOfYear = Math.floor((currentSimTime - new Date(currentSimTime.getFullYear(), 0, 0)) / 86400000);
@@ -368,12 +364,13 @@ export async function createEarth(scene, getTimeMultiplier, sunDirection) {
             // Calculate sun declination (seasonal variation)
             const sunDeclination = Math.sin(tilt) * Math.sin(seasonAngle);
             
-            // Fixed sun direction based on time of day
-            // Sun stays in same relative position, Earth rotates beneath it
+            // For a realistic day/night cycle, the sun should be fixed in space
+            // and the terminator should be determined by Earth's rotation
+            // At noon UTC (12:00), the sun should be over the prime meridian (0° longitude)
             const sunDir = new BABYLON.Vector3(
-                Math.cos(solarHourAngle),
-                sunDeclination,
-                Math.sin(solarHourAngle)
+                1.0,  // Sun is always in the positive X direction in world space
+                sunDeclination,  // Seasonal variation (north/south)
+                0.0   // No east/west movement - Earth rotates beneath the sun
             ).normalize();
             
             scene.sunLight.direction = sunDir.negate();
