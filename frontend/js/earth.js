@@ -307,28 +307,40 @@ export async function createEarth(scene, getTimeMultiplier, sunDirection) {
     // Enhanced day/night cycle with realistic Earth rotation
     let frameCount = 0;
     let earthRotation = 0;
-    let solarTime = 0;
     let cloudOffset = new BABYLON.Vector2(0, 0);
 
     scene.registerBeforeRender(() => {
         // Only update every 2 frames for performance
         if (frameCount++ % 2 !== 0) return;
         
-        // Physically accurate Earth rotation
-        const timeMultiplier = getTimeMultiplier();
-        const simSecondsPerFrame = timeMultiplier * TIME_ACCELERATION * (scene.getAnimationRatio() || 1);
-        const earthRotationPerSecond = 2 * Math.PI / 86164; // Earth's sidereal day
-        const rotationStep = earthRotationPerSecond * simSecondsPerFrame;
+        // Get current simulation time
+        const currentSimTime = window.getCurrentSimTime ? window.getCurrentSimTime() : new Date();
         
-        earthMesh.rotation.y -= rotationStep;
-        earthRotation += rotationStep;
+        // Physically accurate Earth rotation synchronized with simulation time
+        // Calculate Earth's rotation based on actual simulation time
+        const hours = currentSimTime.getUTCHours();
+        const minutes = currentSimTime.getUTCMinutes();
+        const seconds = currentSimTime.getUTCSeconds();
+        const milliseconds = currentSimTime.getUTCMilliseconds();
         
-        // Update clouds at slightly different rate
+        // Calculate total time in seconds from start of day
+        const totalSeconds = hours * 3600 + minutes * 60 + seconds + milliseconds / 1000;
+        
+        // Earth rotates 360 degrees (2π radians) in 24 hours (86400 seconds)
+        // At UTC 0:00, longitude 0° faces the sun
+        const earthRotationAngle = (totalSeconds / 86400) * 2 * Math.PI;
+        
+        // Set Earth's rotation directly based on time (negative for correct rotation direction)
+        earthMesh.rotation.y = -earthRotationAngle;
+        earthRotation = earthRotationAngle;
+        
+        // Update clouds at slightly different rate (clouds move slightly faster than Earth)
         cloudsMesh.rotation.y = earthMesh.rotation.y * 1.05;
         
         // Update cloud shadow offset for subtle cloud movement
-        cloudOffset.x += rotationStep * 0.02;
-        if (cloudOffset.x > 1) cloudOffset.x -= 1;
+        // Base cloud movement on time to stay synchronized
+        cloudOffset.x = (totalSeconds / 86400) * 0.02;
+        if (cloudOffset.x > 1) cloudOffset.x = cloudOffset.x % 1;
         earthMaterial.setVector2('cloudOffset', cloudOffset);
 
         // Update shader uniforms
@@ -336,18 +348,29 @@ export async function createEarth(scene, getTimeMultiplier, sunDirection) {
             earthMaterial.setVector3('lightDirection', scene.sunLight.direction);
             earthMaterial.setFloat('time', frameCount * 0.01);
             
-            // Update sun position for seasonal effects
-            solarTime += timeMultiplier * 0.001;
-            const earthOrbitAngle = solarTime * 2 * Math.PI / 365.25;
+            // Calculate sun position based on current simulation time
+            // The sun should appear to move across the sky as Earth rotates
+            const hours = currentSimTime.getUTCHours();
+            const minutes = currentSimTime.getUTCMinutes();
+            const seconds = currentSimTime.getUTCSeconds();
+            
+            // Calculate day of year for seasonal variation
+            const dayOfYear = Math.floor((currentSimTime - new Date(currentSimTime.getFullYear(), 0, 0)) / 86400000);
+            const seasonAngle = (dayOfYear / 365.25) * 2 * Math.PI - Math.PI/2;
+            
+            // Earth's axial tilt (23.5 degrees)
             const tilt = 23.5 * Math.PI / 180;
             
-            const dayOfYear = (solarTime % 365.25) / 365.25;
-            const seasonAngle = (dayOfYear * 2 * Math.PI) - Math.PI/2;
+            // Calculate sun declination (seasonal variation)
+            const sunDeclination = Math.sin(tilt) * Math.sin(seasonAngle);
             
+            // For a realistic day/night cycle, the sun should be fixed in space
+            // and the terminator should be determined by Earth's rotation
+            // At noon UTC (12:00), the sun should be over the prime meridian (0° longitude)
             const sunDir = new BABYLON.Vector3(
-                Math.cos(earthOrbitAngle),
-                Math.sin(tilt) * Math.sin(seasonAngle),
-                Math.sin(earthOrbitAngle + Math.PI/2) * Math.cos(tilt)
+                1.0,  // Sun is always in the positive X direction in world space
+                sunDeclination,  // Seasonal variation (north/south)
+                0.0   // No east/west movement - Earth rotates beneath the sun
             ).normalize();
             
             scene.sunLight.direction = sunDir.negate();

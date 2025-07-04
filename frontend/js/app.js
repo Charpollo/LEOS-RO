@@ -45,8 +45,8 @@ let sdaController; // SDA visualization controller
 
 // Use a shared state object for timeMultiplier
 const simState = {
-    timeMultiplier: 0.1, // Slowed down for more appealing visualization
-    lastTimeMultiplier: 0.1
+    timeMultiplier: 1.0, // Start at 1x speed (realistic but sped up 60:1)
+    lastTimeMultiplier: 1.0
 };
 
 // Orbital elements and real-time calculation data
@@ -1280,7 +1280,7 @@ function initializeSettingsModal() {
     // Global settings object to store all simulation settings
     window.simulationSettings = {
         // Time Control
-        timeMultiplier: 10,
+        timeMultiplier: 1.0,
         timezone: 'UTC',
         
         // Performance
@@ -1366,6 +1366,27 @@ function initializeSettingsModal() {
     initializeRangeInput('zoom-speed', 'zoom-speed-value', '%');
     initializeRangeInput('update-frequency', 'update-frequency-value', ' FPS');
     initializeRangeInput('earth-rotation-rate', 'earth-rotation-rate-value', '%');
+    
+    // Speed preset buttons
+    const speedPresetBtns = document.querySelectorAll('.speed-preset-btn');
+    const timeMultiplierRange = document.getElementById('time-multiplier-range');
+    speedPresetBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const speed = parseFloat(e.target.dataset.speed);
+            timeMultiplierRange.value = speed;
+            timeMultiplierRange.dispatchEvent(new Event('input')); // Update display
+            
+            // Update active button styling
+            speedPresetBtns.forEach(b => {
+                b.classList.remove('active');
+                b.style.background = 'rgba(0,207,255,0.2)';
+                b.style.color = '#66d9ff';
+            });
+            e.target.classList.add('active');
+            e.target.style.background = 'rgba(0,207,255,0.4)';
+            e.target.style.color = '#fff';
+        });
+    });
     
     // Settings presets
     const presets = {
@@ -1469,7 +1490,7 @@ function initializeSettingsModal() {
         resetBtn.addEventListener('click', () => {
             // Reset to default values
             window.simulationSettings = {
-                timeMultiplier: 10,
+                timeMultiplier: 1.0,
                 timezone: 'UTC',
                 showOrbitPaths: true,
                 showSatelliteLabels: true,
@@ -2065,29 +2086,44 @@ async function loadSatelliteData() {
         
         console.log('Simulation initialized successfully with time:', simulationTime);
 
-    // --- New: Drive satellite meshes by SDA orbital logic in render loop ---
+    // --- Satellite orbital mechanics render loop synchronized with Earth rotation ---
     scene.onBeforeRenderObservable.add(() => {
+      // Use the same simulation time as Earth rotation for perfect synchronization
       const currentSimTime = getCurrentSimTime();
+      if (!currentSimTime) return; // Safety check
+      
       const meshes = getSatelliteMeshes();
       const telemetryObj = getTelemetryData();
+      
+      // Update all satellite positions using realistic orbital mechanics
       Object.entries(orbitalElements).forEach(([satName, elems]) => {
         const mesh = meshes[satName];
-        if (!mesh) return;
-        const epochTime = new Date(elems.epoch);
-        // calculate position & velocity
-        const result = calculateSatellitePosition(elems, currentSimTime, epochTime);
-        // update mesh position
-        const pos = toBabylonPosition(result.position);
-        mesh.position.copyFrom(pos);
-        // --- new telemetry merge ---
-        const baseTelemetry = generateRealTimeTelemetry(
-          result.position,
-          result.velocity,
-          elems,
-          satName
-        );
-        const detailed = getDetailedTelemetryForSatellite(satName);
-        telemetryObj[satName] = { ...baseTelemetry, ...detailed };
+        if (!mesh || !elems) return;
+        
+        try {
+          const epochTime = new Date(elems.epoch);
+          
+          // Calculate realistic orbital position using same time as Earth rotation
+          const result = calculateSatellitePosition(elems, currentSimTime, epochTime);
+          
+          // Update mesh position with proper scaling
+          const pos = toBabylonPosition(result.position);
+          mesh.position.copyFrom(pos);
+          
+          // Generate synchronized telemetry data
+          const baseTelemetry = generateRealTimeTelemetry(
+            result.position,
+            result.velocity,
+            elems,
+            satName
+          );
+          const detailed = getDetailedTelemetryForSatellite(satName);
+          telemetryObj[satName] = { ...baseTelemetry, ...detailed };
+          
+        } catch (error) {
+          // Silently handle individual satellite errors to prevent cascade failures
+          console.warn(`Error updating satellite ${satName}:`, error);
+        }
       });
     });
 

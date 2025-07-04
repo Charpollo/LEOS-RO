@@ -32,6 +32,13 @@ class LEOSHTTPRequestHandler(SimpleHTTPRequestHandler):
             logger.warning(f"Serving unbuilt frontend from {serve_dir}")
         super().__init__(*args, directory=serve_dir, **kwargs)
     
+    def end_headers(self):
+        """Add cache-control headers to prevent caching during development"""
+        self.send_header('Cache-Control', 'no-store, no-cache, must-revalidate')
+        self.send_header('Pragma', 'no-cache')
+        self.send_header('Expires', '0')
+        super().end_headers()
+    
     def log_message(self, format, *args):
         """Override to use our logger instead of stderr"""
         logger.info("%s - %s", self.address_string(), format % args)

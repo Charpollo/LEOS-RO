@@ -20,12 +20,9 @@ export function initBrandUI() {
     }
     // Initialize loading wave animation
     initLoadingWave();
-    initPanelToggle();
     initWelcomeModal();
-    initInfoPanel();
     // initTimeDisplay();    // Disabled in favor of simulation-driven clock
     initTelemetryDashboard();
-    initHelpModal();
     initSdaButton();
     initModalManager();
 }
@@ -49,25 +46,6 @@ function initSDAToggle() {
     console.warn('initSDAToggle is deprecated. SDA toggle functionality is now handled in app.js');
 }
 
-// Panel toggle functionality
-function initPanelToggle() {
-    const panelToggle = document.getElementById('panel-toggle');
-    const infoPanel = document.getElementById('info-panel');
-    
-    if (panelToggle && infoPanel) {
-        panelToggle.addEventListener('click', () => {
-            const isVisible = infoPanel.classList.contains('visible');
-            
-            if (isVisible) {
-                infoPanel.classList.remove('visible');
-                panelToggle.classList.remove('active');
-            } else {
-                infoPanel.classList.add('visible');
-                panelToggle.classList.add('active');
-            }
-        });
-    }
-}
 
 // Welcome modal functionality
 function initWelcomeModal() {
@@ -82,27 +60,6 @@ function initWelcomeModal() {
     }
 }
 
-// Info panel functionality
-function initInfoPanel() {
-    const closePanel = document.getElementById('close-panel');
-    const showTutorial = document.getElementById('show-tutorial');
-    const infoPanel = document.getElementById('info-panel');
-    const welcomeModal = document.getElementById('welcome-modal');
-    const panelToggle = document.getElementById('panel-toggle');
-    
-    if (closePanel && infoPanel && panelToggle) {
-        closePanel.addEventListener('click', () => {
-            infoPanel.classList.remove('visible');
-            panelToggle.classList.remove('active');
-        });
-    }
-    
-    if (showTutorial && welcomeModal) {
-        showTutorial.addEventListener('click', () => {
-            welcomeModal.style.display = 'flex';
-        });
-    }
-}
 
 // Import UIManager
 import { uiManager } from './manager.js';
@@ -194,7 +151,22 @@ export function hideLoadingScreen() {
                 // NOTE: Primary SDA toggle functionality is now handled in app.js
                 // This handler is removed to prevent duplicate event listeners
                 // No event listener is added here anymore
-             }
+            }
+            
+            // Show welcome modal automatically after loading (with delay for smooth UX)
+            setTimeout(() => {
+                const welcomeModal = document.getElementById('welcome-modal');
+                console.log('[LEOS] Welcome modal found:', !!welcomeModal);
+                
+                if (welcomeModal) {
+                    // Show the combined welcome modal
+                    welcomeModal.style.display = 'flex';
+                    
+                    console.log('[LEOS] Welcome modal shown automatically');
+                } else {
+                    console.error('[LEOS] Welcome modal not found!');
+                }
+            }, 1000); // 1 second delay after loading screen disappears
          }, 500);
     }
 }
@@ -242,38 +214,19 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// Help modal toggle and keyboard shortcut (Q key)
-function initHelpModal() {
-    const helpBtn = document.getElementById('help-sphere-btn');
-    const helpModal = document.getElementById('help-modal');
-    const helpClose = document.getElementById('help-close-btn');
-    if (helpBtn && helpModal) {
-        // Don't show help button initially - only after scene loads
-        helpBtn.style.display = 'none';
-        // Open modal helper function (no toggle, just open)
-        const openHelp = () => helpModal.classList.add('open');
-        // Open modal on click (simpler approach)
-        helpBtn.addEventListener('click', openHelp);
-        // Close modal on close button click
-        if (helpClose) {
-            helpClose.addEventListener('click', () => {
-                helpModal.classList.remove('open');
-            });
-        }
-        // Toggle modal on 'q' key press
-        window.addEventListener('keydown', (e) => {
-            if (e.key === 'q' || e.key === 'Q') {
-                helpModal.classList.toggle('open');
-            }
-        });
-    }
-}
 
-// Show help button after scene loads
+// Show control buttons after scene loads
 export function showHelpButton() {
     const helpBtn = document.getElementById('help-sphere-btn');
     if (helpBtn) {
         helpBtn.style.display = 'flex';
+        // Set up help button to show welcome modal
+        helpBtn.addEventListener('click', () => {
+            const welcomeModal = document.getElementById('welcome-modal');
+            if (welcomeModal) {
+                welcomeModal.style.display = 'flex';
+            }
+        });
     }
     
     // Show SDA toggle button now that the simulation is loaded
@@ -313,11 +266,6 @@ function initLoadingWave() {
 function initModalManager() {
     // Define all modal IDs and their toggle methods
     const modals = {
-        'help-modal': {
-            element: null,
-            toggleClass: 'open',
-            closeMethod: 'removeClass'
-        },
         'sda-welcome-modal': {
             element: null,
             toggleClass: null,
@@ -370,23 +318,6 @@ function initModalManager() {
         }
     };
 
-    // Override existing modal open functions to use the manager
-    // Help modal override
-    const helpBtn = document.getElementById('help-sphere-btn');
-    if (helpBtn) {
-        // Remove existing listeners by cloning
-        const newHelpBtn = helpBtn.cloneNode(true);
-        helpBtn.parentNode.replaceChild(newHelpBtn, helpBtn);
-        
-        newHelpBtn.addEventListener('click', () => {
-            const helpModal = document.getElementById('help-modal');
-            if (helpModal && helpModal.classList.contains('open')) {
-                window.closeAllModals();
-            } else {
-                window.openModal('help-modal');
-            }
-        });
-    }
 
     // Settings modal override
     const settingsBtn = document.getElementById('simulation-settings-btn');
