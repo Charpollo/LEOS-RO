@@ -45,8 +45,8 @@ let sdaController; // SDA visualization controller
 
 // Use a shared state object for timeMultiplier
 const simState = {
-    timeMultiplier: 0.1, // Slowed down for more appealing visualization
-    lastTimeMultiplier: 0.1
+    timeMultiplier: 1.0, // Start at 1x speed (realistic but sped up 60:1)
+    lastTimeMultiplier: 1.0
 };
 
 // Orbital elements and real-time calculation data
@@ -1280,7 +1280,7 @@ function initializeSettingsModal() {
     // Global settings object to store all simulation settings
     window.simulationSettings = {
         // Time Control
-        timeMultiplier: 10,
+        timeMultiplier: 1.0,
         timezone: 'UTC',
         
         // Performance
@@ -1366,6 +1366,27 @@ function initializeSettingsModal() {
     initializeRangeInput('zoom-speed', 'zoom-speed-value', '%');
     initializeRangeInput('update-frequency', 'update-frequency-value', ' FPS');
     initializeRangeInput('earth-rotation-rate', 'earth-rotation-rate-value', '%');
+    
+    // Speed preset buttons
+    const speedPresetBtns = document.querySelectorAll('.speed-preset-btn');
+    const timeMultiplierRange = document.getElementById('time-multiplier-range');
+    speedPresetBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const speed = parseFloat(e.target.dataset.speed);
+            timeMultiplierRange.value = speed;
+            timeMultiplierRange.dispatchEvent(new Event('input')); // Update display
+            
+            // Update active button styling
+            speedPresetBtns.forEach(b => {
+                b.classList.remove('active');
+                b.style.background = 'rgba(0,207,255,0.2)';
+                b.style.color = '#66d9ff';
+            });
+            e.target.classList.add('active');
+            e.target.style.background = 'rgba(0,207,255,0.4)';
+            e.target.style.color = '#fff';
+        });
+    });
     
     // Settings presets
     const presets = {
@@ -1469,7 +1490,7 @@ function initializeSettingsModal() {
         resetBtn.addEventListener('click', () => {
             // Reset to default values
             window.simulationSettings = {
-                timeMultiplier: 10,
+                timeMultiplier: 1.0,
                 timezone: 'UTC',
                 showOrbitPaths: true,
                 showSatelliteLabels: true,
