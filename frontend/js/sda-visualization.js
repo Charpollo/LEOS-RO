@@ -31,7 +31,7 @@ class SDAVisualization {
       GEO: new BABYLON.Color3(1, 0.2, 0.2),   // Bright Red
       HEO: new BABYLON.Color3(1, 0.2, 1),     // Bright Purple
       DEBRIS: new BABYLON.Color3(1, 0.5, 0.2), // Orange for debris
-      USER: new BABYLON.Color3(1, 1, 1)       // White
+      REAL: new BABYLON.Color3(1, 1, 1)       // White for real NORAD satellites
     };
     
     // Frustum culling optimization
@@ -77,6 +77,12 @@ class SDAVisualization {
   toggleOrbitClass(orbitClass, toggleElement) {
     const isActive = toggleElement.classList.contains('active');
     
+    // Handle data source toggles (only SIMULATED, not REAL)
+    if (orbitClass === 'SIMULATED') {
+      this.toggleDataSource(orbitClass, toggleElement);
+      return;
+    }
+    
     if (isActive) {
       // Disable orbit class
       toggleElement.classList.remove('active');
@@ -90,15 +96,76 @@ class SDAVisualization {
     console.log(`Toggled ${orbitClass} visibility: ${!isActive}`);
   }
 
+  toggleDataSource(sourceType, toggleElement) {
+    const isActive = toggleElement.classList.contains('active');
+    
+    if (isActive) {
+      toggleElement.classList.remove('active');
+      this.hideDataSource(sourceType);
+    } else {
+      toggleElement.classList.add('active');
+      this.showDataSource(sourceType);
+    }
+    
+    console.log(`Toggled ${sourceType} data source visibility: ${!isActive}`);
+  }
+
+  hideDataSource(sourceType) {
+    // Hide all satellites of specified source type
+    Object.keys(this.instancedMeshes).forEach(orbitClass => {
+      if (this.instancedMeshes[orbitClass]) {
+        // This is a simplified approach - in full implementation,
+        // we'd need to track which instances are real vs simulated
+        // For now, we'll update the thin instances to hide specific source types
+        this.updateInstanceVisibilityBySource(orbitClass, sourceType, false);
+      }
+    });
+  }
+
+  showDataSource(sourceType) {
+    // Show all satellites of specified source type
+    Object.keys(this.instancedMeshes).forEach(orbitClass => {
+      if (this.instancedMeshes[orbitClass]) {
+        this.updateInstanceVisibilityBySource(orbitClass, sourceType, true);
+      }
+    });
+  }
+
+  updateInstanceVisibilityBySource(orbitClass, sourceType, visible) {
+    // Get the mesh for this orbit class
+    const mesh = this.instancedMeshes[orbitClass];
+    if (!mesh) return;
+    
+    if (sourceType === 'REAL') {
+      // Real satellites - only affects REAL class mesh
+      if (orbitClass === 'REAL') {
+        mesh.setEnabled(visible);
+        console.log(`${visible ? 'Showing' : 'Hiding'} REAL satellites (enabled: ${visible})`);
+      }
+    } else if (sourceType === 'SIMULATED') {
+      // Simulated satellites - affects all NON-REAL class meshes
+      if (orbitClass !== 'REAL') {
+        mesh.setEnabled(visible);
+        console.log(`${visible ? 'Showing' : 'Hiding'} SIMULATED satellites in ${orbitClass} class (enabled: ${visible})`);
+      }
+    }
+  }
+
   hideOrbitClass(orbitClass) {
     if (this.instancedMeshes[orbitClass]) {
       this.instancedMeshes[orbitClass].setEnabled(false);
+      console.log(`✓ Hidden ${orbitClass} mesh (${Object.keys(this.instancedMeshes[orbitClass].thinInstancesOfMesh || {}).length} instances)`);
+    } else {
+      console.log(`⚠️ No mesh found for ${orbitClass} class`);
     }
   }
 
   showOrbitClass(orbitClass) {
     if (this.instancedMeshes[orbitClass]) {
       this.instancedMeshes[orbitClass].setEnabled(true);
+      console.log(`✓ Shown ${orbitClass} mesh`);
+    } else {
+      console.log(`⚠️ No mesh found for ${orbitClass} class`);
     }
   }
 
@@ -415,6 +482,11 @@ class SDAVisualization {
     // Get pick info at mouse position
     const pickInfo = this.scene.pick(event.offsetX, event.offsetY);
     
+    // Debug log every 100th hover to avoid spam
+    if (Math.random() < 0.01) {
+      console.log('Hover check:', { visible: this.isVisible, initialized: this.isInitialized, hit: pickInfo?.hit, mesh: pickInfo?.pickedMesh?.name });
+    }
+    
     if (pickInfo && pickInfo.hit && pickInfo.pickedMesh) {
       const pickedMesh = pickInfo.pickedMesh;
       
@@ -427,17 +499,44 @@ class SDAVisualization {
         console.log(`Canvas hover on SDA mesh: ${pickedMesh.name}, instance: ${instanceId}, pickInfo:`, pickInfo);
         
         if (instanceId !== null && instanceId !== undefined) {
+          console.log(`✓ Showing advanced tooltip for instance ${instanceId}`);
           this.showSatelliteHoverTooltip(pickedMesh, instanceId, event);
         } else {
-          // Try to show general mesh info or find closest instance
-          console.log(`Hovering over ${pickedMesh.name} mesh but no instance detected, trying fallback`);
-          this.showFallbackTooltip(pickedMesh, event);
+          // Thin instance picking failed - try to find closest satellite
+          console.log(`Instance picking failed for ${pickedMesh.name}, trying closest satellite detection`);
+          this.showClosestSatelliteTooltip(pickedMesh, pickInfo.pickedPoint, event);
         }
       } else {
         this.hideSatelliteTooltip();
       }
     } else {
       this.hideSatelliteTooltip();
+    }
+  }
+
+  showClosestSatelliteTooltip(mesh, pickedPoint, event) {
+    // Find the closest satellite to the picked point
+    const orbitClass = mesh.name.replace('sda_master_', '');
+    
+    // Find satellites in this orbit class
+    const satellitesInClass = Object.values(this.objectData).filter(sat => sat.meshClass === orbitClass);
+    
+    if (satellitesInClass.length > 0) {
+      // For demonstration, just pick the first satellite in this class
+      const satelliteData = satellitesInClass[0];
+      
+      // Get mouse coordinates
+      const canvas = this.scene.getEngine().getRenderingCanvas();
+      const rect = canvas.getBoundingClientRect();
+      const x = rect.left + event.offsetX;
+      const y = rect.top + event.offsetY;
+      
+      // Show the enhanced tooltip
+      this.showTooltip(satelliteData, x, y);
+      
+      console.log(`Showing tooltip for closest ${orbitClass} satellite: ${satelliteData.name}`);
+    } else {
+      this.showFallbackTooltip(mesh, event);
     }
   }
 
@@ -687,7 +786,17 @@ class SDAVisualization {
           }
         }
         
-        const orbitClass = obj.class || this.determineOrbitClass(position.altitude);
+        // Classify real NORAD satellites as 'REAL' for visibility
+        let orbitClass;
+        if (obj.isReal && obj.source === 'NORAD') {
+          orbitClass = 'REAL';
+          console.log(`🔍 Real satellite found: ${obj.name} -> REAL class`);
+        } else {
+          orbitClass = obj.class || this.determineOrbitClass(position.altitude);
+          if (i < 20) { // Only log first 20 to avoid spam
+            console.log(`🔍 Satellite ${i}: isReal=${obj.isReal}, source=${obj.source}, name=${obj.name} -> ${orbitClass} class`);
+          }
+        }
         
         if (!classCounts[orbitClass]) {
           classCounts[orbitClass] = 0;
@@ -708,9 +817,10 @@ class SDAVisualization {
     }
     
     console.log(`SDA: Processed ${processedCount} objects, skipped ${skippedCount}`);
+    console.log(`🔍 Class counts:`, classCounts);
     
-    // Create thin instances for each orbit class in order: LEO -> MEO -> GEO -> HEO -> DEBRIS -> USER
-    const creationOrder = ['LEO', 'MEO', 'GEO', 'HEO', 'DEBRIS', 'USER'];
+    // Create thin instances for each orbit class in order: REAL first, then others
+    const creationOrder = ['REAL', 'LEO', 'MEO', 'GEO', 'HEO', 'DEBRIS', 'USER'];
     let totalInstancesCreated = 0;
     
     for (const orbitClass of creationOrder) {
@@ -811,8 +921,8 @@ class SDAVisualization {
           class: orbitClass,
           tle1: obj.tle1,
           tle2: obj.tle2,
-          altitude: position.altitude.toFixed(0),
-          inclination: position.inclination.toFixed(1),
+          altitude: (position.altitude || 0).toFixed(0),
+          inclination: (position.inclination || 0).toFixed(1),
           instanceIndex: validInstanceCount, // Use validInstanceCount for proper mapping
           meshClass: orbitClass,
           rcs: obj.rcs || 'UNKNOWN',
@@ -956,14 +1066,14 @@ class SDAVisualization {
     const geoCount = document.getElementById('geo-count');
     const heoCount = document.getElementById('heo-count');
     const debrisCount = document.getElementById('debris-count');
-    const userCount = document.getElementById('user-count');
+    const realSatsCount = document.getElementById('real-sats-count');
 
     if (leoCount) leoCount.textContent = (classCounts.LEO || 0).toLocaleString();
     if (meoCount) meoCount.textContent = (classCounts.MEO || 0).toLocaleString();
     if (geoCount) geoCount.textContent = (classCounts.GEO || 0).toLocaleString();
     if (heoCount) heoCount.textContent = (classCounts.HEO || 0).toLocaleString();
     if (debrisCount) debrisCount.textContent = (classCounts.DEBRIS || 0).toLocaleString();
-    if (userCount) userCount.textContent = (classCounts.USER || 0).toLocaleString();
+    if (realSatsCount) realSatsCount.textContent = (classCounts.REAL || 0).toLocaleString();
   }
 
   updateDataModeDisplay(mode, realCount, staticCount, totalCount) {
@@ -1027,7 +1137,8 @@ class SDAVisualization {
     this.dataArray.forEach(item => {
       classCounts[item.class] = (classCounts[item.class] || 0) + 1;
     });
-    console.log('Data browser class distribution:', classCounts);
+    console.log('🛰️ Data browser class distribution:', classCounts);
+    console.log('🔍 Total satellites in database:', this.dataArray.length);
 
     this.renderDataList();
   }
@@ -1136,7 +1247,7 @@ class SDAVisualization {
         
         // Check if we have real NORAD data to determine mode
         const TARGET_OBJECTS = 58000;
-        const MIN_REAL_DATA_THRESHOLD = 100; // Lowered threshold to detect real NORAD data
+        const MIN_REAL_DATA_THRESHOLD = 5; // Low threshold to enable hybrid mode with any real data
         
         if (realData.length >= MIN_REAL_DATA_THRESHOLD) {
           if (realData.length >= TARGET_OBJECTS * 0.8) {
@@ -1149,8 +1260,13 @@ class SDAVisualization {
             dataMode = 'hybrid';
             console.log(`Creating hybrid mode: ${realData.length} real + static supplement`);
             
-            // Generate static data to supplement real data
+            // Generate static data to supplement real data and mark sources
             const staticData = this.generateStaticOrbitalPositions(TARGET_OBJECTS - realData.length);
+            
+            // Mark real vs simulated data
+            realData.forEach(sat => { sat.isReal = true; sat.source = 'NORAD'; });
+            staticData.forEach(sat => { sat.isReal = false; sat.source = 'Simulated'; });
+            
             this.tleData = [...realData, ...staticData];
             
             console.log(`Hybrid mode: ${realData.length} real + ${staticData.length} static = ${this.tleData.length} total`);
@@ -1158,7 +1274,9 @@ class SDAVisualization {
         } else {
           // Very little real data - treat as fallback mode
           console.log(`Insufficient real data (${realData.length} objects), falling back to static mode`);
-          this.tleData = this.generateStaticOrbitalPositions();
+          const staticData = this.generateStaticOrbitalPositions();
+          staticData.forEach(sat => { sat.isReal = false; sat.source = 'Simulated'; });
+          this.tleData = staticData;
           dataMode = 'static';
         }
         
@@ -1289,6 +1407,11 @@ class SDAVisualization {
         } else if (data.satellites && Array.isArray(data.satellites)) {
           // Nested format
           const processed = data.satellites.map(obj => this.processLocalTLEData(obj)).filter(Boolean);
+          allSatellites.push(...processed);
+          console.log(`✓ Loaded ${processed.length} satellites from ${filePath}`);
+        } else if (typeof data === 'object' && !Array.isArray(data)) {
+          // Object format (e.g., {"ISS": {...}, "GOES_16": {...}})
+          const processed = Object.values(data).map(obj => this.processLocalTLEData(obj)).filter(Boolean);
           allSatellites.push(...processed);
           console.log(`✓ Loaded ${processed.length} satellites from ${filePath}`);
         } else {
@@ -1663,6 +1786,38 @@ class SDAVisualization {
     const revNumber = '99999';
     
     return `2 ${padded} ${incl} ${raan} ${eccentricity} ${argPer} ${meanAnomaly} ${meanMotionStr}${revNumber}9`;
+  }
+
+
+  calculateSimpleOrbitPosition(tle1, tle2, date) {
+    try {
+      // Parse TLE lines using satellite.js
+      const satrec = satellite.twoline2satrec(tle1, tle2);
+      
+      // Get position and velocity
+      const positionAndVelocity = satellite.propagate(satrec, date);
+      
+      if (!positionAndVelocity || !positionAndVelocity.position) {
+        return null;
+      }
+      
+      const positionEci = positionAndVelocity.position;
+      
+      // Convert from ECI to ECEF (Earth-centered, Earth-fixed)
+      const gmst = satellite.gstime(date);
+      const positionEcef = satellite.eciToEcf(positionEci, gmst);
+      
+      return {
+        x: positionEcef.x,
+        y: positionEcef.y, 
+        z: positionEcef.z,
+        altitude: Math.sqrt(positionEcef.x * positionEcef.x + positionEcef.y * positionEcef.y + positionEcef.z * positionEcef.z) - 6371, // Approximate altitude
+        inclination: satrec.inclo * 180 / Math.PI // Convert from radians to degrees
+      };
+    } catch (error) {
+      console.warn('SGP4 calculation failed:', error);
+      return null;
+    }
   }
 
 

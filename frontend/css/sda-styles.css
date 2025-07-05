@@ -205,6 +205,7 @@
 .sda-legend-color.heo { background-color: #ff33ff; }
 .sda-legend-color.debris { background-color: #ff8833; }
 .sda-legend-color.user { background-color: #ffffff; }
+.sda-legend-color.real { background-color: #ffffff; }
 
 /* Mode Indicator */
 .sda-mode-indicator {
@@ -357,7 +358,7 @@
 }
 
 .sda-data-list {
-  height: 140px;
+  height: 180px;
   overflow-y: auto;
   border: 1px solid rgba(0, 207, 255, 0.2);
   border-radius: 6px;

@@ -135,12 +135,12 @@
                                 <div class="sda-toggle-slider"></div>
                             </div>
                         </div>
-                        <div class="sda-legend-item" data-orbit-class="USER">
+                        <div class="sda-legend-item" data-orbit-class="REAL">
                             <div class="sda-legend-left">
-                                <div class="sda-legend-color user"></div>
-                                <span>User <span id="user-count">0</span></span>
+                                <div class="sda-legend-color real"></div>
+                                <span>Real Sats <span id="real-sats-count">0</span></span>
                             </div>
-                            <div class="sda-toggle active" data-toggle="USER">
+                            <div class="sda-toggle active" data-toggle="REAL">
                                 <div class="sda-toggle-slider"></div>
                             </div>
                         </div>
@@ -151,13 +151,23 @@
                 <div class="sda-section">
                     <h5>Data Sources</h5>
                     <div class="data-source-grid">
-                        <div class="source-item">
-                            <div class="source-label">Real NORAD</div>
-                            <div class="source-value" id="real-count">0</div>
+                        <div class="sda-legend-item">
+                            <div class="sda-legend-left">
+                                <div class="sda-legend-color" style="background: #00ff64;"></div>
+                                <span>Real NORAD <span id="real-count">0</span></span>
+                            </div>
+                            <div class="sda-toggle active" data-toggle="REAL">
+                                <div class="sda-toggle-slider"></div>
+                            </div>
                         </div>
-                        <div class="source-item">
-                            <div class="source-label">Simulated</div>
-                            <div class="source-value" id="static-count">0</div>
+                        <div class="sda-legend-item">
+                            <div class="sda-legend-left">
+                                <div class="sda-legend-color" style="background: #ff8800;"></div>
+                                <span>Simulated <span id="static-count">0</span></span>
+                            </div>
+                            <div class="sda-toggle active" data-toggle="SIMULATED">
+                                <div class="sda-toggle-slider"></div>
+                            </div>
                         </div>
                         <div class="source-item">
                             <div class="source-label">Updated</div>
