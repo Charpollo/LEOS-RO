@@ -90,29 +90,59 @@
                 <div class="sda-section">
                     <h5>Object Classification</h5>
                     <div class="sda-legend-grid">
-                        <div class="sda-legend-item">
-                            <div class="sda-legend-color leo"></div>
-                            <span>LEO <span id="leo-count">0</span></span>
+                        <div class="sda-legend-item" data-orbit-class="LEO">
+                            <div class="sda-legend-left">
+                                <div class="sda-legend-color leo"></div>
+                                <span>LEO <span id="leo-count">0</span></span>
+                            </div>
+                            <div class="sda-toggle active" data-toggle="LEO">
+                                <div class="sda-toggle-slider"></div>
+                            </div>
                         </div>
-                        <div class="sda-legend-item">
-                            <div class="sda-legend-color meo"></div>
-                            <span>MEO <span id="meo-count">0</span></span>
+                        <div class="sda-legend-item" data-orbit-class="MEO">
+                            <div class="sda-legend-left">
+                                <div class="sda-legend-color meo"></div>
+                                <span>MEO <span id="meo-count">0</span></span>
+                            </div>
+                            <div class="sda-toggle active" data-toggle="MEO">
+                                <div class="sda-toggle-slider"></div>
+                            </div>
                         </div>
-                        <div class="sda-legend-item">
-                            <div class="sda-legend-color geo"></div>
-                            <span>GEO <span id="geo-count">0</span></span>
+                        <div class="sda-legend-item" data-orbit-class="GEO">
+                            <div class="sda-legend-left">
+                                <div class="sda-legend-color geo"></div>
+                                <span>GEO <span id="geo-count">0</span></span>
+                            </div>
+                            <div class="sda-toggle active" data-toggle="GEO">
+                                <div class="sda-toggle-slider"></div>
+                            </div>
                         </div>
-                        <div class="sda-legend-item">
-                            <div class="sda-legend-color heo"></div>
-                            <span>HEO <span id="heo-count">0</span></span>
+                        <div class="sda-legend-item" data-orbit-class="HEO">
+                            <div class="sda-legend-left">
+                                <div class="sda-legend-color heo"></div>
+                                <span>HEO <span id="heo-count">0</span></span>
+                            </div>
+                            <div class="sda-toggle active" data-toggle="HEO">
+                                <div class="sda-toggle-slider"></div>
+                            </div>
                         </div>
-                        <div class="sda-legend-item">
-                            <div class="sda-legend-color debris"></div>
-                            <span>Debris <span id="debris-count">0</span></span>
+                        <div class="sda-legend-item" data-orbit-class="DEBRIS">
+                            <div class="sda-legend-left">
+                                <div class="sda-legend-color debris"></div>
+                                <span>Debris <span id="debris-count">0</span></span>
+                            </div>
+                            <div class="sda-toggle active" data-toggle="DEBRIS">
+                                <div class="sda-toggle-slider"></div>
+                            </div>
                         </div>
-                        <div class="sda-legend-item">
-                            <div class="sda-legend-color user"></div>
-                            <span>User <span id="user-count">0</span></span>
+                        <div class="sda-legend-item" data-orbit-class="USER">
+                            <div class="sda-legend-left">
+                                <div class="sda-legend-color user"></div>
+                                <span>User <span id="user-count">0</span></span>
+                            </div>
+                            <div class="sda-toggle active" data-toggle="USER">
+                                <div class="sda-toggle-slider"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -135,6 +165,28 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+        
+        <!-- SDA Data Browser (hidden by default) -->
+        <div class="sda-data-browser" id="sda-data-browser">
+            <h4>Satellite Database</h4>
+            
+            <div class="sda-search-controls">
+                <input type="text" class="sda-search-input" id="sda-search-input" placeholder="Search satellites...">
+                <select class="sda-filter-select" id="sda-filter-select">
+                    <option value="">All Classes</option>
+                    <option value="LEO">LEO</option>
+                    <option value="MEO">MEO</option>
+                    <option value="GEO">GEO</option>
+                    <option value="HEO">HEO</option>
+                    <option value="DEBRIS">Debris</option>
+                    <option value="USER">User</option>
+                </select>
+            </div>
+            
+            <div class="sda-data-list" id="sda-data-list">
+                <!-- Data items will be populated dynamically -->
             </div>
         </div>
         

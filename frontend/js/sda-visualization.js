@@ -58,8 +58,62 @@ class SDAVisualization {
 
   setupUI() {
     // Set up UI event handlers and interactions
-    // This is called during initialization to prepare the UI
+    this.setupToggleHandlers();
+    this.setupDataBrowser();
     console.log('SDA UI setup completed');
+  }
+
+  setupToggleHandlers() {
+    // Set up orbit class toggle functionality
+    document.addEventListener('click', (event) => {
+      if (event.target.closest('.sda-toggle')) {
+        const toggle = event.target.closest('.sda-toggle');
+        const orbitClass = toggle.dataset.toggle;
+        this.toggleOrbitClass(orbitClass, toggle);
+      }
+    });
+  }
+
+  toggleOrbitClass(orbitClass, toggleElement) {
+    const isActive = toggleElement.classList.contains('active');
+    
+    if (isActive) {
+      // Disable orbit class
+      toggleElement.classList.remove('active');
+      this.hideOrbitClass(orbitClass);
+    } else {
+      // Enable orbit class
+      toggleElement.classList.add('active');
+      this.showOrbitClass(orbitClass);
+    }
+    
+    console.log(`Toggled ${orbitClass} visibility: ${!isActive}`);
+  }
+
+  hideOrbitClass(orbitClass) {
+    if (this.instancedMeshes[orbitClass]) {
+      this.instancedMeshes[orbitClass].setEnabled(false);
+    }
+  }
+
+  showOrbitClass(orbitClass) {
+    if (this.instancedMeshes[orbitClass]) {
+      this.instancedMeshes[orbitClass].setEnabled(true);
+    }
+  }
+
+  setupDataBrowser() {
+    // Set up data browser functionality
+    const searchInput = document.getElementById('sda-search-input');
+    const filterSelect = document.getElementById('sda-filter-select');
+    
+    if (searchInput) {
+      searchInput.addEventListener('input', () => this.filterDataList());
+    }
+    
+    if (filterSelect) {
+      filterSelect.addEventListener('change', () => this.filterDataList());
+    }
   }
 
   setVisible(visible) {
@@ -70,6 +124,7 @@ class SDAVisualization {
     
     // Update UI elements visibility
     const sdaLegend = document.getElementById('sda-legend');
+    const sdaDataBrowser = document.getElementById('sda-data-browser');
     const addTleButton = document.getElementById('add-tle-button');
     
     if (sdaLegend) {
@@ -79,6 +134,23 @@ class SDAVisualization {
       } else {
         sdaLegend.style.display = 'none';
         sdaLegend.classList.remove('visible');
+      }
+    }
+    
+    if (sdaDataBrowser) {
+      if (visible) {
+        sdaDataBrowser.style.display = 'flex';
+        sdaDataBrowser.classList.add('visible');
+        // Populate data browser when first shown
+        if (!this.dataBrowserPopulated || !this.dataArray) {
+          setTimeout(() => {
+            this.populateDataBrowser();
+            this.dataBrowserPopulated = true;
+          }, 100); // Small delay to ensure objects are created
+        }
+      } else {
+        sdaDataBrowser.style.display = 'none';
+        sdaDataBrowser.classList.remove('visible');
       }
     }
     
@@ -328,7 +400,7 @@ class SDAVisualization {
       
       hoverTimeout = setTimeout(() => {
         this.handleCanvasHover(event);
-      }, 50); // Throttle to every 50ms
+      }, 16); // Throttle to ~60fps for better responsiveness
     });
 
     canvas.addEventListener('mouseleave', () => {
@@ -337,22 +409,29 @@ class SDAVisualization {
   }
 
   handleCanvasHover(event) {
+    // Skip if SDA not visible
+    if (!this.isVisible || !this.isInitialized) return;
+    
     // Get pick info at mouse position
     const pickInfo = this.scene.pick(event.offsetX, event.offsetY);
     
     if (pickInfo && pickInfo.hit && pickInfo.pickedMesh) {
       const pickedMesh = pickInfo.pickedMesh;
       
+      // Debug: Log all mesh interactions
+      console.log(`Mouse over mesh: ${pickedMesh.name}, hit: ${pickInfo.hit}`);
+      
       // Check if it's one of our SDA meshes
       if (pickedMesh.name && pickedMesh.name.startsWith('sda_master_')) {
         const instanceId = pickInfo.instanceIndex;
-        console.log(`Canvas hover on SDA mesh: ${pickedMesh.name}, instance: ${instanceId}`);
+        console.log(`Canvas hover on SDA mesh: ${pickedMesh.name}, instance: ${instanceId}, pickInfo:`, pickInfo);
         
         if (instanceId !== null && instanceId !== undefined) {
           this.showSatelliteHoverTooltip(pickedMesh, instanceId, event);
         } else {
-          // If no specific instance, show general mesh info
-          console.log(`Hovering over ${pickedMesh.name} mesh but no instance detected`);
+          // Try to show general mesh info or find closest instance
+          console.log(`Hovering over ${pickedMesh.name} mesh but no instance detected, trying fallback`);
+          this.showFallbackTooltip(pickedMesh, event);
         }
       } else {
         this.hideSatelliteTooltip();
@@ -360,6 +439,36 @@ class SDAVisualization {
     } else {
       this.hideSatelliteTooltip();
     }
+  }
+
+  showFallbackTooltip(mesh, event) {
+    // Fallback tooltip when we can't detect specific instance
+    const orbitClass = mesh.name.replace('sda_master_', '');
+    
+    // Get mouse coordinates
+    const canvas = this.scene.getEngine().getRenderingCanvas();
+    const rect = canvas.getBoundingClientRect();
+    const x = rect.left + event.offsetX;
+    const y = rect.top + event.offsetY;
+    
+    // Create simple tooltip
+    this.hideSatelliteTooltip();
+    
+    const tooltip = document.createElement('div');
+    tooltip.className = 'sda-tooltip';
+    tooltip.id = 'sda-hover-tooltip';
+    
+    tooltip.innerHTML = `
+      <h4>${orbitClass} Objects</h4>
+      <p>Hover detection active - click for more details</p>
+      <p>Class: ${orbitClass}</p>
+    `;
+    
+    tooltip.style.left = (x + 10) + 'px';
+    tooltip.style.top = (y - 10) + 'px';
+    
+    document.body.appendChild(tooltip);
+    this.currentTooltip = tooltip;
   }
 
   handleSatelliteClick(mesh, instanceIndex, worldPosition) {
@@ -607,29 +716,7 @@ class SDAVisualization {
       masterMesh.isPickable = true;
       masterMesh.enablePointerMoveEvents = true;
       
-      // Set up action manager for better hover support
-      masterMesh.actionManager = new BABYLON.ActionManager(this.scene);
-      
-      // Add hover enter action
-      masterMesh.actionManager.registerAction(new BABYLON.ExecuteCodeAction(
-        BABYLON.ActionManager.OnPointerOverTrigger, 
-        (evt) => {
-          const pickedPoint = evt.additionalData.pickedPoint;
-          const instanceId = evt.additionalData.instanceIndex;
-          console.log(`Action Manager: Hover over ${orbitClass}, instance: ${instanceId}`);
-          if (instanceId !== null && instanceId !== undefined) {
-            this.showSatelliteHoverTooltip(masterMesh, instanceId, { clientX: 0, clientY: 0 });
-          }
-        }
-      ));
-      
-      // Add hover leave action
-      masterMesh.actionManager.registerAction(new BABYLON.ExecuteCodeAction(
-        BABYLON.ActionManager.OnPointerOutTrigger, 
-        (evt) => {
-          this.hideSatelliteTooltip();
-        }
-      ));
+      // Note: Action manager removed - using simplified canvas approach for better compatibility
       
       // Validate material is properly applied
       if (!masterMesh.material) {
@@ -802,6 +889,12 @@ class SDAVisualization {
     // Update legend with object counts
     this.updateLegendCounts(classCounts, totalInstancesCreated);
     
+    // Populate data browser now that objects are created
+    if (this.isVisible && !this.dataBrowserPopulated) {
+      this.populateDataBrowser();
+      this.dataBrowserPopulated = true;
+    }
+    
     // Cache object keys for efficient batched updates
     this.objectKeys = Object.keys(this.objectData);
     this.updateIndex = 0;
@@ -874,6 +967,117 @@ class SDAVisualization {
       const now = new Date();
       lastUpdatedElement.textContent = now.toLocaleTimeString();
     }
+  }
+
+  populateDataBrowser() {
+    const dataList = document.getElementById('sda-data-list');
+    if (!dataList) {
+      console.log('Data list element not found');
+      return;
+    }
+    
+    if (!this.objectData || Object.keys(this.objectData).length === 0) {
+      console.log('No object data available for data browser');
+      dataList.innerHTML = '<div style="padding: 20px; text-align: center; color: #888;">No satellite data available</div>';
+      return;
+    }
+
+    console.log(`Populating data browser with ${Object.keys(this.objectData).length} objects`);
+
+    // Convert object data to array for easier manipulation
+    this.dataArray = Object.entries(this.objectData).map(([id, data]) => ({
+      id,
+      ...data
+    }));
+
+    this.renderDataList();
+  }
+
+  renderDataList() {
+    const dataList = document.getElementById('sda-data-list');
+    const searchTerm = document.getElementById('sda-search-input')?.value.toLowerCase() || '';
+    const filterClass = document.getElementById('sda-filter-select')?.value || '';
+
+    if (!dataList || !this.dataArray) return;
+
+    // Filter data
+    let filteredData = this.dataArray.filter(item => {
+      const matchesSearch = !searchTerm || 
+        item.name.toLowerCase().includes(searchTerm) ||
+        item.noradId.toString().includes(searchTerm);
+      
+      const matchesFilter = !filterClass || item.class === filterClass;
+      
+      return matchesSearch && matchesFilter;
+    });
+
+    // Sort by name
+    filteredData.sort((a, b) => a.name.localeCompare(b.name));
+
+    // Limit to 100 items for performance
+    filteredData = filteredData.slice(0, 100);
+
+    // Generate HTML
+    const html = filteredData.map(item => {
+      const classColors = {
+        'LEO': '#33ffff',
+        'MEO': '#ffff33', 
+        'GEO': '#ff3333',
+        'HEO': '#ff33ff',
+        'DEBRIS': '#ff8833',
+        'USER': '#ffffff'
+      };
+
+      return `
+        <div class="sda-data-item" data-object-id="${item.id}">
+          <div class="sda-data-header">
+            <span class="sda-data-name">${item.name}</span>
+            <span class="sda-data-class" style="background: ${classColors[item.class] || '#888'}; color: black;">${item.class}</span>
+          </div>
+          <div class="sda-data-details">
+            <div class="sda-data-row">
+              <span>NORAD ID:</span>
+              <span>${item.noradId}</span>
+            </div>
+            <div class="sda-data-row">
+              <span>Altitude:</span>
+              <span>${item.altitude} km</span>
+            </div>
+            <div class="sda-data-row">
+              <span>Inclination:</span>
+              <span>${item.inclination}°</span>
+            </div>
+            <div class="sda-data-row">
+              <span>RCS:</span>
+              <span>${item.rcs}</span>
+            </div>
+            <div class="sda-data-row">
+              <span>Country:</span>
+              <span>${item.country}</span>
+            </div>
+            ${item.launch ? `
+            <div class="sda-data-row">
+              <span>Launch:</span>
+              <span>${item.launch}</span>
+            </div>
+            ` : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    dataList.innerHTML = html;
+
+    // Add click handlers for expansion
+    dataList.querySelectorAll('.sda-data-item').forEach(item => {
+      item.addEventListener('click', () => {
+        item.classList.toggle('expanded');
+      });
+    });
+  }
+
+  filterDataList() {
+    this.renderDataList();
   }
 
   async loadTLEData() {
