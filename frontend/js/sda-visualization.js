@@ -561,10 +561,14 @@ class SDAVisualization {
     tooltip.id = 'sda-hover-tooltip';
     
     tooltip.innerHTML = `
-      <h4>${satelliteData.name}</h4>
-      <p style="font-size: 12px; color: #00ff64; margin: 4px 0;"><strong>NORAD ID: ${satelliteData.noradId}</strong></p>
-      <p style="margin: 4px 0;"><span class="orbit-class ${satelliteData.class.toLowerCase()}">${satelliteData.class}</span> • ${satelliteData.altitude} km</p>
-      <p style="font-size: 9px; color: #888; margin-top: 6px;">Click for details in database panel</p>
+      <h4 style="color: #00cfff; margin: 0 0 8px; font-size: 14px;">${satelliteData.name}</h4>
+      <div style="background: rgba(0, 207, 255, 0.1); padding: 6px 8px; border-radius: 4px; margin: 8px 0;">
+        <p style="font-size: 12px; color: #00ff64; margin: 0; font-weight: bold;">NORAD ID: ${satelliteData.noradId}</p>
+      </div>
+      <p style="margin: 6px 0; font-size: 11px;"><span class="orbit-class ${satelliteData.class.toLowerCase()}">${satelliteData.class}</span> • Altitude: ${satelliteData.altitude} km</p>
+      <div style="border-top: 1px solid rgba(0, 207, 255, 0.2); padding-top: 6px; margin-top: 8px;">
+        <p style="font-size: 10px; color: #66d9ff; margin: 0; text-align: center; font-style: italic;">📋 Click for more info</p>
+      </div>
     `;
     
     // Position tooltip
@@ -726,6 +730,10 @@ class SDAVisualization {
         diameter: orbitClass === 'GEO' ? 0.016 : orbitClass === 'DEBRIS' ? 0.006 : orbitClass === 'LEO' ? 0.009 : 0.012, // Smaller debris and LEO
         segments: 4      // Reduced segments for performance
       }, this.scene);
+      
+      // Apply Earth's tilt to match Earth orientation (23.5 degrees)
+      const EARTH_TILT = 23.5 * Math.PI / 180;
+      masterMesh.rotation.x = EARTH_TILT + 0.05; // Match earth.js tilt with fine-tune adjustment
       
       masterMesh.material = this.sharedMaterials[orbitClass];
       masterMesh.parent = this.mesh;

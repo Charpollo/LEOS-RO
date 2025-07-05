@@ -153,16 +153,23 @@
 .sda-legend-left {
   display: flex;
   align-items: center;
+  flex: 1;
+}
+
+.sda-legend-left span {
+  margin-left: 0;
 }
 
 .sda-toggle {
-  width: 32px;
-  height: 16px;
+  width: 28px;
+  height: 14px;
   background: rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
+  border-radius: 7px;
   position: relative;
   cursor: pointer;
   transition: background 0.3s;
+  margin-left: 8px;
+  flex-shrink: 0;
 }
 
 .sda-toggle.active {
@@ -170,8 +177,8 @@
 }
 
 .sda-toggle-slider {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   background: white;
   border-radius: 50%;
   position: absolute;
@@ -181,7 +188,7 @@
 }
 
 .sda-toggle.active .sda-toggle-slider {
-  transform: translateX(16px);
+  transform: translateX(14px);
 }
 
 .sda-legend-color {
@@ -350,10 +357,10 @@
 }
 
 .sda-data-list {
-  flex: 1;
+  height: 140px;
   overflow-y: auto;
   border: 1px solid rgba(0, 207, 255, 0.2);
-  border-radius: 4px;
+  border-radius: 6px;
   background: rgba(0, 0, 0, 0.3);
 }
 
