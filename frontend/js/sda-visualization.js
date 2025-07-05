@@ -479,9 +479,37 @@ class SDAVisualization {
     for (const [objectId, objData] of Object.entries(this.objectData)) {
       if (objData.meshClass === orbitClass && objData.instanceIndex === instanceIndex) {
         console.log(`Selected satellite: ${objData.name} (${orbitClass})`);
+        
+        // Focus satellite in data browser
+        this.focusSatelliteInBrowser(objData.noradId);
+        
         this.showSatelliteTooltip(objData, worldPosition);
         break;
       }
+    }
+  }
+
+  focusSatelliteInBrowser(noradId) {
+    // Set search input to the NORAD ID
+    const searchInput = document.getElementById('sda-search-input');
+    if (searchInput) {
+      searchInput.value = noradId;
+      this.filterDataList();
+      
+      // Scroll to the item and expand it
+      setTimeout(() => {
+        const dataItem = document.querySelector(`[data-object-id*="${noradId}"]`);
+        if (dataItem) {
+          dataItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          dataItem.classList.add('expanded');
+          dataItem.style.background = 'rgba(0, 207, 255, 0.2)';
+          
+          // Remove highlight after 2 seconds
+          setTimeout(() => {
+            dataItem.style.background = '';
+          }, 2000);
+        }
+      }, 100);
     }
   }
 
@@ -534,13 +562,9 @@ class SDAVisualization {
     
     tooltip.innerHTML = `
       <h4>${satelliteData.name}</h4>
-      <p><span class="orbit-class ${satelliteData.class.toLowerCase()}">${satelliteData.class}</span></p>
-      <p><strong>NORAD ID:</strong> ${satelliteData.noradId}</p>
-      <p><strong>Altitude:</strong> ${satelliteData.altitude} km</p>
-      <p><strong>Inclination:</strong> ${satelliteData.inclination}°</p>
-      <p><strong>RCS:</strong> ${satelliteData.rcs}</p>
-      <p><strong>Country:</strong> ${satelliteData.country}</p>
-      ${satelliteData.launch ? `<p><strong>Launch:</strong> ${satelliteData.launch}</p>` : ''}
+      <p style="font-size: 12px; color: #00ff64; margin: 4px 0;"><strong>NORAD ID: ${satelliteData.noradId}</strong></p>
+      <p style="margin: 4px 0;"><span class="orbit-class ${satelliteData.class.toLowerCase()}">${satelliteData.class}</span> • ${satelliteData.altitude} km</p>
+      <p style="font-size: 9px; color: #888; margin-top: 6px;">Click for details in database panel</p>
     `;
     
     // Position tooltip
@@ -699,7 +723,7 @@ class SDAVisualization {
       
       // Create master mesh with subtle but visible sizing
       const masterMesh = BABYLON.MeshBuilder.CreateSphere(`sda_master_${orbitClass}`, {
-        diameter: orbitClass === 'GEO' ? 0.016 : orbitClass === 'DEBRIS' ? 0.008 : 0.012, // Smaller, more subtle sizes
+        diameter: orbitClass === 'GEO' ? 0.016 : orbitClass === 'DEBRIS' ? 0.006 : orbitClass === 'LEO' ? 0.009 : 0.012, // Smaller debris and LEO
         segments: 4      // Reduced segments for performance
       }, this.scene);
       
@@ -989,6 +1013,13 @@ class SDAVisualization {
       id,
       ...data
     }));
+
+    // Debug: Log class distribution
+    const classCounts = {};
+    this.dataArray.forEach(item => {
+      classCounts[item.class] = (classCounts[item.class] || 0) + 1;
+    });
+    console.log('Data browser class distribution:', classCounts);
 
     this.renderDataList();
   }
