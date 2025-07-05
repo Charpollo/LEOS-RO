@@ -73,7 +73,13 @@ class SDAVisualization {
     const addTleButton = document.getElementById('add-tle-button');
     
     if (sdaLegend) {
-      sdaLegend.style.display = visible ? 'block' : 'none';
+      if (visible) {
+        sdaLegend.style.display = 'block';
+        sdaLegend.classList.add('visible');
+      } else {
+        sdaLegend.style.display = 'none';
+        sdaLegend.classList.remove('visible');
+      }
     }
     
     if (addTleButton) {
@@ -113,8 +119,9 @@ class SDAVisualization {
       return null;
     }
 
-    // Scale from kilometers to Babylon units (Earth scale factor)
-    const scaleFactor = EARTH_SCALE / 6371; // Earth radius in km
+    // Scale from kilometers to Babylon units
+    // EARTH_SCALE is already 1/6371, so we use it directly
+    const scaleFactor = EARTH_SCALE;
     
     return new BABYLON.Vector3(
       position.x * scaleFactor,
@@ -631,6 +638,9 @@ class SDAVisualization {
     
     console.log(`Total instances created: ${totalInstancesCreated} out of ${this.tleData.length} TLE objects`);
     
+    // Update legend with object counts
+    this.updateLegendCounts(classCounts, totalInstancesCreated);
+    
     // Cache object keys for efficient batched updates
     this.objectKeys = Object.keys(this.objectData);
     this.updateIndex = 0;
@@ -645,6 +655,64 @@ class SDAVisualization {
     // - Calculate new positions based on current simulation time
     // - Update thin instance matrices for visible objects
     // - Batch updates for performance (update subset per frame)
+  }
+
+  updateLegendCounts(classCounts, totalCount) {
+    // Update the main object count
+    const objectCountElement = document.getElementById('sda-object-count');
+    if (objectCountElement) {
+      objectCountElement.textContent = `(${totalCount.toLocaleString()} objects)`;
+    }
+
+    // Update individual class counts using specific IDs
+    const leoCount = document.getElementById('leo-count');
+    const meoCount = document.getElementById('meo-count');
+    const geoCount = document.getElementById('geo-count');
+    const heoCount = document.getElementById('heo-count');
+    const debrisCount = document.getElementById('debris-count');
+    const userCount = document.getElementById('user-count');
+
+    if (leoCount) leoCount.textContent = (classCounts.LEO || 0).toLocaleString();
+    if (meoCount) meoCount.textContent = (classCounts.MEO || 0).toLocaleString();
+    if (geoCount) geoCount.textContent = (classCounts.GEO || 0).toLocaleString();
+    if (heoCount) heoCount.textContent = (classCounts.HEO || 0).toLocaleString();
+    if (debrisCount) debrisCount.textContent = (classCounts.DEBRIS || 0).toLocaleString();
+    if (userCount) userCount.textContent = (classCounts.USER || 0).toLocaleString();
+  }
+
+  updateDataModeDisplay(mode, realCount, staticCount, totalCount) {
+    const modeBadge = document.getElementById('mode-badge');
+    const modeText = document.getElementById('mode-text');
+    const realCountElement = document.getElementById('real-count');
+    const staticCountElement = document.getElementById('static-count');
+    const lastUpdatedElement = document.getElementById('last-updated');
+
+    if (modeBadge) {
+      modeBadge.textContent = mode.toUpperCase();
+      modeBadge.className = `mode-badge ${mode.toLowerCase()}`;
+    }
+
+    if (modeText) {
+      const modeMessages = {
+        'real': `Using ${totalCount.toLocaleString()} real satellites from Celestrak NORAD catalog. Live API streaming coming soon.`,
+        'hybrid': `Combining ${realCount.toLocaleString()} real Celestrak satellites with ${staticCount.toLocaleString()} simulated objects for comprehensive visualization.`,
+        'static': `Using ${totalCount.toLocaleString()} simulated orbital objects. Real-time satellite data integration coming in future updates.`
+      };
+      modeText.textContent = modeMessages[mode] || 'Loading satellite data...';
+    }
+
+    if (realCountElement) {
+      realCountElement.textContent = realCount.toLocaleString();
+    }
+
+    if (staticCountElement) {
+      staticCountElement.textContent = staticCount.toLocaleString();
+    }
+
+    if (lastUpdatedElement) {
+      const now = new Date();
+      lastUpdatedElement.textContent = now.toLocaleTimeString();
+    }
   }
 
   async loadTLEData() {
@@ -684,6 +752,10 @@ class SDAVisualization {
         }
         
         this.showDataModeDisclaimer(dataMode, realData.length, this.tleData.length);
+        
+        // Update legend mode display
+        const staticCount = dataMode === 'hybrid' ? (this.tleData.length - realData.length) : 0;
+        this.updateDataModeDisplay(dataMode, realData.length, staticCount, this.tleData.length);
         return;
       }
     } catch (error) {
@@ -695,6 +767,9 @@ class SDAVisualization {
     this.tleData = this.generateStaticOrbitalPositions();
     dataMode = 'static';
     this.showDataModeDisclaimer(dataMode, 0, this.tleData.length);
+    
+    // Update legend mode display for static mode
+    this.updateDataModeDisplay(dataMode, 0, this.tleData.length, this.tleData.length);
     console.log(`Generated ${this.tleData.length} static orbital objects`);
   }
 

@@ -69,26 +69,53 @@
         
         <!-- SDA Objects Legend (hidden by default) -->
         <div class="sda-legend" id="sda-legend">
-            <h4>Space Objects <span id="sda-object-count" style="color: #00cfff; font-weight: normal;">(0 objects)</span></h4>
-            <div class="sda-legend-item">
-                <div class="sda-legend-color leo"></div>
-                <span>LEO (160-2,000 km)</span>
+            <h4>Space Domain Awareness <span id="sda-object-count" style="color: #00cfff; font-weight: normal;">(0 objects)</span></h4>
+            
+            <!-- Data Mode Indicator -->
+            <div class="sda-mode-indicator" id="sda-mode-indicator">
+                <div class="mode-status" id="mode-status">
+                    <span class="mode-badge" id="mode-badge">LOADING</span>
+                    <span class="mode-text" id="mode-text">Initializing data sources...</span>
+                </div>
             </div>
-            <div class="sda-legend-item">
-                <div class="sda-legend-color meo"></div>
-                <span>MEO (2,000-35,786 km)</span>
+            
+            <!-- Object Classification -->
+            <div class="sda-section">
+                <h5>Object Classification</h5>
+                <div class="sda-legend-item">
+                    <div class="sda-legend-color leo"></div>
+                    <span>LEO (160-2,000 km) - <span id="leo-count">0</span></span>
+                </div>
+                <div class="sda-legend-item">
+                    <div class="sda-legend-color meo"></div>
+                    <span>MEO (2,000-35,786 km) - <span id="meo-count">0</span></span>
+                </div>
+                <div class="sda-legend-item">
+                    <div class="sda-legend-color geo"></div>
+                    <span>GEO (~35,786 km) - <span id="geo-count">0</span></span>
+                </div>
+                <div class="sda-legend-item">
+                    <div class="sda-legend-color heo"></div>
+                    <span>HEO (Highly Elliptical) - <span id="heo-count">0</span></span>
+                </div>
+                <div class="sda-legend-item">
+                    <div class="sda-legend-color debris"></div>
+                    <span>Space Debris - <span id="debris-count">0</span></span>
+                </div>
+                <div class="sda-legend-item">
+                    <div class="sda-legend-color user"></div>
+                    <span>User-Added Objects - <span id="user-count">0</span></span>
+                </div>
             </div>
-            <div class="sda-legend-item">
-                <div class="sda-legend-color geo"></div>
-                <span>GEO (~35,786 km)</span>
-            </div>
-            <div class="sda-legend-item">
-                <div class="sda-legend-color heo"></div>
-                <span>HEO (Highly Elliptical)</span>
-            </div>
-            <div class="sda-legend-item">
-                <div class="sda-legend-color user"></div>
-                <span>User-Added Objects</span>
+            
+            <!-- Data Sources Info -->
+            <div class="sda-section">
+                <h5>Data Sources</h5>
+                <div class="data-source-info" id="data-source-info">
+                    <div class="source-item">Real NORAD Catalog: <span id="real-count">0</span></div>
+                    <div class="source-item">Static Simulation: <span id="static-count">0</span></div>
+                    <div class="source-item">Last Updated: <span id="last-updated">Never</span></div>
+                </div>
             </div>
         </div>
         
