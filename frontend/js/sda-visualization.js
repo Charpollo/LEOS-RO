@@ -300,14 +300,66 @@ class SDAVisualization {
         // Check if it's one of our SDA meshes
         if (pickedMesh.name && pickedMesh.name.startsWith('sda_master_')) {
           const instanceId = pointerInfo.pickInfo.instanceIndex;
+          console.log(`Click on SDA mesh: ${pickedMesh.name}, instance: ${instanceId}`);
           if (instanceId !== null && instanceId !== undefined) {
             this.handleSatelliteClick(pickedMesh, instanceId, pointerInfo.pickInfo.pickedPoint);
           }
         }
       }
     }, BABYLON.PointerEventTypes.POINTERDOWN);
+
+    // Alternative hover approach using canvas events
+    this.setupCanvasHoverEvents();
     
     console.log('SDA mouse interaction setup completed');
+  }
+
+  setupCanvasHoverEvents() {
+    const canvas = this.scene.getEngine().getRenderingCanvas();
+    if (!canvas) return;
+
+    // Throttle hover events for performance
+    let hoverTimeout = null;
+    
+    canvas.addEventListener('mousemove', (event) => {
+      if (hoverTimeout) {
+        clearTimeout(hoverTimeout);
+      }
+      
+      hoverTimeout = setTimeout(() => {
+        this.handleCanvasHover(event);
+      }, 50); // Throttle to every 50ms
+    });
+
+    canvas.addEventListener('mouseleave', () => {
+      this.hideSatelliteTooltip();
+    });
+  }
+
+  handleCanvasHover(event) {
+    // Get pick info at mouse position
+    const pickInfo = this.scene.pick(event.offsetX, event.offsetY);
+    
+    if (pickInfo && pickInfo.hit && pickInfo.pickedMesh) {
+      const pickedMesh = pickInfo.pickedMesh;
+      
+      // Check if it's one of our SDA meshes
+      if (pickedMesh.name && pickedMesh.name.startsWith('sda_master_')) {
+        const instanceId = pickInfo.instanceIndex;
+        console.log(`Canvas hover on SDA mesh: ${pickedMesh.name}, instance: ${instanceId}`);
+        
+        if (instanceId !== null && instanceId !== undefined) {
+          this.showSatelliteHoverTooltip(pickedMesh, instanceId, event);
+        } else {
+          // If no specific instance, show general mesh info
+          console.log(`Hovering over ${pickedMesh.name} mesh but no instance detected`);
+        }
+      } else {
+        this.hideSatelliteTooltip();
+      }
+    } else {
+      this.hideSatelliteTooltip();
+    }
   }
 
   handleSatelliteClick(mesh, instanceIndex, worldPosition) {
@@ -324,8 +376,89 @@ class SDAVisualization {
     }
   }
 
+  showSatelliteHoverTooltip(mesh, instanceIndex, mouseEvent) {
+    // Find the satellite data for this instance
+    const orbitClass = mesh.name.replace('sda_master_', '');
+    let satelliteData = null;
+    
+    for (const [objectId, objData] of Object.entries(this.objectData)) {
+      if (objData.meshClass === orbitClass && objData.instanceIndex === instanceIndex) {
+        satelliteData = objData;
+        break;
+      }
+    }
+    
+    if (!satelliteData) {
+      console.log(`No satellite data found for ${orbitClass} instance ${instanceIndex}`);
+      return;
+    }
+    
+    // Get mouse coordinates (handle different event types)
+    let x, y;
+    if (mouseEvent.clientX !== undefined) {
+      x = mouseEvent.clientX;
+      y = mouseEvent.clientY;
+    } else if (mouseEvent.offsetX !== undefined) {
+      // Convert canvas coordinates to page coordinates
+      const canvas = this.scene.getEngine().getRenderingCanvas();
+      const rect = canvas.getBoundingClientRect();
+      x = rect.left + mouseEvent.offsetX;
+      y = rect.top + mouseEvent.offsetY;
+    } else {
+      // Fallback to center of screen
+      x = window.innerWidth / 2;
+      y = window.innerHeight / 2;
+    }
+    
+    // Create or update tooltip
+    this.showTooltip(satelliteData, x, y);
+  }
+
+  showTooltip(satelliteData, x, y) {
+    // Remove existing tooltip
+    this.hideSatelliteTooltip();
+    
+    // Create tooltip element
+    const tooltip = document.createElement('div');
+    tooltip.className = 'sda-tooltip';
+    tooltip.id = 'sda-hover-tooltip';
+    
+    tooltip.innerHTML = `
+      <h4>${satelliteData.name}</h4>
+      <p><span class="orbit-class ${satelliteData.class.toLowerCase()}">${satelliteData.class}</span></p>
+      <p><strong>NORAD ID:</strong> ${satelliteData.noradId}</p>
+      <p><strong>Altitude:</strong> ${satelliteData.altitude} km</p>
+      <p><strong>Inclination:</strong> ${satelliteData.inclination}°</p>
+      <p><strong>RCS:</strong> ${satelliteData.rcs}</p>
+      <p><strong>Country:</strong> ${satelliteData.country}</p>
+      ${satelliteData.launch ? `<p><strong>Launch:</strong> ${satelliteData.launch}</p>` : ''}
+    `;
+    
+    // Position tooltip
+    tooltip.style.left = (x + 10) + 'px';
+    tooltip.style.top = (y - 10) + 'px';
+    
+    document.body.appendChild(tooltip);
+    
+    // Store reference for cleanup
+    this.currentTooltip = tooltip;
+  }
+
+  hideSatelliteTooltip() {
+    if (this.currentTooltip) {
+      this.currentTooltip.remove();
+      this.currentTooltip = null;
+    }
+    
+    // Also remove any existing tooltips by ID
+    const existingTooltip = document.getElementById('sda-hover-tooltip');
+    if (existingTooltip) {
+      existingTooltip.remove();
+    }
+  }
+
   showSatelliteTooltip(satelliteData, worldPosition) {
-    // Simple tooltip implementation
+    // Click-based tooltip (can be enhanced later)
     console.log('Satellite Info:', {
       name: satelliteData.name,
       class: satelliteData.class,
@@ -464,11 +597,39 @@ class SDAVisualization {
       masterMesh.material = this.sharedMaterials[orbitClass];
       masterMesh.parent = this.mesh;
       
-      // Ensure mesh is properly configured for visibility
+      // Ensure mesh is properly configured for visibility and interaction
       masterMesh.isVisible = true;
       masterMesh.setEnabled(true);
       masterMesh.receiveShadows = false;
       masterMesh.checkCollisions = false;
+      
+      // Enable picking for hover tooltips
+      masterMesh.isPickable = true;
+      masterMesh.enablePointerMoveEvents = true;
+      
+      // Set up action manager for better hover support
+      masterMesh.actionManager = new BABYLON.ActionManager(this.scene);
+      
+      // Add hover enter action
+      masterMesh.actionManager.registerAction(new BABYLON.ExecuteCodeAction(
+        BABYLON.ActionManager.OnPointerOverTrigger, 
+        (evt) => {
+          const pickedPoint = evt.additionalData.pickedPoint;
+          const instanceId = evt.additionalData.instanceIndex;
+          console.log(`Action Manager: Hover over ${orbitClass}, instance: ${instanceId}`);
+          if (instanceId !== null && instanceId !== undefined) {
+            this.showSatelliteHoverTooltip(masterMesh, instanceId, { clientX: 0, clientY: 0 });
+          }
+        }
+      ));
+      
+      // Add hover leave action
+      masterMesh.actionManager.registerAction(new BABYLON.ExecuteCodeAction(
+        BABYLON.ActionManager.OnPointerOutTrigger, 
+        (evt) => {
+          this.hideSatelliteTooltip();
+        }
+      ));
       
       // Validate material is properly applied
       if (!masterMesh.material) {
@@ -730,25 +891,32 @@ class SDAVisualization {
       if (realData && realData.length > 0) {
         console.log(`Loaded ${realData.length} real satellites from Celestrak NORAD data`);
         
-        // Check if we have enough real data for a good visualization
+        // Check if we have real NORAD data to determine mode
         const TARGET_OBJECTS = 58000;
-        const MIN_REAL_DATA_THRESHOLD = 1000; // Minimum real objects for pure real mode
+        const MIN_REAL_DATA_THRESHOLD = 100; // Lowered threshold to detect real NORAD data
         
-        if (realData.length >= MIN_REAL_DATA_THRESHOLD && realData.length >= TARGET_OBJECTS * 0.8) {
-          // We have enough real data - use pure real mode
-          this.tleData = realData;
-          dataMode = 'real';
-          console.log(`Using pure real data mode with ${this.tleData.length} objects`);
+        if (realData.length >= MIN_REAL_DATA_THRESHOLD) {
+          if (realData.length >= TARGET_OBJECTS * 0.8) {
+            // We have enough real data - use pure real mode
+            this.tleData = realData;
+            dataMode = 'real';
+            console.log(`Using pure real data mode with ${this.tleData.length} objects`);
+          } else {
+            // Real data available but not enough - create hybrid mode
+            dataMode = 'hybrid';
+            console.log(`Creating hybrid mode: ${realData.length} real + static supplement`);
+            
+            // Generate static data to supplement real data
+            const staticData = this.generateStaticOrbitalPositions(TARGET_OBJECTS - realData.length);
+            this.tleData = [...realData, ...staticData];
+            
+            console.log(`Hybrid mode: ${realData.length} real + ${staticData.length} static = ${this.tleData.length} total`);
+          }
         } else {
-          // Not enough real data - create hybrid mode
-          dataMode = 'hybrid';
-          console.log(`Creating hybrid mode: ${realData.length} real + static supplement`);
-          
-          // Generate static data to supplement real data
-          const staticData = this.generateStaticOrbitalPositions(TARGET_OBJECTS - realData.length);
-          this.tleData = [...realData, ...staticData];
-          
-          console.log(`Hybrid mode: ${realData.length} real + ${staticData.length} static = ${this.tleData.length} total`);
+          // Very little real data - treat as fallback mode
+          console.log(`Insufficient real data (${realData.length} objects), falling back to static mode`);
+          this.tleData = this.generateStaticOrbitalPositions();
+          dataMode = 'static';
         }
         
         this.showDataModeDisclaimer(dataMode, realData.length, this.tleData.length);
