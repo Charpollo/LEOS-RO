@@ -636,6 +636,17 @@ class SDAVisualization {
     this.updateIndex = 0;
   }
 
+  updateThinInstances() {
+    // Placeholder for real-time updates when needed
+    // For static visualization, no updates are necessary
+    // This method exists to prevent the error when called from the render loop
+    
+    // In future versions, this could update orbital positions in real-time:
+    // - Calculate new positions based on current simulation time
+    // - Update thin instance matrices for visible objects
+    // - Batch updates for performance (update subset per frame)
+  }
+
   async loadTLEData() {
     console.log('Loading satellite data...');
     console.log('📡 FUTURE FEATURE: Real-time Celestrak API streaming will be available in upcoming releases');
