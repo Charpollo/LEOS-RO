@@ -1504,3 +1504,135 @@ body.hide-time #time-display {
     font-size: 1.2em;
     line-height: 1;
 }
+
+/* Button Pulsing Animations */
+#help-sphere-btn {
+    animation: pulseBlue 2s ease-in-out infinite !important;
+}
+
+#help-sphere-btn:hover {
+    background: rgba(102,217,255,0.9) !important;
+    box-shadow: 0 0 20px rgba(0,207,255,0.5), 0 0 40px rgba(0,207,255,0.3) !important;
+    transform: scale(1.1);
+}
+
+@keyframes pulseBlue {
+    0%, 100% {
+        box-shadow: 0 0 15px rgba(0,207,255,0.6), 0 0 30px rgba(0,207,255,0.3) !important;
+    }
+    50% {
+        box-shadow: 0 0 25px rgba(0,207,255,0.8), 0 0 45px rgba(0,207,255,0.5) !important;
+    }
+}
+
+/* Learning Button Styles */
+#learning-btn {
+    animation: pulseOrange 2s ease-in-out infinite !important;
+}
+
+#learning-btn:hover {
+    background: rgba(255,140,0,0.9) !important;
+    box-shadow: 0 0 20px rgba(255,140,0,0.5), 0 0 40px rgba(255,140,0,0.3) !important;
+    transform: scale(1.1);
+}
+
+@keyframes pulseOrange {
+    0%, 100% {
+        box-shadow: 0 0 15px rgba(255,140,0,0.6), 0 0 30px rgba(255,140,0,0.3) !important;
+    }
+    50% {
+        box-shadow: 0 0 25px rgba(255,140,0,0.8), 0 0 45px rgba(255,140,0,0.5) !important;
+    }
+}
+
+/* SDA Button Purple Styles */
+#sda-toggle-btn {
+    animation: pulsePurple 2s ease-in-out infinite !important;
+}
+
+#sda-toggle-btn:hover {
+    background: rgba(138,43,226,0.9) !important;
+    box-shadow: 0 0 20px rgba(138,43,226,0.5), 0 0 40px rgba(138,43,226,0.3) !important;
+    transform: scale(1.1);
+}
+
+@keyframes pulsePurple {
+    0%, 100% {
+        box-shadow: 0 0 15px rgba(138,43,226,0.6), 0 0 30px rgba(138,43,226,0.3) !important;
+    }
+    50% {
+        box-shadow: 0 0 25px rgba(138,43,226,0.8), 0 0 45px rgba(138,43,226,0.5) !important;
+    }
+}
+
+/* Settings Button Blue Styles */
+#simulation-settings-btn {
+    animation: pulseBlue 2s ease-in-out infinite !important;
+}
+
+#simulation-settings-btn:hover {
+    background: rgba(102,217,255,0.9) !important;
+    box-shadow: 0 0 20px rgba(0,207,255,0.5), 0 0 40px rgba(0,207,255,0.3) !important;
+    transform: scale(1.1);
+}
+
+/* Learning Modal Styles */
+.learning-modal-content {
+    background: linear-gradient(135deg, rgba(20,28,45,0.98) 0%, rgba(15,22,36,0.98) 100%);
+    backdrop-filter: blur(20px);
+    border: 2px solid #ff8c00;
+    box-shadow: 0 0 40px rgba(255,140,0,0.3), inset 0 0 60px rgba(255,140,0,0.05);
+    max-width: 900px;
+    width: 90%;
+    max-height: 85vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.learning-modal-content .modal-body {
+    overflow-y: auto;
+    flex: 1;
+    padding: 2em;
+}
+
+.learning-modal-content h2 {
+    color: #ff8c00;
+    text-shadow: 0 0 20px rgba(255,140,0,0.5);
+}
+
+.learning-modal-content h3 {
+    color: #ffa500;
+    margin-top: 1.5em;
+    margin-bottom: 0.8em;
+}
+
+.learning-modal-content .subtitle {
+    color: #ffb84d;
+    font-size: 1.1em;
+    margin-bottom: 1.5em;
+}
+
+.learning-modal-content ul {
+    list-style: none;
+    padding-left: 1.5em;
+}
+
+.learning-modal-content ul li:before {
+    content: "▸ ";
+    color: #ff8c00;
+    font-weight: bold;
+    margin-left: -1.5em;
+    margin-right: 0.5em;
+}
+
+.learning-modal-content .coming-soon-note {
+    background: rgba(255,140,0,0.1);
+    border: 1px solid rgba(255,140,0,0.3);
+    border-radius: 8px;
+    padding: 1em;
+    margin: 1.5em 0;
+    text-align: center;
+    color: #ffb84d;
+    font-style: italic;
+}

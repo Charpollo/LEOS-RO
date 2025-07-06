@@ -21,6 +21,7 @@ export function initBrandUI() {
     // Initialize loading wave animation
     initLoadingWave();
     initWelcomeModal();
+    initLearningModal();
     // initTimeDisplay();    // Disabled in favor of simulation-driven clock
     initTelemetryDashboard();
     initSdaButton();
@@ -56,6 +57,34 @@ function initWelcomeModal() {
         gotItBtn.addEventListener('click', () => {
             welcomeModal.style.display = 'none';
             sessionStorage.setItem('welcomeModalShown', 'true');
+        });
+    }
+}
+
+// Learning modal functionality
+function initLearningModal() {
+    const learningModal = document.getElementById('learning-modal');
+    const closeBtn = document.getElementById('learning-modal-close');
+    const okBtn = document.getElementById('learning-modal-ok');
+    
+    if (learningModal) {
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                learningModal.style.display = 'none';
+            });
+        }
+        
+        if (okBtn) {
+            okBtn.addEventListener('click', () => {
+                learningModal.style.display = 'none';
+            });
+        }
+        
+        // Close on outside click
+        learningModal.addEventListener('click', (e) => {
+            if (e.target === learningModal) {
+                learningModal.style.display = 'none';
+            }
         });
     }
 }
@@ -229,6 +258,19 @@ export function showHelpButton() {
         });
     }
     
+    // Show Learning button
+    const learningBtn = document.getElementById('learning-btn');
+    if (learningBtn) {
+        learningBtn.style.display = 'flex';
+        // Set up learning button to show learning modal
+        learningBtn.addEventListener('click', () => {
+            const learningModal = document.getElementById('learning-modal');
+            if (learningModal) {
+                learningModal.style.display = 'flex';
+            }
+        });
+    }
+    
     // Show SDA toggle button now that the simulation is loaded
     const sdaToggleBtn = document.getElementById('sda-toggle-btn');
     if (sdaToggleBtn) {
@@ -277,6 +319,11 @@ function initModalManager() {
             closeMethod: 'display'
         },
         'welcome-modal': {
+            element: null,
+            toggleClass: null,
+            closeMethod: 'display'
+        },
+        'learning-modal': {
             element: null,
             toggleClass: null,
             closeMethod: 'display'
