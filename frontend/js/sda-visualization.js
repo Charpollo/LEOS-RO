@@ -496,14 +496,17 @@ class SDAVisualization {
       // Check if it's one of our SDA meshes
       if (pickedMesh.name && pickedMesh.name.startsWith('sda_master_')) {
         const instanceId = pickInfo.instanceIndex;
-        console.log(`Canvas hover on SDA mesh: ${pickedMesh.name}, instance: ${instanceId}, pickInfo:`, pickInfo);
+        console.log(`🎯 Canvas hover on SDA mesh: ${pickedMesh.name}`);
+        console.log(`   Instance ID: ${instanceId} (type: ${typeof instanceId})`);
+        console.log(`   Thin instance picking enabled: ${pickedMesh.thinInstanceEnablePicking}`);
+        console.log(`   Mesh enabled: ${pickedMesh.isEnabled()}, visible: ${pickedMesh.isVisible}`);
         
-        if (instanceId !== null && instanceId !== undefined) {
-          console.log(`✓ Showing advanced tooltip for instance ${instanceId}`);
+        if (instanceId !== null && instanceId !== undefined && instanceId >= 0) {
+          console.log(`✓ Valid instance found - showing tooltip for instance ${instanceId}`);
           this.showSatelliteHoverTooltip(pickedMesh, instanceId, event);
         } else {
           // Thin instance picking failed - try to find closest satellite
-          console.log(`Instance picking failed for ${pickedMesh.name}, trying closest satellite detection`);
+          console.log(`❌ Instance picking failed for ${pickedMesh.name} (instanceId: ${instanceId}), trying fallback`);
           this.showClosestSatelliteTooltip(pickedMesh, pickInfo.pickedPoint, event);
         }
       } else {
@@ -515,26 +518,58 @@ class SDAVisualization {
   }
 
   showClosestSatelliteTooltip(mesh, pickedPoint, event) {
-    // Find the closest satellite to the picked point
+    // Find the actual closest satellite to the picked point in 3D space
     const orbitClass = mesh.name.replace('sda_master_', '');
     
     // Find satellites in this orbit class
     const satellitesInClass = Object.values(this.objectData).filter(sat => sat.meshClass === orbitClass);
     
-    if (satellitesInClass.length > 0) {
-      // For demonstration, just pick the first satellite in this class
-      const satelliteData = satellitesInClass[0];
+    if (satellitesInClass.length > 0 && pickedPoint) {
+      console.log(`🔍 Finding closest satellite to picked point in ${orbitClass} class (${satellitesInClass.length} satellites)`);
       
-      // Get mouse coordinates
-      const canvas = this.scene.getEngine().getRenderingCanvas();
-      const rect = canvas.getBoundingClientRect();
-      const x = rect.left + event.offsetX;
-      const y = rect.top + event.offsetY;
+      // Calculate distances to find the actual closest satellite
+      let closestSatellite = null;
+      let minDistance = Infinity;
       
-      // Show the enhanced tooltip
-      this.showTooltip(satelliteData, x, y);
+      for (const satellite of satellitesInClass) {
+        // Get the satellite's 3D position from the instance matrices
+        const instanceIndex = satellite.instanceIndex;
+        const matrices = this.instanceMatrices[orbitClass];
+        
+        if (matrices && instanceIndex !== undefined && instanceIndex >= 0) {
+          // Extract position from transformation matrix
+          const matrixOffset = instanceIndex * 16;
+          const satPosition = new BABYLON.Vector3(
+            matrices[matrixOffset + 12], // X translation
+            matrices[matrixOffset + 13], // Y translation 
+            matrices[matrixOffset + 14]  // Z translation
+          );
+          
+          // Calculate distance to picked point
+          const distance = BABYLON.Vector3.Distance(pickedPoint, satPosition);
+          
+          if (distance < minDistance) {
+            minDistance = distance;
+            closestSatellite = satellite;
+          }
+        }
+      }
       
-      console.log(`Showing tooltip for closest ${orbitClass} satellite: ${satelliteData.name}`);
+      if (closestSatellite) {
+        console.log(`🎯 Found closest satellite: ${closestSatellite.name} (distance: ${minDistance.toFixed(3)})`);
+        
+        // Get mouse coordinates
+        const canvas = this.scene.getEngine().getRenderingCanvas();
+        const rect = canvas.getBoundingClientRect();
+        const x = rect.left + event.offsetX;
+        const y = rect.top + event.offsetY;
+        
+        // Show the enhanced tooltip
+        this.showTooltip(closestSatellite, x, y);
+      } else {
+        console.log(`❌ Could not find valid satellite positions in ${orbitClass}`);
+        this.showFallbackTooltip(mesh, event);
+      }
     } else {
       this.showFallbackTooltip(mesh, event);
     }
@@ -617,15 +652,29 @@ class SDAVisualization {
     const orbitClass = mesh.name.replace('sda_master_', '');
     let satelliteData = null;
     
+    console.log(`🔍 Looking for satellite in ${orbitClass} class, instance ${instanceIndex}`);
+    
+    // Debug: List first 5 satellites in this orbit class
+    let foundCount = 0;
     for (const [objectId, objData] of Object.entries(this.objectData)) {
-      if (objData.meshClass === orbitClass && objData.instanceIndex === instanceIndex) {
-        satelliteData = objData;
-        break;
+      if (objData.meshClass === orbitClass) {
+        if (foundCount < 5) {
+          console.log(`  - ${objData.name} (instance ${objData.instanceIndex}): isReal=${objData.isReal}, source=${objData.source}`);
+        }
+        foundCount++;
+        
+        if (objData.instanceIndex === instanceIndex) {
+          satelliteData = objData;
+          console.log(`✓ Found matching satellite: ${objData.name} (${objData.noradId})`);
+          break;
+        }
       }
     }
     
+    console.log(`📊 Total satellites in ${orbitClass} class: ${foundCount}`);
+    
     if (!satelliteData) {
-      console.log(`No satellite data found for ${orbitClass} instance ${instanceIndex}`);
+      console.log(`❌ No satellite data found for ${orbitClass} instance ${instanceIndex}`);
       return;
     }
     
@@ -968,7 +1017,7 @@ class SDAVisualization {
           
           masterMesh.thinInstanceSetBuffer("matrix", currentMatrices, 16);
           masterMesh.thinInstanceSetBuffer("color", currentColors, 4);
-          masterMesh.thinInstanceEnablePicking = true;
+          // Don't set picking here during batch updates - will be set once at the end
           masterMesh.setEnabled(true);
           masterMesh.isVisible = true;
           
@@ -1004,13 +1053,20 @@ class SDAVisualization {
           masterMesh.thinInstanceSetBuffer("matrix", trimmedMatrices, 16);
           masterMesh.thinInstanceSetBuffer("color", trimmedColors, 4);
           
-          // Enable instances to be pickable for tooltips
+          // Enable instances to be pickable for tooltips - try multiple approaches
           masterMesh.thinInstanceEnablePicking = true;
+          masterMesh.isPickable = true;
+          masterMesh.enablePointerMoveEvents = true;
           
-          // Force mesh visibility and freeze for performance
+          // Force update the picking system
+          if (this.scene.pick) {
+            console.log(`✓ Thin instance picking enabled for ${orbitClass} with ${validInstanceCount} instances`);
+          }
+          
+          // Force mesh visibility but DON'T freeze world matrix (interferes with picking)
           masterMesh.setEnabled(true);
           masterMesh.isVisible = true;
-          masterMesh.freezeWorldMatrix(); // Now freeze after thin instances are applied
+          // masterMesh.freezeWorldMatrix(); // Commented out - interferes with thin instance picking
           
           console.log(`${orbitClass}: Successfully created and applied ${validInstanceCount} thin instances out of ${count} total`);
         } else {
