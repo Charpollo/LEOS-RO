@@ -164,14 +164,21 @@ class SDAVisualization {
             // Restore from original matrices
             const originalMatrices = this.originalMatrices[orbitClass];
             if (originalMatrices) {
+              console.log(`🔄 Restoring satellite ${satellite.name} in ${orbitClass} (instance ${instanceIndex})`);
               for (let i = 0; i < 16; i++) {
                 matrices[matrixOffset + i] = originalMatrices[matrixOffset + i];
               }
+              // Verify restoration worked
+              const scale = matrices[matrixOffset + 0];
+              console.log(`   Scale after restoration: ${scale}`);
+            } else {
+              console.warn(`❌ No original matrices found for ${orbitClass} - cannot restore satellite ${satellite.name}`);
             }
             // Mark satellite as visible for tooltip system
             satellite.isVisibleInScene = true;
           } else {
             // Hide by scaling to zero but preserve position data for tooltips
+            console.log(`🫥 Hiding satellite ${satellite.name} in ${orbitClass} (instance ${instanceIndex})`);
             matrices[matrixOffset + 0] = 0.0;  // X scale = 0
             matrices[matrixOffset + 5] = 0.0;  // Y scale = 0
             matrices[matrixOffset + 10] = 0.0; // Z scale = 0
@@ -185,6 +192,20 @@ class SDAVisualization {
     
     // Update the mesh with modified matrices
     if (modifiedCount > 0) {
+      // Ensure the orbit class mesh is enabled when showing satellites
+      if (visible && !mesh.isEnabled()) {
+        console.log(`🔄 Re-enabling ${orbitClass} mesh for data source restoration`);
+        mesh.setEnabled(true);
+        mesh.isVisible = true;
+        
+        // Also update the orbit class toggle UI to reflect this
+        const orbitToggle = document.querySelector(`.sda-toggle[data-toggle="${orbitClass}"]`);
+        if (orbitToggle && !orbitToggle.classList.contains('active')) {
+          orbitToggle.classList.add('active');
+          console.log(`🔄 Re-activated ${orbitClass} orbit class toggle`);
+        }
+      }
+      
       mesh.thinInstanceSetBuffer("matrix", matrices, 16);
       
       // Force refresh thin instance picking system after matrix updates
@@ -1139,11 +1160,11 @@ class SDAVisualization {
         continue;
       }
       
-      // Store references and backup original matrices
+      // Store references and backup original matrices BEFORE any modifications
       this.instancedMeshes[orbitClass] = masterMesh;
-      this.instanceMatrices[orbitClass] = matrices;
-      this.originalMatrices[orbitClass] = new Float32Array(matrices); // Backup for restoration
-      this.instanceColors[orbitClass] = colors;
+      this.instanceMatrices[orbitClass] = trimmedMatrices; // Store the actual matrices used
+      this.originalMatrices[orbitClass] = new Float32Array(trimmedMatrices); // Backup for restoration
+      this.instanceColors[orbitClass] = trimmedColors;
       
       totalInstancesCreated += validInstanceCount;
       
