@@ -659,15 +659,33 @@ class SDAVisualization {
     tooltip.className = 'sda-tooltip';
     tooltip.id = 'sda-hover-tooltip';
     
+    // Clean satellite data and remove emojis
+    const cleanName = (satelliteData.name || 'Unknown Satellite').replace(/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '').trim();
+    const orbitClass = satelliteData.class || 'Unknown';
+    const altitude = satelliteData.altitude ? `${satelliteData.altitude} km` : 'Unknown';
+    const inclination = satelliteData.inclination ? `${satelliteData.inclination}\u00b0` : 'Unknown';
+    const country = (satelliteData.country || 'Unknown').replace(/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '').trim();
+    const noradId = satelliteData.noradId || satelliteData.norad || 'N/A';
+    
+    // Determine if this is real or simulated data
+    const isRealSatellite = satelliteData.isReal || (satelliteData.source === 'NORAD') || (orbitClass === 'REAL');
+    const dataSource = isRealSatellite ? 'Real NORAD Data' : 'Simulated Data';
+    const sourceColor = isRealSatellite ? '#00ff64' : '#ff8800';
+    
+    // Debug logging for real satellite detection
+    console.log(`Tooltip for ${cleanName}: isReal=${satelliteData.isReal}, source=${satelliteData.source}, class=${orbitClass}, determined as: ${dataSource}`);
+    
     tooltip.innerHTML = `
-      <h4 style="color: #00cfff; margin: 0 0 8px; font-size: 14px;">${satelliteData.name}</h4>
-      <div style="background: rgba(0, 207, 255, 0.1); padding: 6px 8px; border-radius: 4px; margin: 8px 0;">
-        <p style="font-size: 12px; color: #00ff64; margin: 0; font-weight: bold;">NORAD ID: ${satelliteData.noradId}</p>
+      <h4>${cleanName}</h4>
+      <div style="background: rgba(${isRealSatellite ? '0, 255, 100' : '255, 136, 0'}, 0.1); padding: 6px 8px; border-radius: 4px; margin: 8px 0;">
+        <p style="font-size: 12px; color: ${sourceColor}; margin: 0; font-weight: bold;">${dataSource}</p>
       </div>
-      <p style="margin: 6px 0; font-size: 11px;"><span class="orbit-class ${satelliteData.class.toLowerCase()}">${satelliteData.class}</span> • Altitude: ${satelliteData.altitude} km</p>
-      <div style="border-top: 1px solid rgba(0, 207, 255, 0.2); padding-top: 6px; margin-top: 8px;">
-        <p style="font-size: 10px; color: #66d9ff; margin: 0; text-align: center; font-style: italic;">📋 Click for more info</p>
-      </div>
+      <p><strong>Class:</strong> <span class="orbit-class ${orbitClass.toLowerCase()}">${orbitClass}</span></p>
+      <p><strong>NORAD ID:</strong> ${noradId}</p>
+      <p><strong>Altitude:</strong> ${altitude}</p>
+      <p><strong>Inclination:</strong> ${inclination}</p>
+      <p><strong>Country:</strong> ${country}</p>
+      ${satelliteData.rcs ? `<p><strong>RCS:</strong> ${satelliteData.rcs}</p>` : ''}
     `;
     
     // Position tooltip
@@ -928,7 +946,9 @@ class SDAVisualization {
           rcs: obj.rcs || 'UNKNOWN',
           country: obj.country || 'UNKNOWN',
           launch: obj.launch || 'UNKNOWN',
-          labelVisible: false
+          labelVisible: false,
+          isReal: obj.isReal || false,
+          source: obj.source || 'Unknown'
         };
         
         // Store instance mapping
@@ -1440,7 +1460,28 @@ class SDAVisualization {
   
   processLocalTLEData(obj) {
     try {
-      // Handle different TLE data formats
+      // Handle NORAD JSON format from Celestrak
+      if (obj.OBJECT_NAME && obj.NORAD_CAT_ID) {
+        // Convert NORAD JSON to TLE format  
+        const tle1 = this.generateTLE1FromNORAD(obj);
+        const tle2 = this.generateTLE2FromNORAD(obj);
+        
+        return {
+          name: obj.OBJECT_NAME,
+          norad: obj.NORAD_CAT_ID.toString(),
+          class: this.classifyNORADObject(obj),
+          tle1: tle1,
+          tle2: tle2,
+          epoch: obj.EPOCH || new Date().toISOString(),
+          rcs: obj.RCS_SIZE || 'UNKNOWN',
+          country: obj.COUNTRY_CODE || 'UNKNOWN',
+          launch: obj.LAUNCH_DATE || 'UNKNOWN',
+          isReal: true,
+          source: 'NORAD'
+        };
+      }
+      
+      // Handle standard TLE data formats
       if (obj.tle1 && obj.tle2) {
         return {
           name: obj.name || obj.satellite_name || `SAT-${obj.norad || 'UNKNOWN'}`,
@@ -1451,7 +1492,9 @@ class SDAVisualization {
           epoch: obj.epoch || new Date().toISOString(),
           rcs: obj.rcs || 'UNKNOWN',
           country: obj.country || 'UNKNOWN',
-          launch: obj.launch || 'UNKNOWN'
+          launch: obj.launch || 'UNKNOWN',
+          isReal: obj.isReal || false,
+          source: obj.source || 'Unknown'
         };
       }
       return null;
@@ -1461,6 +1504,76 @@ class SDAVisualization {
     }
   }
   
+  generateTLE1FromNORAD(obj) {
+    // Generate TLE line 1 from NORAD data
+    const noradId = obj.NORAD_CAT_ID.toString().padStart(5, '0');
+    const classification = obj.CLASSIFICATION_TYPE || 'U';
+    const intlDesignator = obj.OBJECT_ID || '00000A  ';
+    const epochYear = obj.EPOCH ? obj.EPOCH.substring(2, 4) : '25';
+    const epochDay = obj.EPOCH ? this.convertEpochToDay(obj.EPOCH) : '001.50000000';
+    const meanMotionDot = (obj.MEAN_MOTION_DOT || 0).toExponential(8).replace('e', '');
+    const meanMotionDDot = (obj.MEAN_MOTION_DDOT || 0).toExponential(8).replace('e', '');
+    const bstar = (obj.BSTAR || 0).toExponential(8).replace('e', '');
+    const ephemerisType = obj.EPHEMERIS_TYPE || 0;
+    const elementSetNo = (obj.ELEMENT_SET_NO || 999).toString().padStart(4, ' ');
+    
+    return `1 ${noradId}${classification} ${intlDesignator} ${epochYear}${epochDay}  ${meanMotionDot}  ${meanMotionDDot}  ${bstar} ${ephemerisType} ${elementSetNo}9`;
+  }
+
+  generateTLE2FromNORAD(obj) {
+    // Generate TLE line 2 from NORAD data
+    const noradId = obj.NORAD_CAT_ID.toString().padStart(5, '0');
+    const inclination = (obj.INCLINATION || 0).toFixed(4).padStart(8, ' ');
+    const raan = (obj.RA_OF_ASC_NODE || 0).toFixed(4).padStart(8, ' ');
+    const eccentricity = Math.round((obj.ECCENTRICITY || 0) * 10000000).toString().padStart(7, '0');
+    const argPer = (obj.ARG_OF_PERICENTER || 0).toFixed(4).padStart(8, ' ');
+    const meanAnomaly = (obj.MEAN_ANOMALY || 0).toFixed(4).padStart(8, ' ');
+    const meanMotion = (obj.MEAN_MOTION || 1).toFixed(8).padStart(11, ' ');
+    const revNumber = (obj.REV_AT_EPOCH || 0).toString().padStart(5, '0');
+    
+    return `2 ${noradId} ${inclination} ${raan} ${eccentricity} ${argPer} ${meanAnomaly} ${meanMotion}${revNumber}9`;
+  }
+
+  convertEpochToDay(epochString) {
+    // Convert ISO date to day of year format
+    try {
+      const date = new Date(epochString);
+      const year = date.getFullYear();
+      const start = new Date(year, 0, 0);
+      const diff = date - start;
+      const oneDay = 1000 * 60 * 60 * 24;
+      const dayOfYear = Math.floor(diff / oneDay);
+      const fraction = (date.getHours() * 3600 + date.getMinutes() * 60 + date.getSeconds()) / 86400;
+      return (dayOfYear + fraction).toFixed(8).padStart(12, '0');
+    } catch (error) {
+      return '001.50000000';
+    }
+  }
+
+  classifyNORADObject(obj) {
+    // Classify NORAD objects based on orbital parameters and name
+    const name = (obj.OBJECT_NAME || '').toUpperCase();
+    const meanMotion = obj.MEAN_MOTION || 0;
+    
+    // Check for debris first
+    if (name.includes('DEB') || name.includes('DEBRIS') || name.includes('FRAG')) {
+      return 'DEBRIS';
+    }
+    
+    // Classify by mean motion (revolutions per day)
+    if (meanMotion > 10) return 'LEO';
+    if (meanMotion > 1.5) return 'MEO';  
+    if (meanMotion > 0.9 && meanMotion < 1.1) return 'GEO';
+    if (meanMotion > 0) return 'HEO';
+    
+    // Fallback based on name patterns
+    if (name.includes('STARLINK') || name.includes('ONEWEB')) return 'LEO';
+    if (name.includes('GPS') || name.includes('GALILEO') || name.includes('GLONASS')) return 'MEO';
+    if (name.includes('GOES') || name.includes('METEOSAT') || name.includes('INTELSAT')) return 'GEO';
+    
+    return 'LEO'; // Default
+  }
+
   classifyLocalObject(obj) {
     const name = (obj.name || obj.satellite_name || '').toUpperCase();
     

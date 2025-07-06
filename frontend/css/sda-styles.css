@@ -380,6 +380,17 @@
   background: rgba(0, 207, 255, 0.05);
 }
 
+.sda-data-item.highlighted {
+  background: rgba(0, 207, 255, 0.2) !important;
+  border: 1px solid rgba(0, 207, 255, 0.5);
+  animation: fadeHighlight 3s ease-out;
+}
+
+@keyframes fadeHighlight {
+  0% { background: rgba(0, 207, 255, 0.4) !important; }
+  100% { background: rgba(0, 207, 255, 0.05) !important; }
+}
+
 .sda-data-header {
   display: flex;
   justify-content: space-between;
