@@ -19,6 +19,7 @@ class SDAVisualization {
     this.masterMesh = null;
     this.instancedMeshes = {}; // One per orbit class
     this.instanceMatrices = {}; // Matrices for thin instances
+    this.originalMatrices = {}; // Backup of original matrices for restoration
     this.instanceColors = {}; // Colors for thin instances
     this.objectInstances = {}; // Map object IDs to instance indices
     this.maxInstancesPerClass = 20000; // Maximum instances per class
@@ -77,8 +78,8 @@ class SDAVisualization {
   toggleOrbitClass(orbitClass, toggleElement) {
     const isActive = toggleElement.classList.contains('active');
     
-    // Handle data source toggles (only SIMULATED, not REAL)
-    if (orbitClass === 'SIMULATED') {
+    // Handle data source toggles (REAL and SIMULATED)
+    if (orbitClass === 'REAL' || orbitClass === 'SIMULATED') {
       this.toggleDataSource(orbitClass, toggleElement);
       return;
     }
@@ -136,18 +137,66 @@ class SDAVisualization {
     const mesh = this.instancedMeshes[orbitClass];
     if (!mesh) return;
     
-    if (sourceType === 'REAL') {
-      // Real satellites - only affects REAL class mesh
-      if (orbitClass === 'REAL') {
-        mesh.setEnabled(visible);
-        console.log(`${visible ? 'Showing' : 'Hiding'} REAL satellites (enabled: ${visible})`);
+    console.log(`🔄 Updating ${sourceType} visibility in ${orbitClass} class: ${visible ? 'show' : 'hide'}`);
+    
+    // Get the current matrices for this orbit class
+    const matrices = this.instanceMatrices[orbitClass];
+    if (!matrices) {
+      console.warn(`No matrices found for ${orbitClass}`);
+      return;
+    }
+    
+    // Find satellites in this orbit class that match the source type
+    const satellitesInClass = Object.values(this.objectData).filter(sat => sat.meshClass === orbitClass);
+    let modifiedCount = 0;
+    
+    for (const satellite of satellitesInClass) {
+      const isRealSatellite = satellite.isReal && satellite.source === 'NORAD';
+      const shouldShow = (sourceType === 'REAL' && isRealSatellite) || 
+                        (sourceType === 'SIMULATED' && !isRealSatellite);
+      
+      if (shouldShow) {
+        const instanceIndex = satellite.instanceIndex;
+        if (instanceIndex !== undefined && instanceIndex >= 0) {
+          const matrixOffset = instanceIndex * 16;
+          
+          if (visible) {
+            // Restore from original matrices
+            const originalMatrices = this.originalMatrices[orbitClass];
+            if (originalMatrices) {
+              for (let i = 0; i < 16; i++) {
+                matrices[matrixOffset + i] = originalMatrices[matrixOffset + i];
+              }
+            }
+            // Mark satellite as visible for tooltip system
+            satellite.isVisibleInScene = true;
+          } else {
+            // Hide by scaling to zero but preserve position data for tooltips
+            matrices[matrixOffset + 0] = 0.0;  // X scale = 0
+            matrices[matrixOffset + 5] = 0.0;  // Y scale = 0
+            matrices[matrixOffset + 10] = 0.0; // Z scale = 0
+            // Mark satellite as hidden but keep position data intact
+            satellite.isVisibleInScene = false;
+          }
+          modifiedCount++;
+        }
       }
-    } else if (sourceType === 'SIMULATED') {
-      // Simulated satellites - affects all NON-REAL class meshes
-      if (orbitClass !== 'REAL') {
-        mesh.setEnabled(visible);
-        console.log(`${visible ? 'Showing' : 'Hiding'} SIMULATED satellites in ${orbitClass} class (enabled: ${visible})`);
+    }
+    
+    // Update the mesh with modified matrices
+    if (modifiedCount > 0) {
+      mesh.thinInstanceSetBuffer("matrix", matrices, 16);
+      
+      // Force refresh thin instance picking system after matrix updates
+      try {
+        mesh.thinInstanceEnablePicking = false;
+        mesh.thinInstanceEnablePicking = true;
+        console.log(`🔄 Refreshed thin instance picking for ${orbitClass}`);
+      } catch (error) {
+        console.warn(`Failed to refresh picking for ${orbitClass}:`, error);
       }
+      
+      console.log(`📊 ${visible ? 'Showed' : 'Hid'} ${modifiedCount} ${sourceType} satellites in ${orbitClass} class`);
     }
   }
 
@@ -331,22 +380,22 @@ class SDAVisualization {
       'real': {
         color: 'rgba(0, 255, 100, 0.95)',
         border: '#00ff64',
-        title: '✅ REAL CELESTRAK DATA',
-        message: `Displaying ${totalCount.toLocaleString()} real satellites from current Celestrak NORAD catalog. Live API integration coming soon for real-time orbital updates.`,
+        title: '✅ REAL CELESTRAK DATA - BETA',
+        message: `🚧 BETA VERSION: Displaying ${totalCount.toLocaleString()} real satellites from Celestrak NORAD catalog (data from 1 week ago). This is a demonstration of real satellite positions, not live real-time data. Full real-time API integration coming soon.`,
         shadow: 'rgba(0, 255, 100, 0.4)'
       },
       'hybrid': {
         color: 'rgba(255, 200, 0, 0.95)',
         border: '#ffc800',
-        title: '🔄 HYBRID DATA MODE',
-        message: `Combining ${realCount.toLocaleString()} real Celestrak satellites with ${(totalCount - realCount).toLocaleString()} simulated objects (${totalCount.toLocaleString()} total). Live API streaming will be added in future updates.`,
+        title: '🔄 HYBRID DATA MODE - BETA',
+        message: `🚧 BETA VERSION: Combining ${realCount.toLocaleString()} real Celestrak satellites (1 week old data) with ${(totalCount - realCount).toLocaleString()} simulated objects for visualization demonstration. NOT real-time data. Live streaming will be added in future updates.`,
         shadow: 'rgba(255, 200, 0, 0.4)'
       },
       'static': {
         color: 'rgba(255, 140, 0, 0.95)',
         border: '#ff8c00',
-        title: '⚠️ SIMULATION MODE',
-        message: `Displaying ${totalCount.toLocaleString()} simulated space objects for comprehensive visualization. Real-time Celestrak API integration is planned for future releases.`,
+        title: '⚠️ SIMULATION MODE - BETA',
+        message: `🚧 BETA VERSION: Displaying ${totalCount.toLocaleString()} simulated space objects for comprehensive visualization demonstration. This is NOT real satellite data. Real-time Celestrak API integration is planned for future releases.`,
         shadow: 'rgba(255, 140, 0, 0.4)'
       }
     };
@@ -521,29 +570,51 @@ class SDAVisualization {
     // Find the actual closest satellite to the picked point in 3D space
     const orbitClass = mesh.name.replace('sda_master_', '');
     
-    // Find satellites in this orbit class
-    const satellitesInClass = Object.values(this.objectData).filter(sat => sat.meshClass === orbitClass);
+    // Find satellites in this orbit class that are currently visible
+    const satellitesInClass = Object.values(this.objectData).filter(sat => {
+      if (sat.meshClass !== orbitClass) return false;
+      if (sat.isVisibleInScene === false) return false;
+      
+      // Check if satellite should be visible based on data source toggles
+      const isRealSatellite = sat.isReal && sat.source === 'NORAD';
+      const realToggle = document.querySelector('.sda-toggle[data-toggle="REAL"]');
+      const simulatedToggle = document.querySelector('.sda-toggle[data-toggle="SIMULATED"]');
+      
+      const isRealToggleActive = realToggle && realToggle.classList.contains('active');
+      const isSimulatedToggleActive = simulatedToggle && simulatedToggle.classList.contains('active');
+      
+      // Satellite should be visible if its data source toggle is active
+      if (isRealSatellite && !isRealToggleActive) return false;
+      if (!isRealSatellite && !isSimulatedToggleActive) return false;
+      
+      return true;
+    });
     
     if (satellitesInClass.length > 0 && pickedPoint) {
-      console.log(`🔍 Finding closest satellite to picked point in ${orbitClass} class (${satellitesInClass.length} satellites)`);
+      console.log(`🔍 Finding closest visible satellite to picked point in ${orbitClass} class (${satellitesInClass.length} visible satellites)`);
       
       // Calculate distances to find the actual closest satellite
       let closestSatellite = null;
       let minDistance = Infinity;
       
       for (const satellite of satellitesInClass) {
-        // Get the satellite's 3D position from the instance matrices
+        // Get the satellite's 3D position from the original matrices (not current scaled matrices)
         const instanceIndex = satellite.instanceIndex;
-        const matrices = this.instanceMatrices[orbitClass];
+        const originalMatrices = this.originalMatrices[orbitClass];
         
-        if (matrices && instanceIndex !== undefined && instanceIndex >= 0) {
-          // Extract position from transformation matrix
+        if (originalMatrices && instanceIndex !== undefined && instanceIndex >= 0) {
+          // Extract position from original transformation matrix
           const matrixOffset = instanceIndex * 16;
           const satPosition = new BABYLON.Vector3(
-            matrices[matrixOffset + 12], // X translation
-            matrices[matrixOffset + 13], // Y translation 
-            matrices[matrixOffset + 14]  // Z translation
+            originalMatrices[matrixOffset + 12], // X translation
+            originalMatrices[matrixOffset + 13], // Y translation 
+            originalMatrices[matrixOffset + 14]  // Z translation
           );
+          
+          // Skip if position is zero (hidden satellite)
+          if (satPosition.x === 0 && satPosition.y === 0 && satPosition.z === 0) {
+            continue;
+          }
           
           // Calculate distance to picked point
           const distance = BABYLON.Vector3.Distance(pickedPoint, satPosition);
@@ -556,7 +627,7 @@ class SDAVisualization {
       }
       
       if (closestSatellite) {
-        console.log(`🎯 Found closest satellite: ${closestSatellite.name} (distance: ${minDistance.toFixed(3)})`);
+        console.log(`🎯 Found closest visible satellite: ${closestSatellite.name} (distance: ${minDistance.toFixed(3)})`);
         
         // Get mouse coordinates
         const canvas = this.scene.getEngine().getRenderingCanvas();
@@ -579,30 +650,10 @@ class SDAVisualization {
     // Fallback tooltip when we can't detect specific instance
     const orbitClass = mesh.name.replace('sda_master_', '');
     
-    // Get mouse coordinates
-    const canvas = this.scene.getEngine().getRenderingCanvas();
-    const rect = canvas.getBoundingClientRect();
-    const x = rect.left + event.offsetX;
-    const y = rect.top + event.offsetY;
-    
-    // Create simple tooltip
+    // Don't show fallback tooltip when no specific satellite is detected
+    // This prevents the "leo sta label" issue when hovering between satellites
+    console.log(`⚠️ Fallback tooltip suppressed for ${orbitClass} - no specific satellite detected`);
     this.hideSatelliteTooltip();
-    
-    const tooltip = document.createElement('div');
-    tooltip.className = 'sda-tooltip';
-    tooltip.id = 'sda-hover-tooltip';
-    
-    tooltip.innerHTML = `
-      <h4>${orbitClass} Objects</h4>
-      <p>Hover detection active - click for more details</p>
-      <p>Class: ${orbitClass}</p>
-    `;
-    
-    tooltip.style.left = (x + 10) + 'px';
-    tooltip.style.top = (y - 10) + 'px';
-    
-    document.body.appendChild(tooltip);
-    this.currentTooltip = tooltip;
   }
 
   handleSatelliteClick(mesh, instanceIndex, worldPosition) {
@@ -1005,7 +1056,8 @@ class SDAVisualization {
           launch: obj.launch || 'UNKNOWN',
           labelVisible: false,
           isReal: obj.isReal || false,
-          source: obj.source || 'Unknown'
+          source: obj.source || 'Unknown',
+          isVisibleInScene: true // Track visibility for tooltip system
         };
         
         // Store instance mapping
@@ -1087,9 +1139,10 @@ class SDAVisualization {
         continue;
       }
       
-      // Store references
+      // Store references and backup original matrices
       this.instancedMeshes[orbitClass] = masterMesh;
       this.instanceMatrices[orbitClass] = matrices;
+      this.originalMatrices[orbitClass] = new Float32Array(matrices); // Backup for restoration
       this.instanceColors[orbitClass] = colors;
       
       totalInstancesCreated += validInstanceCount;
@@ -1174,9 +1227,9 @@ class SDAVisualization {
 
     if (modeText) {
       const modeMessages = {
-        'real': `Using ${totalCount.toLocaleString()} real satellites from Celestrak NORAD catalog. Live API streaming coming soon.`,
-        'hybrid': `Combining ${realCount.toLocaleString()} real Celestrak satellites with ${staticCount.toLocaleString()} simulated objects for comprehensive visualization.`,
-        'static': `Using ${totalCount.toLocaleString()} simulated orbital objects. Real-time satellite data integration coming in future updates.`
+        'real': `BETA: ${totalCount.toLocaleString()} real satellites from Celestrak (1 week old data). Not real-time.`,
+        'hybrid': `BETA: ${realCount.toLocaleString()} real Celestrak + ${staticCount.toLocaleString()} simulated objects. Demonstration only.`,
+        'static': `BETA: ${totalCount.toLocaleString()} simulated objects for visualization demo. Not real satellite data.`
       };
       modeText.textContent = modeMessages[mode] || 'Loading satellite data...';
     }
