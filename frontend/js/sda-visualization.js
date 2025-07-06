@@ -853,15 +853,14 @@ class SDAVisualization {
           }
         }
         
-        // Classify real NORAD satellites as 'REAL' for visibility
-        let orbitClass;
+        // Classify satellites by their actual orbital class (preserve LEO/MEO/GEO/HEO info)
+        let orbitClass = obj.class || this.determineOrbitClass(position.altitude);
+        
         if (obj.isReal && obj.source === 'NORAD') {
-          orbitClass = 'REAL';
-          console.log(`🔍 Real satellite found: ${obj.name} -> REAL class`);
+          console.log(`🔍 Real NORAD satellite: ${obj.name} -> ${orbitClass} class (REAL data)`);
         } else {
-          orbitClass = obj.class || this.determineOrbitClass(position.altitude);
           if (i < 20) { // Only log first 20 to avoid spam
-            console.log(`🔍 Satellite ${i}: isReal=${obj.isReal}, source=${obj.source}, name=${obj.name} -> ${orbitClass} class`);
+            console.log(`🔍 Simulated satellite: ${obj.name} -> ${orbitClass} class`);
           }
         }
         
@@ -975,11 +974,20 @@ class SDAVisualization {
         const matrix = BABYLON.Matrix.Translation(babylonPos.x, babylonPos.y, babylonPos.z);
         matrix.copyToArray(matrices, validInstanceCount * 16);
         
-        // Set color with moderate brightness using validInstanceCount
-        colors[validInstanceCount * 4] = Math.min(color.r * 1.2, 1.0);
-        colors[validInstanceCount * 4 + 1] = Math.min(color.g * 1.2, 1.0);
-        colors[validInstanceCount * 4 + 2] = Math.min(color.b * 1.2, 1.0);
-        colors[validInstanceCount * 4 + 3] = 0.85; // Slight transparency
+        // Set color with special treatment for real NORAD satellites
+        if (obj.isReal && obj.source === 'NORAD') {
+          // Real satellites: brighter with white tint to distinguish them
+          colors[validInstanceCount * 4] = Math.min(color.r * 1.5 + 0.3, 1.0);     // Add white tint
+          colors[validInstanceCount * 4 + 1] = Math.min(color.g * 1.5 + 0.3, 1.0); // Add white tint
+          colors[validInstanceCount * 4 + 2] = Math.min(color.b * 1.5 + 0.3, 1.0); // Add white tint
+          colors[validInstanceCount * 4 + 3] = 1.0; // Full opacity for real satellites
+        } else {
+          // Simulated satellites: normal coloring
+          colors[validInstanceCount * 4] = Math.min(color.r * 1.2, 1.0);
+          colors[validInstanceCount * 4 + 1] = Math.min(color.g * 1.2, 1.0);
+          colors[validInstanceCount * 4 + 2] = Math.min(color.b * 1.2, 1.0);
+          colors[validInstanceCount * 4 + 3] = 0.85; // Slight transparency for simulated
+        }
         
         // Store object data
         this.objectData[obj.norad || `obj-${index}`] = {
@@ -1142,14 +1150,14 @@ class SDAVisualization {
     const geoCount = document.getElementById('geo-count');
     const heoCount = document.getElementById('heo-count');
     const debrisCount = document.getElementById('debris-count');
-    const realSatsCount = document.getElementById('real-sats-count');
 
     if (leoCount) leoCount.textContent = (classCounts.LEO || 0).toLocaleString();
     if (meoCount) meoCount.textContent = (classCounts.MEO || 0).toLocaleString();
     if (geoCount) geoCount.textContent = (classCounts.GEO || 0).toLocaleString();
     if (heoCount) heoCount.textContent = (classCounts.HEO || 0).toLocaleString();
     if (debrisCount) debrisCount.textContent = (classCounts.DEBRIS || 0).toLocaleString();
-    if (realSatsCount) realSatsCount.textContent = (classCounts.REAL || 0).toLocaleString();
+    
+    // Note: Real satellites are now distributed among their proper orbital classes above
   }
 
   updateDataModeDisplay(mode, realCount, staticCount, totalCount) {
