@@ -1162,9 +1162,9 @@ class SDAVisualization {
       
       // Store references and backup original matrices BEFORE any modifications
       this.instancedMeshes[orbitClass] = masterMesh;
-      this.instanceMatrices[orbitClass] = trimmedMatrices; // Store the actual matrices used
-      this.originalMatrices[orbitClass] = new Float32Array(trimmedMatrices); // Backup for restoration
-      this.instanceColors[orbitClass] = trimmedColors;
+      this.instanceMatrices[orbitClass] = matrices.slice(0, validInstanceCount * 16); // Store the actual matrices used
+      this.originalMatrices[orbitClass] = new Float32Array(matrices.slice(0, validInstanceCount * 16)); // Backup for restoration
+      this.instanceColors[orbitClass] = colors.slice(0, validInstanceCount * 4);
       
       totalInstancesCreated += validInstanceCount;
       
