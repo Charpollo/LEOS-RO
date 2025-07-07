@@ -437,14 +437,20 @@ window.addEventListener('DOMContentLoaded', () => {
 
 // Show control buttons after scene loads
 export function showHelpButton() {
-    // Initialize dock functionality
-    initControlDock();
-    
-    // Show the control dock
+    // Show the control dock first
     const controlDock = document.getElementById('control-dock');
     if (controlDock) {
         controlDock.style.display = 'flex';
         controlDock.classList.add('dock-enter');
+    }
+    
+    // IMMEDIATELY fix time display visibility
+    const timeDisplay = document.getElementById('time-display');
+    if (timeDisplay) {
+        // Remove hide-time class from body if it exists
+        document.body.classList.remove('hide-time');
+        // Ensure time display is visible
+        timeDisplay.style.display = '';
     }
     
     // Set up help button to show welcome modal
@@ -469,6 +475,12 @@ export function showHelpButton() {
         });
     }
     
+    // Show SDA toggle button now that the simulation is loaded
+    const sdaToggleBtn = document.getElementById('sda-toggle-btn');
+    if (sdaToggleBtn) {
+        // SDA button is in the dock, no need to set display
+    }
+    
     // Set up support button to show support modal
     const supportBtn = document.getElementById('support-btn');
     if (supportBtn) {
@@ -480,57 +492,77 @@ export function showHelpButton() {
         });
     }
     
-    // Note: Settings button event handler is set up in app.js
+    // IMMEDIATELY set up settings button
+    const simulationSettingsBtn = document.getElementById('simulation-settings-btn');
+    if (simulationSettingsBtn) {
+        // Remove any existing event listeners by cloning (clean slate)
+        const newSettingsBtn = simulationSettingsBtn.cloneNode(true);
+        simulationSettingsBtn.parentNode.replaceChild(newSettingsBtn, simulationSettingsBtn);
+        
+        // Add fresh event listener
+        newSettingsBtn.addEventListener('click', () => {
+            if (window.showSimulationSettingsModal) {
+                window.showSimulationSettingsModal();
+            }
+        });
+    }
+    
+    // Initialize dock functionality after all buttons are set up
+    initControlDock();
+    
     // Don't show Add TLE button initially - only when SDA is active
 }
 
 // Initialize control dock functionality
 function initControlDock() {
-    const controlDock = document.getElementById('control-dock');
-    const minimizedDock = document.getElementById('minimized-dock');
-    const minimizeBtn = document.getElementById('dock-minimize-btn');
-    let isDockMinimized = false;
+    // Small delay to ensure everything is loaded
+    setTimeout(() => {
+        const controlDock = document.getElementById('control-dock');
+        const minimizedDock = document.getElementById('minimized-dock');
+        const minimizeBtn = document.getElementById('dock-minimize-btn');
+        let isDockMinimized = false;
 
-    // Minimize dock functionality
-    if (minimizeBtn) {
-        minimizeBtn.addEventListener('click', () => {
-            if (!isDockMinimized) {
-                controlDock.classList.add('dock-minimize');
-                setTimeout(() => {
-                    controlDock.style.display = 'none';
-                    minimizedDock.style.display = 'block';
-                    minimizedDock.classList.add('minimized-enter');
-                    isDockMinimized = true;
-                }, 300);
-            }
-        });
-    }
-
-    // Restore dock functionality
-    if (minimizedDock) {
-        minimizedDock.addEventListener('click', () => {
-            if (isDockMinimized) {
-                minimizedDock.style.display = 'none';
-                minimizedDock.classList.remove('minimized-enter');
-                controlDock.style.display = 'flex';
-                controlDock.classList.remove('dock-minimize');
-                controlDock.classList.add('dock-enter');
-                isDockMinimized = false;
-            }
-        });
-    }
-
-    // Add keyboard shortcut (Ctrl/Cmd + H) to toggle dock
-    document.addEventListener('keydown', (e) => {
-        if ((e.metaKey || e.ctrlKey) && e.key === 'h') {
-            e.preventDefault();
-            if (isDockMinimized) {
-                minimizedDock.click();
-            } else {
-                minimizeBtn.click();
-            }
+        // Minimize dock functionality
+        if (minimizeBtn) {
+            minimizeBtn.addEventListener('click', () => {
+                if (!isDockMinimized) {
+                    controlDock.classList.add('dock-minimize');
+                    setTimeout(() => {
+                        controlDock.style.display = 'none';
+                        minimizedDock.style.display = 'block';
+                        minimizedDock.classList.add('minimized-enter');
+                        isDockMinimized = true;
+                    }, 300);
+                }
+            });
         }
-    });
+
+        // Restore dock functionality
+        if (minimizedDock) {
+            minimizedDock.addEventListener('click', () => {
+                if (isDockMinimized) {
+                    minimizedDock.style.display = 'none';
+                    minimizedDock.classList.remove('minimized-enter');
+                    controlDock.style.display = 'flex';
+                    controlDock.classList.remove('dock-minimize');
+                    controlDock.classList.add('dock-enter');
+                    isDockMinimized = false;
+                }
+            });
+        }
+
+        // Add keyboard shortcut (Ctrl/Cmd + H) to toggle dock
+        document.addEventListener('keydown', (e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'h') {
+                e.preventDefault();
+                if (isDockMinimized) {
+                    minimizedDock.click();
+                } else {
+                    minimizeBtn.click();
+                }
+            }
+        });
+    }, 100);
 }
 
 // Initialize loading wave animation by splitting text into spans
@@ -618,24 +650,24 @@ function initModalManager() {
     };
 
 
-    // Settings modal override
-    const settingsBtn = document.getElementById('simulation-settings-btn');
-    if (settingsBtn) {
-        // Remove existing listeners by cloning
-        const newSettingsBtn = settingsBtn.cloneNode(true);
-        settingsBtn.parentNode.replaceChild(newSettingsBtn, settingsBtn);
-        
-        newSettingsBtn.addEventListener('click', () => {
-            const settingsModal = document.getElementById('simulation-settings-modal');
-            if (settingsModal && settingsModal.style.display === 'flex') {
-                window.closeAllModals();
-            } else {
-                window.openModal('simulation-settings-modal');
-                // Call the original settings modal function to populate data
-                if (window.showSimulationSettingsModal) {
-                    window.showSimulationSettingsModal();
-                }
-            }
-        });
-    }
+    // Settings modal override disabled - handled in showHelpButton function now
+    // const settingsBtn = document.getElementById('simulation-settings-btn');
+    // if (settingsBtn) {
+    //     // Remove existing listeners by cloning
+    //     const newSettingsBtn = settingsBtn.cloneNode(true);
+    //     settingsBtn.parentNode.replaceChild(newSettingsBtn, settingsBtn);
+    //     
+    //     newSettingsBtn.addEventListener('click', () => {
+    //         const settingsModal = document.getElementById('simulation-settings-modal');
+    //         if (settingsModal && settingsModal.style.display === 'flex') {
+    //             window.closeAllModals();
+    //         } else {
+    //             window.openModal('simulation-settings-modal');
+    //             // Call the original settings modal function to populate data
+    //             if (window.showSimulationSettingsModal) {
+    //                 window.showSimulationSettingsModal();
+    //             }
+    //         }
+    //     });
+    // }
 }
