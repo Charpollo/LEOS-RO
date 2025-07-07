@@ -80,9 +80,7 @@ export async function initApp() {
     
     // Create scene with performance optimizations and wait until ready
     await createScene();
-    // Create ground stations and coverage circles
-    createGroundStations(scene, advancedTexture);
-    createCoverageCircles(scene, LOS_DEFAULT_KM, 128); // Use default LOS distance for fallback
+    // Note: Ground stations and coverage circles are already created in createScene()
     
     // HTML telemetry panel for ground stations
     let groundDash = document.getElementById('ground-dashboard');

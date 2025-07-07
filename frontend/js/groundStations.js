@@ -38,9 +38,45 @@ function geodeticToCartesian(lat, lon, alt = 0) {
 }
 
 /**
+ * Cleanup existing ground stations before creating new ones
+ */
+function cleanupGroundStations(scene) {
+  Object.entries(stationMeshes).forEach(([key, stationEntry]) => {
+    if (stationEntry) {
+      // Clean up label observer if it exists
+      if (stationEntry.mesh && stationEntry.mesh._labelContainer) {
+        const labelContainer = stationEntry.mesh._labelContainer;
+        if (labelContainer._labelObserver) {
+          scene.onBeforeRenderObservable.remove(labelContainer._labelObserver);
+        }
+        labelContainer.dispose();
+      }
+      
+      // Dispose meshes
+      if (stationEntry.mesh) {
+        stationEntry.mesh.dispose();
+      }
+      if (stationEntry.clickSphere) {
+        stationEntry.clickSphere.dispose();
+      }
+      if (stationEntry.coverage) {
+        stationEntry.coverage.dispose();
+      }
+    }
+  });
+  
+  // Clear the storage
+  for (const key in stationMeshes) {
+    delete stationMeshes[key];
+  }
+}
+
+/**
  * Create ground station meshes on the scene
  */
 export function createGroundStations(scene, advancedTexture = null) {
+  // Clean up any existing ground stations first
+  cleanupGroundStations(scene);
   const earthMesh = scene.getMeshByName('earth');
   GROUND_STATIONS.forEach(station => {
     // Convert geodetic to Babylon.js coordinate system - place on visual Earth surface
@@ -154,6 +190,13 @@ export function createGroundStations(scene, advancedTexture = null) {
  * Add a persistent label for a ground station
  */
 function addGroundStationLabel(stationName, mesh, advancedTexture) {
+  // Check if label already exists to prevent duplicates
+  const existingLabel = advancedTexture.getControlByName(`${stationName.replace(/\s+/g, '_')}_label_container`);
+  if (existingLabel) {
+    console.warn(`Label already exists for ground station: ${stationName}`);
+    return;
+  }
+
   // Create a shortened display name for cleaner labels
   const displayName = stationName.replace(/ (Station|Site|DSN)/g, '').replace(', CA', '').replace(', VA', '');
   
@@ -222,7 +265,9 @@ function addGroundStationLabel(stationName, mesh, advancedTexture) {
   
   // Scale label based on camera distance and Earth horizon visibility
   const scene = mesh.getScene();
-  scene.onBeforeRenderObservable.add(() => {
+  
+  // Store the observer reference for cleanup
+  const labelObserver = scene.onBeforeRenderObservable.add(() => {
     const camera = scene.activeCamera;
     if (!camera) return;
 
@@ -290,6 +335,10 @@ function addGroundStationLabel(stationName, mesh, advancedTexture) {
       }
     }
   });
+  
+  // Store observer reference for cleanup
+  labelContainer._labelObserver = labelObserver;
+  mesh._labelContainer = labelContainer;
 }
 
 let beamGlow = null;
