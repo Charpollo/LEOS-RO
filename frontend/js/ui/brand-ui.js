@@ -22,6 +22,7 @@ export function initBrandUI() {
     initLoadingWave();
     initWelcomeModal();
     initLearningModal();
+    initSupportModal();
     // initTimeDisplay();    // Disabled in favor of simulation-driven clock
     initTelemetryDashboard();
     initSdaButton();
@@ -87,6 +88,196 @@ function initLearningModal() {
             }
         });
     }
+}
+
+// Support modal functionality
+function initSupportModal() {
+    const supportModal = document.getElementById('support-modal');
+    const closeBtn = document.getElementById('support-modal-close');
+    const form = document.getElementById('support-form');
+    
+    if (supportModal) {
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                supportModal.style.display = 'none';
+            });
+        }
+        
+        // Close on outside click
+        supportModal.addEventListener('click', (e) => {
+            if (e.target === supportModal) {
+                supportModal.style.display = 'none';
+            }
+        });
+        
+        // Handle form submission
+        if (form) {
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                
+                const formData = new FormData(form);
+                
+                // Add browser info automatically if not provided
+                const browserInfo = document.getElementById('browser-info');
+                if (browserInfo && !browserInfo.value.trim()) {
+                    const userAgent = navigator.userAgent;
+                    const screenInfo = `Screen: ${screen.width}x${screen.height}`;
+                    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                    browserInfo.value = `User Agent: ${userAgent}\n${screenInfo}\nTimezone: ${timeZone}`;
+                    formData.set('browser-info', browserInfo.value);
+                }
+                
+                // Submit to Netlify
+                fetch('/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams(formData).toString()
+                })
+                .then(() => {
+                    // Success - show animated confirmation
+                    showSuccessNotification('Thank you for your message! We\'ll get back to you within 24-48 hours.');
+                    form.reset();
+                    
+                    // Close modal after a short delay
+                    setTimeout(() => {
+                        supportModal.style.display = 'none';
+                    }, 2000);
+                })
+                .catch(error => {
+                    console.error('Form submission error:', error);
+                    showErrorNotification('There was an error sending your message. Please try again or email us directly at mission_support@cyberrts.com');
+                });
+            });
+        }
+    }
+}
+
+// Success notification system
+function showSuccessNotification(message) {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(34,197,94,0.3);
+        z-index: 10000;
+        max-width: 400px;
+        font-family: var(--font-primary);
+        font-size: 0.95em;
+        line-height: 1.4;
+        transform: translateX(100%);
+        transition: transform 0.5s ease;
+        border: 2px solid rgba(34,197,94,0.5);
+        backdrop-filter: blur(10px);
+    `;
+    
+    notification.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="background: rgba(255,255,255,0.2); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; animation: success-pulse 2s infinite;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                    <polyline points="22,4 12,14.01 9,11.01"/>
+                </svg>
+            </div>
+            <div>
+                <div style="font-weight: bold; margin-bottom: 4px;">Message Sent Successfully!</div>
+                <div style="opacity: 0.9;">${message}</div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Add success pulse animation
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes success-pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+    `;
+    document.head.appendChild(style);
+    
+    // Animate in
+    setTimeout(() => {
+        notification.style.transform = 'translateX(0)';
+    }, 100);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+            if (style.parentNode) {
+                style.parentNode.removeChild(style);
+            }
+        }, 500);
+    }, 5000);
+}
+
+// Error notification system
+function showErrorNotification(message) {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(239,68,68,0.3);
+        z-index: 10000;
+        max-width: 400px;
+        font-family: var(--font-primary);
+        font-size: 0.95em;
+        line-height: 1.4;
+        transform: translateX(100%);
+        transition: transform 0.5s ease;
+        border: 2px solid rgba(239,68,68,0.5);
+        backdrop-filter: blur(10px);
+    `;
+    
+    notification.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="background: rgba(255,255,255,0.2); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="15" y1="9" x2="9" y2="15"/>
+                    <line x1="9" y1="9" x2="15" y2="15"/>
+                </svg>
+            </div>
+            <div>
+                <div style="font-weight: bold; margin-bottom: 4px;">Error Sending Message</div>
+                <div style="opacity: 0.9;">${message}</div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Animate in
+    setTimeout(() => {
+        notification.style.transform = 'translateX(0)';
+    }, 100);
+    
+    // Auto-remove after 7 seconds (longer for errors)
+    setTimeout(() => {
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 500);
+    }, 7000);
 }
 
 
@@ -246,10 +437,19 @@ window.addEventListener('DOMContentLoaded', () => {
 
 // Show control buttons after scene loads
 export function showHelpButton() {
+    // Initialize dock functionality
+    initControlDock();
+    
+    // Show the control dock
+    const controlDock = document.getElementById('control-dock');
+    if (controlDock) {
+        controlDock.style.display = 'flex';
+        controlDock.classList.add('dock-enter');
+    }
+    
+    // Set up help button to show welcome modal
     const helpBtn = document.getElementById('help-sphere-btn');
     if (helpBtn) {
-        helpBtn.style.display = 'flex';
-        // Set up help button to show welcome modal
         helpBtn.addEventListener('click', () => {
             const welcomeModal = document.getElementById('welcome-modal');
             if (welcomeModal) {
@@ -258,11 +458,9 @@ export function showHelpButton() {
         });
     }
     
-    // Show Learning button
+    // Set up learning button to show learning modal
     const learningBtn = document.getElementById('learning-btn');
     if (learningBtn) {
-        learningBtn.style.display = 'flex';
-        // Set up learning button to show learning modal
         learningBtn.addEventListener('click', () => {
             const learningModal = document.getElementById('learning-modal');
             if (learningModal) {
@@ -271,19 +469,68 @@ export function showHelpButton() {
         });
     }
     
-    // Show SDA toggle button now that the simulation is loaded
-    const sdaToggleBtn = document.getElementById('sda-toggle-btn');
-    if (sdaToggleBtn) {
-        sdaToggleBtn.style.display = 'block';
+    // Set up support button to show support modal
+    const supportBtn = document.getElementById('support-btn');
+    if (supportBtn) {
+        supportBtn.addEventListener('click', () => {
+            const supportModal = document.getElementById('support-modal');
+            if (supportModal) {
+                supportModal.style.display = 'flex';
+            }
+        });
     }
     
-    // Show simulation settings button now that the simulation is loaded
-    const simulationSettingsBtn = document.getElementById('simulation-settings-btn');
-    if (simulationSettingsBtn) {
-        simulationSettingsBtn.style.display = 'flex';
-    }
-    
+    // Note: Settings button event handler is set up in app.js
     // Don't show Add TLE button initially - only when SDA is active
+}
+
+// Initialize control dock functionality
+function initControlDock() {
+    const controlDock = document.getElementById('control-dock');
+    const minimizedDock = document.getElementById('minimized-dock');
+    const minimizeBtn = document.getElementById('dock-minimize-btn');
+    let isDockMinimized = false;
+
+    // Minimize dock functionality
+    if (minimizeBtn) {
+        minimizeBtn.addEventListener('click', () => {
+            if (!isDockMinimized) {
+                controlDock.classList.add('dock-minimize');
+                setTimeout(() => {
+                    controlDock.style.display = 'none';
+                    minimizedDock.style.display = 'block';
+                    minimizedDock.classList.add('minimized-enter');
+                    isDockMinimized = true;
+                }, 300);
+            }
+        });
+    }
+
+    // Restore dock functionality
+    if (minimizedDock) {
+        minimizedDock.addEventListener('click', () => {
+            if (isDockMinimized) {
+                minimizedDock.style.display = 'none';
+                minimizedDock.classList.remove('minimized-enter');
+                controlDock.style.display = 'flex';
+                controlDock.classList.remove('dock-minimize');
+                controlDock.classList.add('dock-enter');
+                isDockMinimized = false;
+            }
+        });
+    }
+
+    // Add keyboard shortcut (Ctrl/Cmd + H) to toggle dock
+    document.addEventListener('keydown', (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'h') {
+            e.preventDefault();
+            if (isDockMinimized) {
+                minimizedDock.click();
+            } else {
+                minimizeBtn.click();
+            }
+        }
+    });
 }
 
 // Initialize loading wave animation by splitting text into spans
@@ -324,6 +571,11 @@ function initModalManager() {
             closeMethod: 'display'
         },
         'learning-modal': {
+            element: null,
+            toggleClass: null,
+            closeMethod: 'display'
+        },
+        'support-modal': {
             element: null,
             toggleClass: null,
             closeMethod: 'display'

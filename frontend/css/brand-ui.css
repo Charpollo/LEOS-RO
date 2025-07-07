@@ -1565,6 +1565,26 @@ body.hide-time #time-display {
     }
 }
 
+/* Support Button Green Styles */
+#support-btn {
+    animation: pulseGreen 2s ease-in-out infinite !important;
+}
+
+#support-btn:hover {
+    background: rgba(34,197,94,0.9) !important;
+    box-shadow: 0 0 20px rgba(34,197,94,0.5), 0 0 40px rgba(34,197,94,0.3) !important;
+    transform: scale(1.1);
+}
+
+@keyframes pulseGreen {
+    0%, 100% {
+        box-shadow: 0 0 15px rgba(34,197,94,0.6), 0 0 30px rgba(34,197,94,0.3) !important;
+    }
+    50% {
+        box-shadow: 0 0 25px rgba(34,197,94,0.8), 0 0 45px rgba(34,197,94,0.5) !important;
+    }
+}
+
 /* Settings Button Blue Styles */
 #simulation-settings-btn {
     animation: pulseBlue 2s ease-in-out infinite !important;
@@ -1635,4 +1655,265 @@ body.hide-time #time-display {
     text-align: center;
     color: #ffb84d;
     font-style: italic;
+}
+
+/* Support Modal Styles */
+.support-modal-content {
+    background: linear-gradient(135deg, rgba(20,28,45,0.98) 0%, rgba(15,22,36,0.98) 100%);
+    backdrop-filter: blur(20px);
+    border: 2px solid #22c55e;
+    box-shadow: 0 0 40px rgba(34,197,94,0.3), inset 0 0 60px rgba(34,197,94,0.05);
+    max-width: 900px;
+    width: 90%;
+    max-height: 85vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.support-modal-content .modal-body {
+    overflow-y: auto;
+    flex: 1;
+}
+
+.support-modal-content h2 {
+    color: #22c55e;
+    text-shadow: 0 0 20px rgba(34,197,94,0.5);
+}
+
+.support-modal-content h3 {
+    color: #34d399;
+    margin-top: 1.5em;
+    margin-bottom: 0.8em;
+}
+
+.support-modal-content .subtitle {
+    color: #6ee7b7;
+    font-size: 1.1em;
+    margin-bottom: 1.5em;
+}
+
+.support-modal-content .contact-info {
+    background: rgba(34,197,94,0.1);
+    border: 1px solid rgba(34,197,94,0.3);
+    border-radius: 8px;
+    padding: 1em;
+    margin: 1.5em 0;
+    text-align: center;
+}
+
+.support-modal-content .contact-info p {
+    margin: 0.5em 0;
+    color: #6ee7b7;
+}
+
+.support-modal-content .contact-info strong {
+    color: #22c55e;
+}
+
+.support-modal-content .form-group {
+    margin-bottom: 0;
+}
+
+.support-modal-content label {
+    display: block;
+    color: #34d399;
+    font-weight: bold;
+    margin-bottom: 0.5em;
+}
+
+.support-modal-content input,
+.support-modal-content textarea,
+.support-modal-content select {
+    width: 100%;
+    padding: 0.8em;
+    background: rgba(0,0,0,0.4);
+    border: 1px solid rgba(34,197,94,0.3);
+    border-radius: 6px;
+    color: #fff;
+    font-size: 0.95em;
+    box-sizing: border-box;
+}
+
+.support-modal-content input:focus,
+.support-modal-content textarea:focus,
+.support-modal-content select:focus {
+    outline: none;
+    border-color: #22c55e;
+    box-shadow: 0 0 10px rgba(34,197,94,0.3);
+}
+
+.support-modal-content textarea {
+    min-height: 120px;
+    resize: vertical;
+}
+
+.support-modal-content .checkbox-group {
+    display: flex;
+    align-items: center;
+    margin-top: 1em;
+}
+
+.support-modal-content .checkbox-group input[type="checkbox"] {
+    width: auto;
+    margin-right: 0.5em;
+    transform: scale(1.2);
+}
+
+.support-modal-content .form-submit {
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+    border: none;
+    color: white;
+    padding: 15px 30px;
+    font-size: 1.1em;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(34,197,94,0.3);
+}
+
+.support-modal-content .form-submit:hover {
+    background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(34,197,94,0.4);
+}
+
+/* Support Modal Animations */
+@keyframes rocket-bounce {
+    0%, 100% {
+        transform: translateY(0px);
+    }
+    50% {
+        transform: translateY(-5px);
+    }
+}
+
+@keyframes support-glow {
+    0%, 100% {
+        box-shadow: 0 0 15px rgba(34,197,94,0.3);
+    }
+    50% {
+        box-shadow: 0 0 25px rgba(34,197,94,0.5);
+    }
+}
+
+.support-modal-content input,
+.support-modal-content textarea,
+.support-modal-content select {
+    transition: all 0.3s ease;
+}
+
+.support-modal-content input:hover,
+.support-modal-content textarea:hover,
+.support-modal-content select:hover {
+    border-color: rgba(34,197,94,0.5);
+    background: rgba(0,0,0,0.3);
+}
+
+.support-modal-content .form-group {
+    position: relative;
+}
+
+.support-modal-content .form-group:before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent 0%, #22c55e 50%, transparent 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.support-modal-content .form-group:hover:before {
+    opacity: 0.3;
+}
+
+.support-modal-content .form-submit {
+    position: relative;
+    overflow: hidden;
+}
+
+.support-modal-content .form-submit:before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.2) 50%, transparent 100%);
+    transition: left 0.5s ease;
+}
+
+.support-modal-content .form-submit:hover:before {
+    left: 100%;
+}
+
+/* Control Dock Animations */
+.control-button {
+    transition: all 0.3s ease;
+}
+
+.control-button:hover {
+    transform: scale(1.1);
+}
+
+.dock-enter {
+    animation: dockEnter 0.4s ease-out forwards;
+}
+
+.dock-minimize {
+    animation: dockMinimize 0.3s ease-in forwards;
+}
+
+.minimized-enter {
+    animation: minimizedEnter 0.3s ease-out forwards;
+}
+
+@keyframes dockEnter {
+    from { 
+        transform: translateX(-100%) scale(0.8); 
+        opacity: 0; 
+    }
+    to { 
+        transform: translateX(0) scale(1); 
+        opacity: 1; 
+    }
+}
+
+@keyframes dockMinimize {
+    from { 
+        transform: translateX(0) scale(1); 
+        opacity: 1; 
+    }
+    to { 
+        transform: translateX(-100%) scale(0.8); 
+        opacity: 0; 
+    }
+}
+
+@keyframes minimizedEnter {
+    from { 
+        transform: scale(0.5); 
+        opacity: 0; 
+    }
+    to { 
+        transform: scale(1); 
+        opacity: 1; 
+    }
+}
+
+#dock-minimize-btn:hover {
+    background: rgba(255,255,255,0.2);
+    border-color: rgba(255,255,255,0.5);
+}
+
+#minimized-dock:hover {
+    transform: scale(1.1);
+}
+
+#minimized-dock:hover > div {
+    background: rgba(0,0,0,0.6);
+    border-color: rgba(255,255,255,0.5);
 }
