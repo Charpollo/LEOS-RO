@@ -506,6 +506,12 @@ export async function initApp() {
 
         activeSatellite = event.detail.name;
         updateTelemetryUI(activeSatellite, getTelemetryData());
+        
+        // Restore any previously minimized panels when reopening satellite viewer
+        restoreAllMinimizedPanels();
+        
+        // Setup panel minimize functionality
+        setupPanelMinimizeControls();
         // Focus camera on selected satellite
         const satMesh = getSatelliteMeshes()[activeSatellite];
         if (camera && satMesh) {
@@ -569,6 +575,8 @@ export async function initApp() {
             previewMesh = null;
         }
         
+        // Clean up minimized tabs when dashboard closes
+        cleanupMinimizedTabs();
         
         if (camera) {
             // Store current position and target
@@ -1268,6 +1276,287 @@ async function initModelViewer() {
     });
 }
 
+/**
+ * Sets up the panel minimize/restore functionality
+ */
+function setupPanelMinimizeControls() {
+    console.log('Setting up panel minimize controls...');
+    
+    // Check if mission dashboard is visible
+    const dashboard = document.getElementById('mission-dashboard');
+    console.log('Dashboard element:', dashboard);
+    console.log('Dashboard classes:', dashboard?.className);
+    
+    // Check if buttons exist in DOM
+    const minimizeTelemetryBtn = document.getElementById('minimize-telemetry');
+    const minimizeModelBtn = document.getElementById('minimize-model');
+    
+    console.log('Telemetry minimize button:', minimizeTelemetryBtn);
+    console.log('Model minimize button:', minimizeModelBtn);
+    
+    if (minimizeTelemetryBtn) {
+        console.log('Telemetry button styles:', getComputedStyle(minimizeTelemetryBtn));
+        console.log('Telemetry button parent:', minimizeTelemetryBtn.parentElement);
+        minimizeTelemetryBtn.replaceWith(minimizeTelemetryBtn.cloneNode(true));
+    } else {
+        console.log('Telemetry button not found in DOM');
+    }
+    
+    if (minimizeModelBtn) {
+        console.log('Model button styles:', getComputedStyle(minimizeModelBtn));
+        console.log('Model button parent:', minimizeModelBtn.parentElement);
+        minimizeModelBtn.replaceWith(minimizeModelBtn.cloneNode(true));
+    } else {
+        console.log('Model button not found in DOM');
+    }
+    
+    // Get fresh references after replacement
+    const newMinimizeTelemetryBtn = document.getElementById('minimize-telemetry');
+    const newMinimizeModelBtn = document.getElementById('minimize-model');
+    
+    console.log('After replacement - Telemetry button:', newMinimizeTelemetryBtn);
+    console.log('After replacement - Model button:', newMinimizeModelBtn);
+    
+    // Telemetry panel minimize
+    if (newMinimizeTelemetryBtn) {
+        console.log('Adding event listener to telemetry button');
+        newMinimizeTelemetryBtn.addEventListener('click', (e) => {
+            console.log('Telemetry minimize clicked!');
+            e.stopPropagation();
+            minimizePanel('telemetry');
+        });
+    }
+    
+    // Model panel minimize
+    if (newMinimizeModelBtn) {
+        console.log('Adding event listener to model button');
+        newMinimizeModelBtn.addEventListener('click', (e) => {
+            console.log('Model minimize clicked!');
+            e.stopPropagation();
+            minimizePanel('model');
+        });
+    }
+}
+
+/**
+ * Minimizes a specific panel and creates a minimized tab
+ */
+function minimizePanel(panelType) {
+    const dashboard = document.getElementById('mission-dashboard');
+    const tabsContainer = document.getElementById('minimized-tabs-container');
+    
+    if (panelType === 'telemetry') {
+        const telemetryTile = document.getElementById('telemetry-tile');
+        const existingTab = document.getElementById('minimized-telemetry-tab');
+        
+        // Hide the panel
+        if (telemetryTile) {
+            telemetryTile.classList.add('minimized');
+        }
+        
+        // Create minimized tab if it doesn't exist
+        if (!existingTab && tabsContainer) {
+            const tab = document.createElement('div');
+            tab.id = 'minimized-telemetry-tab';
+            tab.className = 'minimized-tab telemetry-tab';
+            tab.innerHTML = `<img src="/assets/telem.svg" style="width:18px; height:18px; filter:brightness(0) invert(1);" alt="Telemetry">`;
+            tab.title = 'Click to restore telemetry panel';
+            
+            // Set satellite-specific color
+            if (activeSatellite) {
+                if (activeSatellite.toUpperCase().includes('CRTS')) {
+                    tab.style.background = 'rgba(255, 140, 0, 0.7)'; // Orange for CRTS
+                    tab.style.borderColor = '#ff8c00';
+                } else if (activeSatellite.toUpperCase().includes('BULLDOG')) {
+                    tab.style.background = 'rgba(0, 207, 255, 0.7)'; // Cyan for BULLDOG
+                    tab.style.borderColor = '#00cfff';
+                }
+            }
+            
+            tab.addEventListener('click', () => {
+                restorePanel('telemetry');
+            });
+            
+            tabsContainer.appendChild(tab);
+        }
+        
+    } else if (panelType === 'model') {
+        const modelTile = document.getElementById('model-tile');
+        const existingTab = document.getElementById('minimized-model-tab');
+        
+        // Hide the panel
+        if (modelTile) {
+            modelTile.classList.add('minimized');
+        }
+        
+        // Create minimized tab if it doesn't exist
+        if (!existingTab && tabsContainer) {
+            const tab = document.createElement('div');
+            tab.id = 'minimized-model-tab';
+            tab.className = 'minimized-tab model-tab';
+            tab.innerHTML = `<img src="/assets/3d.svg" style="width:18px; height:18px; filter:brightness(0) invert(1);" alt="3D Model">`;
+            tab.title = 'Click to restore 3D model panel';
+            
+            // Set satellite-specific color
+            if (activeSatellite) {
+                if (activeSatellite.toUpperCase().includes('CRTS')) {
+                    tab.style.background = 'rgba(255, 140, 0, 0.7)'; // Orange for CRTS
+                    tab.style.borderColor = '#ff8c00';
+                } else if (activeSatellite.toUpperCase().includes('BULLDOG')) {
+                    tab.style.background = 'rgba(0, 207, 255, 0.7)'; // Cyan for BULLDOG
+                    tab.style.borderColor = '#00cfff';
+                }
+            }
+            
+            tab.addEventListener('click', () => {
+                restorePanel('model');
+            });
+            
+            tabsContainer.appendChild(tab);
+        }
+    }
+    
+    // Show the dock since we now have minimized panels
+    updateDockVisibility();
+    
+    // Update dashboard layout
+    updateDashboardLayout();
+}
+
+/**
+ * Restores a minimized panel and removes its tab
+ */
+function restorePanel(panelType) {
+    const dashboard = document.getElementById('mission-dashboard');
+    
+    if (panelType === 'telemetry') {
+        const telemetryTile = document.getElementById('telemetry-tile');
+        const tab = document.getElementById('minimized-telemetry-tab');
+        
+        // Show the panel
+        if (telemetryTile) {
+            telemetryTile.classList.remove('minimized');
+        }
+        
+        // Remove the tab
+        if (tab) {
+            tab.remove();
+        }
+        
+    } else if (panelType === 'model') {
+        const modelTile = document.getElementById('model-tile');
+        const tab = document.getElementById('minimized-model-tab');
+        
+        // Show the panel
+        if (modelTile) {
+            modelTile.classList.remove('minimized');
+        }
+        
+        // Remove the tab
+        if (tab) {
+            tab.remove();
+        }
+        
+        // Resize model viewer when restored
+        if (previewEngine) {
+            setTimeout(() => {
+                previewEngine.resize();
+            }, 100);
+        }
+    }
+    
+    // Update dock visibility - hide if no more minimized panels
+    updateDockVisibility();
+    
+    // Update dashboard layout
+    updateDashboardLayout();
+}
+
+/**
+ * Updates the dashboard layout based on minimized panels
+ */
+function updateDashboardLayout() {
+    // No layout changes needed - panels maintain their original sizes
+    // This prevents 3D model distortion by keeping consistent dimensions
+    
+    // Just ensure the 3D model viewer is properly resized if the model panel is visible
+    const modelTile = document.getElementById('model-tile');
+    const modelMinimized = modelTile?.classList.contains('minimized');
+    
+    if (!modelMinimized && previewEngine) {
+        // Slight delay to ensure DOM has updated
+        setTimeout(() => {
+            previewEngine.resize();
+        }, 50);
+    }
+}
+
+/**
+ * Cleans up minimized tabs when dashboard is closed
+ */
+function cleanupMinimizedTabs() {
+    const tabsContainer = document.getElementById('minimized-tabs-container');
+    if (tabsContainer) {
+        tabsContainer.innerHTML = '';
+        // Hide the dock when dashboard is closed
+        tabsContainer.style.display = 'none';
+    }
+}
+
+// Make cleanup function globally accessible
+window.cleanupMinimizedTabs = cleanupMinimizedTabs;
+
+/**
+ * Updates the visibility of the minimize dock based on minimized panels
+ */
+function updateDockVisibility() {
+    const tabsContainer = document.getElementById('minimized-tabs-container');
+    if (!tabsContainer) return;
+    
+    // Check if there are any minimized tabs
+    const minimizedTabs = tabsContainer.children.length;
+    
+    if (minimizedTabs > 0) {
+        // Show the dock with minimized panels
+        tabsContainer.style.display = 'flex';
+    } else {
+        // Hide the dock when no panels are minimized
+        tabsContainer.style.display = 'none';
+    }
+}
+
+/**
+ * Restores all minimized panels when reopening satellite viewer
+ */
+function restoreAllMinimizedPanels() {
+    const telemetryTile = document.getElementById('telemetry-tile');
+    const modelTile = document.getElementById('model-tile');
+    
+    // Restore any minimized panels
+    if (telemetryTile && telemetryTile.classList.contains('minimized')) {
+        telemetryTile.classList.remove('minimized');
+    }
+    
+    if (modelTile && modelTile.classList.contains('minimized')) {
+        modelTile.classList.remove('minimized');
+    }
+    
+    // Clear any existing minimized tabs
+    const tabsContainer = document.getElementById('minimized-tabs-container');
+    if (tabsContainer) {
+        tabsContainer.innerHTML = '';
+    }
+    
+    // Update dock visibility
+    updateDockVisibility();
+    
+    // Resize model viewer if restored
+    if (previewEngine) {
+        setTimeout(() => {
+            previewEngine.resize();
+        }, 100);
+    }
+}
 
 /**
  * Shows a temporary notification message in the UI

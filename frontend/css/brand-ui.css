@@ -1070,6 +1070,7 @@ body.hide-time #time-display {
     box-shadow: 0 0 30px var(--neon-blue-glow);
 }
 .tile-header {
+    position: relative; /* Allow absolute positioning of children */
     font-size: 1.2rem;
     font-weight: 600;
     padding: 18px 24px;
@@ -1916,4 +1917,89 @@ body.hide-time #time-display {
 #minimized-dock:hover > div {
     background: rgba(0,0,0,0.6);
     border-color: rgba(255,255,255,0.5);
+}
+
+/* =========================================== */
+/* PANEL MINIMIZE FUNCTIONALITY               */
+/* =========================================== */
+
+/* Minimize button styling */
+.tile-minimize-btn {
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    transform: translateY(-50%);
+    background: rgba(0, 0, 0, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: #ffffff;
+    width: 24px;
+    height: 24px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    z-index: 10;
+    opacity: 0.8;
+}
+
+/* Create a clean minimize line icon */
+.tile-minimize-btn::before {
+    content: '';
+    width: 10px;
+    height: 1px;
+    background: #ffffff;
+    display: block;
+}
+
+.tile-minimize-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.6);
+    opacity: 1;
+    transform: translateY(-50%) scale(1.05);
+}
+
+/* Panel minimized state */
+.mission-dashboard-tile.minimized {
+    display: none !important;
+}
+
+/* Minimized tabs styling - match control dock buttons */
+.minimized-tab {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto;
+    transition: all 0.3s ease;
+    font-size: 18px;
+    background: rgba(0, 0, 0, 0.4);
+    color: #ffffff;
+}
+
+.minimized-tab:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: scale(1.1);
+    box-shadow: 0 4px 15px rgba(255, 255, 255, 0.2);
+}
+
+/* Satellite-specific colors are now set dynamically in JavaScript */
+
+/* When panels are minimized, maintain original sizes to prevent 3D model distortion */
+.mission-dashboard-tile.minimized {
+    display: none !important;
+}
+
+/* Keep original panel sizes when others are minimized to prevent distortion */
+.mission-dashboard-tile:not(.minimized) {
+    /* Maintain original dimensions - don't expand when other panels are hidden */
 }

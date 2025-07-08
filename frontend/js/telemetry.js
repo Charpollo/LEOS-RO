@@ -242,9 +242,25 @@ export function updateTelemetryUI(activeSatellite, telemetryData) {
          const rightTile = missionDashboard.querySelector('.model-tile');
          const leftHeader = leftTile?.querySelector('.tile-header');
          const rightHeader = rightTile?.querySelector('.tile-header');
-         // Update header text to reflect selected satellite
-         if (leftHeader) leftHeader.textContent = `${activeSatellite} Telemetry`;
-         if (rightHeader) rightHeader.textContent = `${activeSatellite} Asset`;
+         // Update header text to reflect selected satellite while preserving minimize buttons
+         if (leftHeader) {
+             // Find the minimize button if it exists
+             const minimizeBtn = leftHeader.querySelector('.tile-minimize-btn');
+             leftHeader.textContent = `${activeSatellite} Telemetry`;
+             // Re-append the minimize button if it existed
+             if (minimizeBtn) {
+                 leftHeader.appendChild(minimizeBtn);
+             }
+         }
+         if (rightHeader) {
+             // Find the minimize button if it exists
+             const minimizeBtn = rightHeader.querySelector('.tile-minimize-btn');
+             rightHeader.textContent = `${activeSatellite} Asset`;
+             // Re-append the minimize button if it existed
+             if (minimizeBtn) {
+                 rightHeader.appendChild(minimizeBtn);
+             }
+         }
          leftTile?.classList.remove('crts-panel','bulldog-panel');
          rightTile?.classList.remove('crts-panel','bulldog-panel');
          leftHeader?.classList.remove('crts-header','bulldog-header');

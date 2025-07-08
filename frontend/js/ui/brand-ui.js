@@ -314,6 +314,11 @@ document.addEventListener('click', (e) => {
                 dash.classList.replace('visible', 'hidden');
                 // Reset opacity for next time
                 dash.style.opacity = '';
+                
+                // Clean up minimized tabs when dashboard is closed
+                if (window.cleanupMinimizedTabs) {
+                    window.cleanupMinimizedTabs();
+                }
             }, 400); // Match transition duration
             
             // Dispatch event to reset camera - do this immediately for responsive feel
@@ -335,6 +340,11 @@ window.addEventListener('keydown', (e) => {
                 dash.classList.replace('visible', 'hidden');
                 // Reset opacity for next time
                 dash.style.opacity = '';
+                
+                // Clean up minimized tabs when dashboard is closed
+                if (window.cleanupMinimizedTabs) {
+                    window.cleanupMinimizedTabs();
+                }
             }, 400); // Match transition duration
             
             // Dispatch event to reset camera - do this immediately for responsive feel

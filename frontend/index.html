@@ -1004,21 +1004,32 @@
         
         <!-- Mission Dashboard Overlay (hidden by default) -->
         <div id="mission-dashboard" class="mission-dashboard-overlay hidden">
-            <div class="mission-dashboard-tile left-tile">
-                <div class="tile-header ambient-blue">Mission Telemetry</div>
+            <div class="mission-dashboard-tile left-tile" id="telemetry-tile">
+                <div class="tile-header ambient-blue">
+                    Mission Telemetry
+                    <button class="tile-minimize-btn" id="minimize-telemetry" title="Minimize Telemetry Panel"></button>
+                </div>
                 <div class="tile-content" id="mission-telemetry-content">
                     <!-- Telemetry, graphs, and subsystem data will go here -->
                     <div class="telemetry-placeholder">Select a satellite to view telemetry.</div>
                 </div>
             </div>
-            <div class="mission-dashboard-tile model-tile">
-                <div class="tile-header ambient-orange">3D Satellite Model</div>
+            <div class="mission-dashboard-tile model-tile" id="model-tile">
+                <div class="tile-header ambient-orange">
+                    3D Satellite Model
+                    <button class="tile-minimize-btn" id="minimize-model" title="Minimize 3D Model Panel"></button>
+                </div>
                 <div class="tile-content" id="mission-model-content">
                     <!-- 3D model viewer canvas -->
                     <canvas id="modelCanvas" style="width:100%; height:100%; display:block; position:absolute; top:0; left:0; z-index:10;"></canvas>
                 </div>
             </div>
             <button id="close-mission-dashboard" class="close-mission-dashboard">&times;</button>
+        </div>
+        
+        <!-- Minimized Tabs Container - Bottom Center Dock -->
+        <div id="minimized-tabs-container" style="position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 4000; display: none; flex-direction: row; gap: 12px; background: rgba(0, 0, 0, 0.6); padding: 8px 16px; border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.2); backdrop-filter: blur(10px);">
+            <!-- Minimized tabs will be added here dynamically -->
         </div>
     </div>
 
