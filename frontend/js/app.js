@@ -20,7 +20,7 @@ import { EARTH_RADIUS_KM, EARTH_SCALE, MIN_LEO_ALTITUDE_KM, MOON_DISTANCE, MOON_
 import { createSkybox } from './skybox.js';
 import { createEarth } from './earth.js';
 import { createMoon } from './moon.js';
-import { createSatellites, getSatelliteMeshes, getTelemetryData, getDetailedTelemetryForSatellite } from './satellites.js';
+import { createSatellites, getSatelliteMeshes, getTelemetryData, getDetailedTelemetryForSatellite, createManualSolarPanelAnimation } from './satellites.js';
 import { updateTelemetryUI } from './telemetry.js';
 import { startSimulationLoop, updateTimeDisplay, getCurrentSimTime } from './simulation.js';
 import { setupKeyboardControls } from './controls.js';
@@ -1148,10 +1148,38 @@ async function initModelViewer() {
                         console.error(`Failed to start animation ${animationGroup.name}:`, error);
                     }
                 });
+            } else {
+                // No built-in animations found - create manual solar panel animation
+                console.log(`No built-in animations found for ${satName} in preview panel - creating manual animations`);
+                createManualSolarPanelAnimation(previewMesh, satName, previewScene);
             }
             
             // Don't reparent individual meshes - let GLB maintain its own hierarchy
             console.log(`Loaded ${result.meshes.length} meshes for ${satName}:`, result.meshes.map(m => m.name));
+            
+            // Reset mesh hierarchy to fix any "stuck parts" issue (same as main scene)
+            function resetPreviewMeshHierarchy(mesh) {
+                if (mesh.getChildren) {
+                    mesh.getChildren().forEach(child => {
+                        // Only reset if the mesh seems to have been transformed abnormally
+                        if (child.position && child.position.length() > 1000) {
+                            console.warn(`Preview: Resetting abnormal position for ${child.name}:`, child.position);
+                            child.position = BABYLON.Vector3.Zero();
+                        }
+                        if (child.rotation && (Math.abs(child.rotation.x) > Math.PI || Math.abs(child.rotation.y) > Math.PI || Math.abs(child.rotation.z) > Math.PI)) {
+                            console.warn(`Preview: Resetting abnormal rotation for ${child.name}:`, child.rotation);
+                            child.rotation = BABYLON.Vector3.Zero();
+                        }
+                        // Recursively check children
+                        resetPreviewMeshHierarchy(child);
+                    });
+                }
+            }
+            
+            // Reset mesh positions before scaling
+            previewMesh.position = BABYLON.Vector3.Zero();
+            previewMesh.rotation = BABYLON.Vector3.Zero();
+            resetPreviewMeshHierarchy(previewMesh);
             
             // Adjust scale factor and positioning based on satellite type
             let scaleFactor = 0.5;
@@ -1168,6 +1196,8 @@ async function initModelViewer() {
                 // Removed the 180-degree rotation that was causing floating pieces
             }
             previewMesh.scaling = new BABYLON.Vector3(scaleFactor, scaleFactor, scaleFactor);
+            
+            console.log(`Preview model hierarchy reset and scaled for ${satName}`);
             
             // Center the model on origin with better positioning
             const boundingInfo = previewMesh.getBoundingInfo();
@@ -2122,12 +2152,10 @@ async function loadSatelliteData() {
           
           // Update mesh position with proper scaling
           const pos = toBabylonPosition(result.position);
-          // Ensure each satellite maintains its own unique position
-          // This prevents position overlay issues between satellites
+          // Use copyFrom for better performance and to avoid breaking GLB hierarchy
+          // This preserves any child mesh relative positions while updating orbital position
           if (mesh.position) {
-            mesh.position.x = pos.x;
-            mesh.position.y = pos.y;
-            mesh.position.z = pos.z;
+            mesh.position.copyFrom(pos);
           } else {
             mesh.position = pos.clone();
           }

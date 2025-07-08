@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Animation Debug Test</title>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <style>
+        body { margin: 0; padding: 0; }
+        canvas { width: 100%; height: 100vh; display: block; }
+        #debug { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.8); color: white; padding: 10px; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <canvas id="renderCanvas"></canvas>
+    <div id="debug">
+        <h3>Animation Debug</h3>
+        <div id="log"></div>
+    </div>
+
+    <script>
+        const log = document.getElementById('log');
+        function debugLog(msg) {
+            console.log(msg);
+            log.innerHTML += `<div>${msg}</div>`;
+        }
+
+        const canvas = document.getElementById('renderCanvas');
+        const engine = new BABYLON.Engine(canvas, true);
+        const scene = new BABYLON.Scene(engine);
+
+        // Camera
+        const camera = new BABYLON.ArcRotateCamera('camera', 0, 0, 10, BABYLON.Vector3.Zero(), scene);
+        camera.attachControls(canvas);
+
+        // Light
+        const light = new BABYLON.HemisphericLight('light', new BABYLON.Vector3(0, 1, 0), scene);
+
+        async function loadAndTestModel(filename) {
+            debugLog(`Loading ${filename}...`);
+            try {
+                const result = await BABYLON.SceneLoader.ImportMeshAsync('', 'http://localhost:8080/assets/', filename, scene);
+                
+                debugLog(`✓ Loaded ${result.meshes.length} meshes`);
+                debugLog(`  Meshes: ${result.meshes.map(m => m.name).join(', ')}`);
+                debugLog(`✓ Found ${result.animationGroups?.length || 0} animation groups`);
+                
+                if (result.animationGroups) {
+                    result.animationGroups.forEach((group, i) => {
+                        debugLog(`  Animation ${i}: ${group.name || 'unnamed'} (${group.from} to ${group.to})`);
+                        debugLog(`    Target animatables: ${group.targetedAnimations?.length || 0}`);
+                        
+                        // Try to start the animation
+                        try {
+                            group.reset();
+                            group.start(true, 1.0);
+                            debugLog(`    ✓ Started animation ${group.name}`);
+                        } catch (e) {
+                            debugLog(`    ✗ Failed to start: ${e.message}`);
+                        }
+                    });
+                }
+                
+                // Position model
+                const rootMesh = result.meshes.find(m => m.name === '__root__') || result.meshes[0];
+                if (rootMesh) {
+                    rootMesh.position.x = filename.includes('crts') ? -3 : 3;
+                    debugLog(`✓ Positioned ${filename} at x=${rootMesh.position.x}`);
+                }
+                
+            } catch (error) {
+                debugLog(`✗ Error loading ${filename}: ${error.message}`);
+            }
+        }
+
+        // Load both models
+        loadAndTestModel('crts_satellite.glb');
+        loadAndTestModel('bulldog_sat.glb');
+
+        engine.runRenderLoop(() => scene.render());
+        window.addEventListener('resize', () => engine.resize());
+    </script>
+</body>
+</html>

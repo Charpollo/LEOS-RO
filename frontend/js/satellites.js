@@ -19,6 +19,178 @@ let cometTrails = {}; // Store comet trail data for each satellite
 // Make comet trails accessible globally for settings
 window.cometTrails = cometTrails;
 
+/**
+ * Create comprehensive manual animations when GLB doesn't contain animations
+ * Exported for use in both main scene and preview panel
+ */
+export function createManualSolarPanelAnimation(satelliteMesh, satName, scene) {
+    console.log(`Creating manual solar panel animation for ${satName}`);
+    
+    // Get all meshes recursively
+    const allMeshes = [];
+    function collectMeshes(node) {
+        if (node && node.name) {
+            allMeshes.push(node);
+        }
+        if (node.getChildren) {
+            node.getChildren().forEach(child => collectMeshes(child));
+        }
+    }
+    collectMeshes(satelliteMesh);
+    
+    console.log(`Found ${allMeshes.length} total meshes:`, allMeshes.map(m => m.name));
+    
+    // Look for meshes that might be solar panels, antennas, or moving parts
+    const panelMeshes = [];
+    const antennaMeshes = [];
+    const thrusterMeshes = [];
+    
+    allMeshes.forEach(mesh => {
+        if (mesh.name) {
+            const name = mesh.name.toLowerCase();
+            if (name.includes('panel') || name.includes('solar') || name.includes('wing') || name.includes('array')) {
+                panelMeshes.push(mesh);
+                console.log(`Found solar panel mesh: ${mesh.name}`);
+            } else if (name.includes('antenna') || name.includes('dish') || name.includes('comm')) {
+                antennaMeshes.push(mesh);
+                console.log(`Found antenna mesh: ${mesh.name}`);
+            } else if (name.includes('thruster') || name.includes('engine') || name.includes('nozzle')) {
+                thrusterMeshes.push(mesh);
+                console.log(`Found thruster mesh: ${mesh.name}`);
+            }
+        }
+    });
+    
+    // Store animation references for cleanup
+    if (!satelliteMesh.manualAnimations) {
+        satelliteMesh.manualAnimations = [];
+    }
+    
+    // Create solar panel animations
+    if (panelMeshes.length > 0) {
+        console.log(`Creating solar panel animations for ${panelMeshes.length} panels`);
+        
+        panelMeshes.forEach((panel, index) => {
+            // Create solar panel deploy/retract animation
+            const deployAnim = new BABYLON.Animation(
+                `${satName}_panel_${index}_deploy`,
+                'rotation.z',
+                30,
+                BABYLON.Animation.ANIMATIONTYPE_FLOAT,
+                BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE
+            );
+            
+            const deployKeys = [
+                { frame: 0, value: 0 },
+                { frame: 120, value: Math.PI / 6 }, // Deploy 30 degrees
+                { frame: 240, value: 0 }, // Retract
+                { frame: 360, value: -Math.PI / 6 }, // Deploy other way
+                { frame: 480, value: 0 } // Return to center
+            ];
+            
+            deployAnim.setKeys(deployKeys);
+            panel.animations = [deployAnim];
+            
+            const animatable = scene.beginAnimation(panel, 0, 480, true, 0.3);
+            satelliteMesh.manualAnimations.push(animatable);
+            
+            console.log(`Started solar panel animation for: ${panel.name}`);
+        });
+    }
+    
+    // Create antenna tracking animations
+    if (antennaMeshes.length > 0) {
+        console.log(`Creating antenna animations for ${antennaMeshes.length} antennas`);
+        
+        antennaMeshes.forEach((antenna, index) => {
+            // Create antenna tracking animation
+            const trackAnim = new BABYLON.Animation(
+                `${satName}_antenna_${index}_track`,
+                'rotation.y',
+                30,
+                BABYLON.Animation.ANIMATIONTYPE_FLOAT,
+                BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE
+            );
+            
+            const trackKeys = [
+                { frame: 0, value: 0 },
+                { frame: 180, value: Math.PI / 4 }, // Track 45 degrees
+                { frame: 360, value: 0 },
+                { frame: 540, value: -Math.PI / 4 }, // Track other way
+                { frame: 720, value: 0 }
+            ];
+            
+            trackAnim.setKeys(trackKeys);
+            antenna.animations = [trackAnim];
+            
+            const animatable = scene.beginAnimation(antenna, 0, 720, true, 0.2);
+            satelliteMesh.manualAnimations.push(animatable);
+            
+            console.log(`Started antenna animation for: ${antenna.name}`);
+        });
+    }
+    
+    // Create thruster gimbal animations
+    if (thrusterMeshes.length > 0) {
+        console.log(`Creating thruster animations for ${thrusterMeshes.length} thrusters`);
+        
+        thrusterMeshes.forEach((thruster, index) => {
+            // Create thruster gimbal animation
+            const gimbalAnim = new BABYLON.Animation(
+                `${satName}_thruster_${index}_gimbal`,
+                'rotation.x',
+                30,
+                BABYLON.Animation.ANIMATIONTYPE_FLOAT,
+                BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE
+            );
+            
+            const gimbalKeys = [
+                { frame: 0, value: 0 },
+                { frame: 90, value: Math.PI / 12 }, // Small gimbal movement
+                { frame: 180, value: 0 },
+                { frame: 270, value: -Math.PI / 12 },
+                { frame: 360, value: 0 }
+            ];
+            
+            gimbalAnim.setKeys(gimbalKeys);
+            thruster.animations = [gimbalAnim];
+            
+            const animatable = scene.beginAnimation(thruster, 0, 360, true, 0.5);
+            satelliteMesh.manualAnimations.push(animatable);
+            
+            console.log(`Started thruster animation for: ${thruster.name}`);
+        });
+    }
+    
+    // If no specific parts found, create a gentle satellite rotation
+    if (panelMeshes.length === 0 && antennaMeshes.length === 0 && thrusterMeshes.length === 0) {
+        console.log(`No animated parts found for ${satName} - creating gentle body rotation`);
+        
+        const bodyRotationAnim = new BABYLON.Animation(
+            `${satName}_body_rotation`,
+            'rotation.y',
+            30,
+            BABYLON.Animation.ANIMATIONTYPE_FLOAT,
+            BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE
+        );
+        
+        const bodyKeys = [
+            { frame: 0, value: 0 },
+            { frame: 1800, value: 2 * Math.PI } // Slow 60-second rotation
+        ];
+        
+        bodyRotationAnim.setKeys(bodyKeys);
+        satelliteMesh.animations = [bodyRotationAnim];
+        
+        const animatable = scene.beginAnimation(satelliteMesh, 0, 1800, true, 0.1);
+        satelliteMesh.manualAnimations = [animatable];
+        
+        console.log(`Started gentle body rotation for ${satName}`);
+    }
+    
+    console.log(`Manual animation setup complete for ${satName}`);
+}
+
 export function getSatelliteMeshes() {
     return satelliteMeshes;
 }
@@ -46,6 +218,16 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
                     animatable.stop();
                     scene.removeAnimatable(animatable);
                 });
+            }
+            
+            // Stop manual animations if they exist
+            if (satellite.manualAnimations && satellite.manualAnimations.length > 0) {
+                satellite.manualAnimations.forEach(animatable => {
+                    if (animatable && animatable.stop) {
+                        animatable.stop();
+                    }
+                });
+                satellite.manualAnimations = [];
             }
             
             // Also stop any animation groups attached to the satellite
@@ -130,37 +312,97 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
             // In Cloud Run deployments, we need to ensure the full path is correct
             // Modified to handle both local and cloud environments
             const result = await BABYLON.SceneLoader.ImportMeshAsync('', '/assets/', modelName, scene);
-            const satelliteMesh = result.meshes[0];
+            
+            // Find the proper root mesh - be more careful about hierarchy preservation
+            let satelliteMesh;
+            
+            // First try to find __root__ node
+            const rootNode = result.meshes.find(mesh => mesh.name === '__root__');
+            if (rootNode) {
+                satelliteMesh = rootNode;
+                console.log(`Using __root__ node as satellite mesh for ${satName}`);
+            } else {
+                // Look for the mesh with the most children (likely the main body)
+                let bestMesh = result.meshes[0];
+                let maxChildren = 0;
+                
+                result.meshes.forEach(mesh => {
+                    const childCount = mesh.getChildren ? mesh.getChildren().length : 0;
+                    if (childCount > maxChildren) {
+                        maxChildren = childCount;
+                        bestMesh = mesh;
+                    }
+                });
+                
+                satelliteMesh = bestMesh;
+                console.log(`Using mesh '${bestMesh.name}' as satellite mesh (${maxChildren} children)`);
+            }
+            
             satelliteMesh.name = `${satName}_mesh`;
             
-            // Start any animations that come with the model (solar panels, etc.)
+            console.log(`Loaded ${result.meshes.length} meshes for ${satName}:`);
+            result.meshes.forEach((mesh, i) => {
+                const children = mesh.getChildren ? mesh.getChildren().length : 0;
+                console.log(`  ${i}: ${mesh.name} (${children} children, parent: ${mesh.parent?.name || 'none'})`);
+            });
+            console.log(`Animation groups found: ${result.animationGroups?.length || 0}`);
+            
+            // Debug: Check each animation group in detail
             if (result.animationGroups && result.animationGroups.length > 0) {
-                console.log(`Starting ${result.animationGroups.length} animations for ${satName}`);
-                result.animationGroups.forEach((animationGroup, index) => {
-                    // Clone animation group to prevent interference with preview panel
-                    animationGroup.name = `${satName}_animation_${index}`;
-                    // Ensure animation targets only affect this satellite's meshes
-                    animationGroup.reset();
-                    animationGroup.start(true, 1.0);
-                    // Store reference for cleanup
-                    satelliteMesh.animationGroups = satelliteMesh.animationGroups || [];
-                    satelliteMesh.animationGroups.push(animationGroup);
+                result.animationGroups.forEach((group, i) => {
+                    console.log(`  Animation ${i}: '${group.name}' from ${group.from} to ${group.to}`);
+                    console.log(`    Target animations: ${group.targetedAnimations?.length || 0}`);
+                    if (group.targetedAnimations) {
+                        group.targetedAnimations.forEach((ta, j) => {
+                            console.log(`      Target ${j}: ${ta.target?.name || 'unnamed'} - property: ${ta.animation?.property}`);
+                        });
+                    }
                 });
             }
-            // Set mesh scaling based on new Earth scale
-            // Make satellites smaller for better zoom-in experience
+            
+            // IMPORTANT: Ensure model starts in default position before any transformations
+            // Reset position, rotation, and then apply scaling
+            satelliteMesh.position = BABYLON.Vector3.Zero();
+            satelliteMesh.rotation = BABYLON.Vector3.Zero();
+            
+            // Set mesh scaling BEFORE starting animations to avoid breaking them
             const isCRTS = satName.toUpperCase().includes('CRTS');
             const isBulldog = satName.toUpperCase().includes('BULLDOG');
             const SATELLITE_VISUAL_SCALE = isBulldog ? 0.0006 : 0.002; // Increased scale for better visibility
             satelliteMesh.scaling = new BABYLON.Vector3(SATELLITE_VISUAL_SCALE, SATELLITE_VISUAL_SCALE, SATELLITE_VISUAL_SCALE);
+            
+            // Wait one frame for the mesh to be properly positioned before starting animations
+            const animationSetupCallback = () => {
+                scene.onAfterRenderObservable.removeCallback(animationSetupCallback);
+                console.log(`Model positioning complete for ${satName}, starting animations...`);
+            
+                // Start any built-in animations AFTER scaling and positioning
+                if (result.animationGroups && result.animationGroups.length > 0) {
+                    console.log(`Starting ${result.animationGroups.length} built-in animations for ${satName}`);
+                    result.animationGroups.forEach((animationGroup, index) => {
+                        // Ensure animation group has unique name for this satellite
+                        animationGroup.name = `${satName}_animation_${index}`;
+                        // Reset to start position and play
+                        animationGroup.reset();
+                        const animationResult = animationGroup.start(true, 1.0, 0, animationGroup.to, false);
+                        console.log(`Started animation '${animationGroup.name}' for ${satName}:`, animationResult ? 'SUCCESS' : 'FAILED');
+                        console.log(`  Animation state: playing=${animationGroup.isPlaying}, paused=${animationGroup.isPaused}`);
+                        // Store reference for cleanup
+                        satelliteMesh.animationGroups = satelliteMesh.animationGroups || [];
+                        satelliteMesh.animationGroups.push(animationGroup);
+                    });
+                } else {
+                    console.log(`No built-in animations found for ${satName} - creating manual solar panel animation`);
+                    // Create manual solar panel animation if no built-in animations exist
+                    createManualSolarPanelAnimation(satelliteMesh, satName, scene);
+                }
+            };
+            scene.registerAfterRender(animationSetupCallback);
             // Set mesh color by satellite type
             const meshColor = isCRTS ? new BABYLON.Color3(0.8, 0.35, 0) : isBulldog ? new BABYLON.Color3(0, 1, 1) : new BABYLON.Color3(0.1, 0.4, 0.8);
             // Do NOT set child.material.emissiveColor here; let the model use its own appearance
-            // satelliteMesh.getChildMeshes().forEach(child => {
-            //     if (child.material) {
-            //         child.material.emissiveColor = meshColor;
-            //     }
-            // });
+            // This preserves the original model materials and textures
+            
             satelliteMeshes[satName] = satelliteMesh;
             
             addSatelliteLabel(satName, satelliteMesh, advancedTexture, activeSatellite, meshColor);
@@ -276,6 +518,18 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
             
         } catch (error) {
             console.error(`Error loading satellite model for ${satName}:`, error);
+            console.error(`  Model file: ${modelName}`);
+            console.error(`  Error details:`, {
+                message: error.message,
+                stack: error.stack,
+                satelliteName: satName
+            });
+            
+            // Provide user-friendly error message
+            console.warn(`Failed to load 3D model for ${satName}. This may be due to:`);
+            console.warn(`  - Missing or corrupted GLB file: ${modelName}`);
+            console.warn(`  - Network connection issues`);
+            console.warn(`  - Model file optimization removing required data`);
         }
     }
     
