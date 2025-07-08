@@ -2518,7 +2518,7 @@ function setupSDAModalControls() {
     if (sdaCloseBtn) {
         sdaCloseBtn.addEventListener('click', () => {
             sdaModal.style.display = 'none';
-            localStorage.setItem('sda-welcome-seen', 'true');
+            // Don't set localStorage - allow modal to show again
             // Hide Add TLE button when closing without activating
             const addTle = document.getElementById('add-tle-button');
             if (addTle) addTle.style.display = 'none';
@@ -2527,7 +2527,7 @@ function setupSDAModalControls() {
     if (sdaCloseBtnFooter) {
         sdaCloseBtnFooter.addEventListener('click', () => {
             sdaModal.style.display = 'none';
-            localStorage.setItem('sda-welcome-seen', 'true');
+            // Don't set localStorage - allow modal to show again
             // Hide Add TLE button when closing without activating
             const addTle = document.getElementById('add-tle-button');
             if (addTle) addTle.style.display = 'none';
@@ -2539,9 +2539,12 @@ function setupSDAModalControls() {
             sdaModal.style.display = 'none';
             localStorage.setItem('sda-welcome-seen', 'true');
             
-            // Activate SDA (turn it on)
+            // Activate SDA using toggle() method to ensure proper initialization
             if (window.sdaController) {
-                window.sdaController.setVisible(true);
+                // If SDA is not already visible, toggle it on
+                if (!window.sdaController.isVisible) {
+                    window.sdaController.toggle();
+                }
                 const addTle = document.getElementById('add-tle-button');
                 if (addTle) addTle.style.display = 'block';
             }
@@ -2552,7 +2555,7 @@ function setupSDAModalControls() {
         sdaModal.addEventListener('click', (e) => {
             if (e.target === sdaModal) {
                 sdaModal.style.display = 'none';
-                localStorage.setItem('sda-welcome-seen', 'true');
+                // Don't set localStorage - allow modal to show again
                 // Hide Add TLE button when closing without activating
                 const addTle = document.getElementById('add-tle-button');
                 if (addTle) addTle.style.display = 'none';
@@ -2575,10 +2578,9 @@ function setupSDAToggleButton() {
                 // First time: show welcome modal
                 if (sdaModal) sdaModal.style.display = 'flex';
             } else {
-                // After first time: simply toggle SDA on/off
+                // After first time: directly toggle SDA
                 if (window.sdaController) {
                     window.sdaController.toggle();
-                    // updateUI is called internally by the SDA controller
                 }
             }
         });
