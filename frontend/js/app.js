@@ -509,6 +509,8 @@ export async function initApp() {
         // Focus camera on selected satellite
         const satMesh = getSatelliteMeshes()[activeSatellite];
         if (camera && satMesh) {
+            // Temporarily remove radius limits to allow close zoom to satellite
+            camera.lowerRadiusLimit = 0.0001; // Allow extremely close zoom
             camera.setTarget(satMesh.position);
             // compute azimuth so camera looks straight down on satellite
             const pos = satMesh.position;
@@ -517,7 +519,6 @@ export async function initApp() {
             
             // Adjust camera position based on whether this is a label click
             const isLabelClick = event.detail.source === 'label';
-            const minR = camera.lowerRadiusLimit;
             const currentR = camera.radius;
             let targetR;
             
@@ -528,9 +529,12 @@ export async function initApp() {
                 targetR = Math.max(safeDistance, distanceToSat * 1.1); // 10% farther than the satellite
                 camera.beta = 0.4; // Less steep angle to see more context around the satellite
             } else {
-                // For satellite mesh clicks, closer view but still safe
+                // For satellite mesh clicks, allow much closer view
                 camera.beta = 0.2;  // near-top-down angle
-                targetR = Math.max(minR * 1.2, currentR * 0.5); // Stay at least 20% away from minimum limit
+                // Allow camera to get very close to the satellite
+                const distanceToSat = BABYLON.Vector3.Distance(BABYLON.Vector3.Zero(), satMesh.position);
+                // Allow camera to get VERY close to the satellite (within 1km)
+                targetR = Math.max(0.001, distanceToSat - 0.001); // Get within 1km of satellite
             }
             
             // Animate camera movement smoothly
@@ -754,11 +758,14 @@ async function createScene() {
     camera.attachControl(canvas, true);
     camera.minZ = 0.01;
     camera.maxZ = 10000;
-    camera.lowerRadiusLimit = EARTH_RADIUS_KM * EARTH_SCALE * 1.05; // Increased safety margin to prevent going inside Earth
+    // Set lower radius limit to allow VERY close zoom to satellites
+    // CRTS1 and Bulldog are at ~800km altitude (1.125 Babylon units from center)
+    // Allow camera to get extremely close to satellites for detailed view
+    camera.lowerRadiusLimit = 0.1; // Allow camera to get within 100 meters of any object
     camera.upperRadiusLimit = EARTH_RADIUS_KM * EARTH_SCALE * 100; // Allow zoom far out
     camera.useAutoRotationBehavior = false;
     camera.inertia = 0.7; // Slightly higher for smoother movement
-    camera.wheelDeltaPercentage = 0.04; // Smoother zoom
+    camera.wheelDeltaPercentage = 0.02; // Finer zoom control for close-up satellite views
     
     // Add camera boundaries to prevent going through Earth and ensure smooth motion
     camera.checkCollisions = true;
@@ -784,7 +791,7 @@ async function createScene() {
         if (camera) {
             // Calculate distance from camera to Earth center
             const distanceToCenter = camera.position.length();
-            const minSafeDistance = EARTH_RADIUS_KM * EARTH_SCALE * 1.05; // Safe distance threshold
+            const minSafeDistance = EARTH_RADIUS_KM * EARTH_SCALE * 1.01; // Reduced safe distance to match lowerRadiusLimit
             
             // If camera is too close to Earth, move it out to the safe distance
             if (distanceToCenter < minSafeDistance) {
