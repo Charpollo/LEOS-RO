@@ -569,6 +569,7 @@ export async function initApp() {
             previewMesh = null;
         }
         
+        
         if (camera) {
             // Store current position and target
             const currentPos = camera.position.clone();
@@ -1135,23 +1136,23 @@ async function initModelViewer() {
             console.log(`Animation groups found:`, result.animationGroups ? result.animationGroups.length : 0);
             console.log(`Scene animation groups total:`, previewScene.animationGroups.length);
             
-            // Clone and isolate animations for preview panel to prevent interference
+            // For the model viewer, we want a static display - no animations
+            // Set all animation groups to a specific state (fully deployed or clean resting state)
             if (result.animationGroups && result.animationGroups.length > 0) {
                 result.animationGroups.forEach((animationGroup, index) => {
-                    try {
-                        // Rename to ensure uniqueness in preview scene
-                        animationGroup.name = `preview_${satName}_animation_${index}`;
-                        // Reset animation to start position before playing
-                        animationGroup.reset();
-                        animationGroup.start(true, 1.0);
-                    } catch (error) {
-                        console.error(`Failed to start animation ${animationGroup.name}:`, error);
-                    }
+                    // Rename for uniqueness
+                    animationGroup.name = `preview_${satName}_animation_${index}`;
+                    
+                    // Set to the end state to show fully deployed satellite
+                    // This shows solar panels extended, antennas positioned, etc.
+                    animationGroup.reset();
+                    animationGroup.goToFrame(animationGroup.to); // Jump to the end state
+                    
+                    console.log(`Set animation '${animationGroup.name}' to deployed state (frame ${animationGroup.to})`);
                 });
+                console.log(`Model viewer showing fully deployed state for ${satName}`);
             } else {
-                // No built-in animations found - create manual solar panel animation
-                console.log(`No built-in animations found for ${satName} in preview panel - creating manual animations`);
-                createManualSolarPanelAnimation(previewMesh, satName, previewScene);
+                console.log(`No built-in animations found for ${satName} - showing default state`);
             }
             
             // Don't reparent individual meshes - let GLB maintain its own hierarchy
@@ -1266,6 +1267,7 @@ async function initModelViewer() {
         }
     });
 }
+
 
 /**
  * Shows a temporary notification message in the UI

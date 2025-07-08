@@ -91,8 +91,21 @@ export function createManualSolarPanelAnimation(satelliteMesh, satName, scene) {
             deployAnim.setKeys(deployKeys);
             panel.animations = [deployAnim];
             
-            const animatable = scene.beginAnimation(panel, 0, 480, true, 0.3);
-            satelliteMesh.manualAnimations.push(animatable);
+            // Create cyclic animation with pause
+            const startPanelCycle = () => {
+                const animatable = scene.beginAnimation(panel, 0, 480, false, 0.3);
+                satelliteMesh.manualAnimations.push(animatable);
+                
+                // Set up pause and restart after animation completes
+                animatable.onAnimationEndObservable.addOnce(() => {
+                    // Wait 5 seconds, then restart
+                    setTimeout(() => {
+                        startPanelCycle(); // Restart the cycle
+                    }, 5000);
+                });
+            };
+            
+            startPanelCycle();
             
             console.log(`Started solar panel animation for: ${panel.name}`);
         });
@@ -123,8 +136,21 @@ export function createManualSolarPanelAnimation(satelliteMesh, satName, scene) {
             trackAnim.setKeys(trackKeys);
             antenna.animations = [trackAnim];
             
-            const animatable = scene.beginAnimation(antenna, 0, 720, true, 0.2);
-            satelliteMesh.manualAnimations.push(animatable);
+            // Create cyclic animation with pause
+            const startAntennaCycle = () => {
+                const animatable = scene.beginAnimation(antenna, 0, 720, false, 0.2);
+                satelliteMesh.manualAnimations.push(animatable);
+                
+                // Set up pause and restart after animation completes
+                animatable.onAnimationEndObservable.addOnce(() => {
+                    // Wait 5 seconds, then restart
+                    setTimeout(() => {
+                        startAntennaCycle(); // Restart the cycle
+                    }, 5000);
+                });
+            };
+            
+            startAntennaCycle();
             
             console.log(`Started antenna animation for: ${antenna.name}`);
         });
@@ -155,8 +181,21 @@ export function createManualSolarPanelAnimation(satelliteMesh, satName, scene) {
             gimbalAnim.setKeys(gimbalKeys);
             thruster.animations = [gimbalAnim];
             
-            const animatable = scene.beginAnimation(thruster, 0, 360, true, 0.5);
-            satelliteMesh.manualAnimations.push(animatable);
+            // Create cyclic animation with pause
+            const startThrusterCycle = () => {
+                const animatable = scene.beginAnimation(thruster, 0, 360, false, 0.5);
+                satelliteMesh.manualAnimations.push(animatable);
+                
+                // Set up pause and restart after animation completes
+                animatable.onAnimationEndObservable.addOnce(() => {
+                    // Wait 5 seconds, then restart
+                    setTimeout(() => {
+                        startThrusterCycle(); // Restart the cycle
+                    }, 5000);
+                });
+            };
+            
+            startThrusterCycle();
             
             console.log(`Started thruster animation for: ${thruster.name}`);
         });
@@ -182,8 +221,21 @@ export function createManualSolarPanelAnimation(satelliteMesh, satName, scene) {
         bodyRotationAnim.setKeys(bodyKeys);
         satelliteMesh.animations = [bodyRotationAnim];
         
-        const animatable = scene.beginAnimation(satelliteMesh, 0, 1800, true, 0.1);
-        satelliteMesh.manualAnimations = [animatable];
+        // Create cyclic animation with pause
+        const startBodyCycle = () => {
+            const animatable = scene.beginAnimation(satelliteMesh, 0, 1800, false, 0.1);
+            satelliteMesh.manualAnimations = [animatable];
+            
+            // Set up pause and restart after animation completes
+            animatable.onAnimationEndObservable.addOnce(() => {
+                // Wait 5 seconds, then restart
+                setTimeout(() => {
+                    startBodyCycle(); // Restart the cycle
+                }, 5000);
+            });
+        };
+        
+        startBodyCycle();
         
         console.log(`Started gentle body rotation for ${satName}`);
     }
@@ -382,11 +434,28 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
                     result.animationGroups.forEach((animationGroup, index) => {
                         // Ensure animation group has unique name for this satellite
                         animationGroup.name = `${satName}_animation_${index}`;
-                        // Reset to start position and play
+                        // Reset to start position
                         animationGroup.reset();
-                        const animationResult = animationGroup.start(true, 1.0, 0, animationGroup.to, false);
-                        console.log(`Started animation '${animationGroup.name}' for ${satName}:`, animationResult ? 'SUCCESS' : 'FAILED');
-                        console.log(`  Animation state: playing=${animationGroup.isPlaying}, paused=${animationGroup.isPaused}`);
+                        
+                        // Create a repeating animation cycle with pause
+                        const startAnimationCycle = () => {
+                            // Play animation once (not looping)
+                            animationGroup.start(false, 1.0, 0, animationGroup.to, false);
+                            
+                            // Set up pause and restart after animation completes
+                            animationGroup.onAnimationGroupEndObservable.addOnce(() => {
+                                // Wait 5 seconds, then restart
+                                setTimeout(() => {
+                                    animationGroup.reset();
+                                    startAnimationCycle(); // Restart the cycle
+                                }, 5000);
+                            });
+                        };
+                        
+                        // Start the first cycle
+                        startAnimationCycle();
+                        
+                        console.log(`Started cyclic animation '${animationGroup.name}' for ${satName} (play once, pause 5s, repeat)`);
                         // Store reference for cleanup
                         satelliteMesh.animationGroups = satelliteMesh.animationGroups || [];
                         satelliteMesh.animationGroups.push(animationGroup);
