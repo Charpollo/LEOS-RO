@@ -48,6 +48,15 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
                 });
             }
             
+            // Also stop any animation groups attached to the satellite
+            if (satellite.animationGroups && satellite.animationGroups.length > 0) {
+                satellite.animationGroups.forEach(group => {
+                    group.stop();
+                    group.dispose();
+                });
+                satellite.animationGroups = [];
+            }
+            
             // Dispose of orbit trail if it exists
             if (satellite.orbitTrail) {
                 satellite.orbitTrail.dispose();
@@ -123,6 +132,21 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
             const result = await BABYLON.SceneLoader.ImportMeshAsync('', '/assets/', modelName, scene);
             const satelliteMesh = result.meshes[0];
             satelliteMesh.name = `${satName}_mesh`;
+            
+            // Start any animations that come with the model (solar panels, etc.)
+            if (result.animationGroups && result.animationGroups.length > 0) {
+                console.log(`Starting ${result.animationGroups.length} animations for ${satName}`);
+                result.animationGroups.forEach((animationGroup, index) => {
+                    // Clone animation group to prevent interference with preview panel
+                    animationGroup.name = `${satName}_animation_${index}`;
+                    // Ensure animation targets only affect this satellite's meshes
+                    animationGroup.reset();
+                    animationGroup.start(true, 1.0);
+                    // Store reference for cleanup
+                    satelliteMesh.animationGroups = satelliteMesh.animationGroups || [];
+                    satelliteMesh.animationGroups.push(animationGroup);
+                });
+            }
             // Set mesh scaling based on new Earth scale
             // Make satellites smaller for better zoom-in experience
             const isCRTS = satName.toUpperCase().includes('CRTS');

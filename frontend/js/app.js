@@ -1124,16 +1124,25 @@ async function initModelViewer() {
                 previewMesh.rotationQuaternion = null;
             }
             
+            // Ensure complete isolation from main scene
+            result.meshes.forEach(mesh => {
+                mesh.doNotSyncBoundingInfo = true;
+                mesh.alwaysSelectAsActiveMesh = false;
+            });
+            
             // Check for and start any built-in animations (solar panels, thrusters, etc.)
             console.log(`Checking for animations in ${modelFile}...`);
             console.log(`Animation groups found:`, result.animationGroups ? result.animationGroups.length : 0);
             console.log(`Scene animation groups total:`, previewScene.animationGroups.length);
             
-            // Removed verbose animation and mesh loading logs
-            // if there are animationGroups, start them silently
+            // Clone and isolate animations for preview panel to prevent interference
             if (result.animationGroups && result.animationGroups.length > 0) {
-                result.animationGroups.forEach((animationGroup) => {
+                result.animationGroups.forEach((animationGroup, index) => {
                     try {
+                        // Rename to ensure uniqueness in preview scene
+                        animationGroup.name = `preview_${satName}_animation_${index}`;
+                        // Reset animation to start position before playing
+                        animationGroup.reset();
                         animationGroup.start(true, 1.0);
                     } catch (error) {
                         console.error(`Failed to start animation ${animationGroup.name}:`, error);
@@ -2113,7 +2122,15 @@ async function loadSatelliteData() {
           
           // Update mesh position with proper scaling
           const pos = toBabylonPosition(result.position);
-          mesh.position.copyFrom(pos);
+          // Ensure each satellite maintains its own unique position
+          // This prevents position overlay issues between satellites
+          if (mesh.position) {
+            mesh.position.x = pos.x;
+            mesh.position.y = pos.y;
+            mesh.position.z = pos.z;
+          } else {
+            mesh.position = pos.clone();
+          }
           
           // Generate synchronized telemetry data
           const baseTelemetry = generateRealTimeTelemetry(
