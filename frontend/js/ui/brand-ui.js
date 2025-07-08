@@ -26,6 +26,7 @@ export function initBrandUI() {
     // initTimeDisplay();    // Disabled in favor of simulation-driven clock
     initTelemetryDashboard();
     initSdaButton();
+    initCapcomKellyButton();
     initModalManager();
 }
 
@@ -358,6 +359,37 @@ function initTelemetryDashboard() {
     // No-op: logic moved to top-level for reliability
 }
 
+// CAPCOM Kelly button functionality
+function initCapcomKellyButton() {
+    const kellyBtn = document.getElementById('capcom-kelly-btn');
+    const kellyModal = document.getElementById('capcom-kelly-modal');
+    const closeBtn = document.getElementById('capcom-modal-close');
+    
+    if (kellyBtn && kellyModal) {
+        // Toggle modal on button click
+        kellyBtn.addEventListener('click', () => {
+            if (kellyModal.style.display === 'flex') {
+                kellyModal.style.display = 'none';
+            } else {
+                kellyModal.style.display = 'flex';
+            }
+        });
+        
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                kellyModal.style.display = 'none';
+            });
+        }
+        
+        // Close on outside click
+        kellyModal.addEventListener('click', (e) => {
+            if (e.target === kellyModal) {
+                kellyModal.style.display = 'none';
+            }
+        });
+    }
+}
+
 // Show/hide loading screen
 export function hideLoadingScreen() {
     const loadingScreen = document.getElementById('loading-screen');
@@ -452,6 +484,12 @@ export function showHelpButton() {
     if (controlDock) {
         controlDock.style.display = 'flex';
         controlDock.classList.add('dock-enter');
+    }
+    
+    // Show CAPCOM Kelly button after scene loads
+    const kellyBtn = document.getElementById('capcom-kelly-btn');
+    if (kellyBtn) {
+        kellyBtn.style.display = 'flex';
     }
     
     // IMMEDIATELY fix time display visibility
