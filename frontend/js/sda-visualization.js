@@ -278,12 +278,18 @@ class SDAVisualization {
       if (visible) {
         sdaDataBrowser.style.display = 'flex';
         sdaDataBrowser.classList.add('visible');
-        // Populate data browser when first shown
-        if (!this.dataBrowserPopulated || !this.dataArray) {
+        // Only populate data browser if data is loaded and initialized
+        if (this.isInitialized && (!this.dataBrowserPopulated || !this.dataArray)) {
           setTimeout(() => {
             this.populateDataBrowser();
             this.dataBrowserPopulated = true;
           }, 100); // Small delay to ensure objects are created
+        } else if (!this.isInitialized) {
+          // Show loading message if not initialized yet
+          const dataList = document.getElementById('sda-data-list');
+          if (dataList) {
+            dataList.innerHTML = '<div style="padding: 20px; text-align: center; color: #66d9ff;">Loading satellite data...</div>';
+          }
         }
       } else {
         sdaDataBrowser.style.display = 'none';
@@ -357,6 +363,12 @@ class SDAVisualization {
     
     // Hide loading indicator
     this.hideLoadingIndicator();
+    
+    // Update data browser if visible
+    if (this.isVisible && !this.dataBrowserPopulated) {
+      this.populateDataBrowser();
+      this.dataBrowserPopulated = true;
+    }
   }
 
   showLoadingIndicator() {
