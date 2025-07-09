@@ -1567,11 +1567,14 @@ function showNotification(message, duration = 3000) {
     // Create notification element if it doesn't exist
     let notification = document.getElementById('leos-notification');
     if (!notification) {
+        // Determine top position based on whether banner is active
+        const topPosition = window.unclassBannerActive ? '110px' : '70px';
+        
         notification = document.createElement('div');
         notification.id = 'leos-notification';
         notification.style.cssText = `
             position: absolute;
-            top: 70px; /* Position below the time display which is at 24px */
+            top: ${topPosition}; /* Position adjusted for banner if active */
             left: 50%;
             transform: translateX(-50%);
             background-color: rgba(0, 23, 40, 0.92);
@@ -2258,6 +2261,8 @@ function applyUnclassBanner(settings) {
     const banner = document.getElementById('unclass-banner');
     const timeDisplay = document.getElementById('time-display');
     const controlDock = document.getElementById('control-dock-container');
+    const addTleButton = document.getElementById('add-tle-button');
+    const notification = document.getElementById('leos-notification');
     
     if (banner) {
         if (settings.applyUnclassBanner) {
@@ -2274,6 +2279,19 @@ function applyUnclassBanner(settings) {
                 controlDock.style.top = '56px'; // 40px banner + 16px offset
             }
             
+            // Adjust Add TLE button position
+            if (addTleButton) {
+                addTleButton.style.top = '60px'; // 40px banner + 20px offset
+            }
+            
+            // Adjust notification position
+            if (notification) {
+                notification.style.top = '110px'; // 40px banner + 70px offset
+            }
+            
+            // Store banner state for dynamic notifications
+            window.unclassBannerActive = true;
+            
             console.log('UNCLASSIFIED banner applied');
         } else {
             // Hide banner
@@ -2288,6 +2306,19 @@ function applyUnclassBanner(settings) {
             if (controlDock) {
                 controlDock.style.top = '16px';
             }
+            
+            // Reset Add TLE button position
+            if (addTleButton) {
+                addTleButton.style.top = '20px';
+            }
+            
+            // Reset notification position
+            if (notification) {
+                notification.style.top = '70px';
+            }
+            
+            // Clear banner state
+            window.unclassBannerActive = false;
             
             console.log('UNCLASSIFIED banner removed');
         }
