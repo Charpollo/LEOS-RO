@@ -1,19 +1,24 @@
 #!/bin/bash
 
 # run-frontend.sh - Runs the LEOS First Orbit frontend
-# Usage: ./run-frontend.sh [--clean] [--port PORT]
+# Usage: ./run-frontend.sh [--clean] [--port PORT] [--prod]
+#   --clean: Clean build directory before building
+#   --port:  Specify port (default: 8080)
+#   --prod:  Build with production mode (minified & obfuscated)
 
 set -e
 
 # Default values
 PORT=8080
 CLEAN=false
+PRODUCTION=false
 
 # Parse arguments
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         --clean) CLEAN=true ;;
         --port) PORT="$2"; shift ;;
+        --prod) PRODUCTION=true ;;
         *) echo "Unknown parameter: $1"; exit 1 ;;
     esac
     shift
@@ -32,8 +37,13 @@ if [ "$CLEAN" = true ]; then
 fi
 
 # Build the frontend
-echo "Building frontend..."
-npm run build
+if [ "$PRODUCTION" = true ]; then
+    echo "Building frontend for PRODUCTION (minified & obfuscated)..."
+    npm run build:prod
+else
+    echo "Building frontend for development..."
+    npm run build
+fi
 
 # Start the server
 echo "Starting HTTP server on port $PORT..."

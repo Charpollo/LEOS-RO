@@ -1,6 +1,10 @@
 [build]
-  command = "npm install && npm run build"
+  command = "npm install && npm run build:prod"
   publish = "frontend/dist"
+  
+[build.environment]
+  NODE_VERSION = "18"
+  NODE_ENV = "production"
 
 # Enable Brotli compression
 [build.processing]

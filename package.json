@@ -6,8 +6,11 @@
   "scripts": {
     "clean": "rimraf frontend/dist",
     "build": "webpack --config webpack.config.js",
+    "build:prod": "NODE_ENV=production webpack --config webpack.config.prod.js",
+    "build:prod:analyze": "NODE_ENV=production webpack --config webpack.config.prod.js --analyze",
     "watch": "webpack --config webpack.config.js --watch",
     "start": "./run-frontend.sh",
+    "start:prod": "NODE_ENV=production ./run-frontend.sh",
     "dev": "./run-frontend.sh --clean --port 8000",
     "optimize:models": "node scripts/optimize-models.js",
     "optimize:models:replace": "node scripts/optimize-models.js --replace"
@@ -30,6 +33,7 @@
     "terser": "^5.43.1",
     "terser-webpack-plugin": "^5.3.14",
     "webpack": "^5.80.0",
-    "webpack-cli": "^5.0.2"
+    "webpack-cli": "^5.0.2",
+    "webpack-obfuscator": "^3.5.1"
   }
 }
