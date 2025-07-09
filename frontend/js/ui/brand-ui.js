@@ -400,6 +400,13 @@ export function hideLoadingScreen() {
         setTimeout(() => {
             // Fully hide loading screen
             loadingScreen.style.display = 'none';
+            
+            // Show CyberRTS logo after loading
+            const cyberrtsLogo = document.getElementById('cyberrts-logo-link');
+            if (cyberrtsLogo) {
+                cyberrtsLogo.style.display = 'block';
+            }
+            
             // Clean up aurora background when loading screen is hidden
             import('../aurora-background.js').then(module => {
                 if (module.cleanupAuroraBackground) {
