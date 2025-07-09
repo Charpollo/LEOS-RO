@@ -104,6 +104,13 @@
             </div>
         </div>
         
+        <!-- CyberRTS Logo (clickable, positioned to the left after control dock) -->
+        <a id="cyberrts-logo-link" href="https://www.cyberrts.com" target="_blank" style="position:absolute; top:12px; left:70px; z-index:3000; text-decoration:none; display:none;">
+            <img src="assets/CyberRTS-Simple-Logo.svg" alt="CyberRTS" style="height: 50px; cursor:pointer; transition: transform 0.2s;" 
+                 onmouseover="this.style.transform='scale(1.1)'" 
+                 onmouseout="this.style.transform='scale(1)'">
+        </a>
+        
         <!-- Floating Time Display -->
         <div id="time-display" class="floating-display" style="position:absolute; top:24px; left:50%; transform:translateX(-50%); z-index:3000; min-width:220px; text-align:center;">
             <div id="current-time" style="font-size:1.18em; font-weight:600; letter-spacing:0.04em; color:#66d9ff; background:rgba(0,23,40,0.92); border-radius:8px; padding:0.5em 1.2em; box-shadow:0 2px 12px #00cfff33; border:1px solid #00cfff; display:inline-block; cursor:pointer;">
@@ -260,6 +267,7 @@
             <!-- Aurora Background Canvas -->
             <canvas id="aurora-canvas" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1001;"></canvas>
             <div class="loading-content">
+                <img src="assets/CyberRTS-Full-Logo.svg" alt="CyberRTS" style="height: 140px; position: absolute; top: 3rem; left: 50%; transform: translateX(-50%);">
                 <div class="leos-logo"><span class="highlight">LEOS</span>: First Orbit</div>
                 <div class="loading-subtitle">
                     <span class="subtitle-word">Discover.</span>

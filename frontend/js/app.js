@@ -2263,6 +2263,7 @@ function applyUnclassBanner(settings) {
     const controlDock = document.getElementById('control-dock-container');
     const addTleButton = document.getElementById('add-tle-button');
     const notification = document.getElementById('leos-notification');
+    const cyberrtsLogo = document.getElementById('cyberrts-logo-link');
     
     if (banner) {
         if (settings.applyUnclassBanner) {
@@ -2272,6 +2273,11 @@ function applyUnclassBanner(settings) {
             // Adjust time display position
             if (timeDisplay) {
                 timeDisplay.style.top = '64px'; // 40px banner + 24px offset
+            }
+            
+            // Adjust CyberRTS logo position
+            if (cyberrtsLogo) {
+                cyberrtsLogo.style.top = '52px'; // 40px banner + 12px offset
             }
             
             // Adjust control dock position  
@@ -2300,6 +2306,11 @@ function applyUnclassBanner(settings) {
             // Reset time display position
             if (timeDisplay) {
                 timeDisplay.style.top = '24px';
+            }
+            
+            // Reset CyberRTS logo position
+            if (cyberrtsLogo) {
+                cyberrtsLogo.style.top = '12px';
             }
             
             // Reset control dock position

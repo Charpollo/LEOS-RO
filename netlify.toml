@@ -32,8 +32,8 @@
   for = "/"
   [headers.values]
     Link = '''
-    </assets/earth_diffuse.png>; rel=preload; as=image,
-    </assets/stars.png>; rel=preload; as=image
+    </assets/earth_diffuse.png>; rel=preload; as=image; crossorigin=anonymous,
+    </assets/stars.png>; rel=preload; as=image; crossorigin=anonymous
     '''
 
 # SPA redirect - but don't redirect files that exist

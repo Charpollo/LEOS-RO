@@ -104,20 +104,21 @@ body.hide-time #time-display {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: space-evenly; /* even vertical spacing */
-    height: 80vh; /* fill most viewport */
+    justify-content: flex-start; /* start from top */
+    height: 100vh; /* full viewport */
     gap: 0;
     position: relative;
     z-index: 1002; /* Above aurora canvas */
+    padding-top: 10vh; /* start content from top */
 }
 
 .leos-logo {
-    font-size: 4rem; /* larger logo */
+    font-size: 4.2rem; /* slightly smaller but still prominent */
     font-weight: 700;
     color: var(--text-primary);
     text-shadow: 0 0 20px var(--neon-blue-glow);
-    margin-top: var(--spacing-lg);
-    margin-bottom: 0.05em; /* even closer to subtitle */
+    margin-top: 15vh; /* significant space from CyberRTS logo */
+    margin-bottom: 4rem; /* good space before motto */
     letter-spacing: 0.2em;
 }
 
@@ -130,8 +131,8 @@ body.hide-time #time-display {
     font-weight: 400;
     color: var(--neon-blue); /* Changed to neon blue */
     letter-spacing: 0.1em;
-    margin-top: 0.1em; /* bring closer to title */
-    margin-bottom: 0.7em; /* reduced space below subtitle */
+    margin-top: 0; /* no extra space above */
+    margin-bottom: 3rem; /* more space before facts box */
     text-shadow: 0 0 8px var(--neon-blue-glow);
     display: flex;
     gap: 0.5em;
@@ -189,7 +190,7 @@ body.hide-time #time-display {
     transform-style: preserve-3d;
     text-align: center;
     letter-spacing: -0.02em;
-    margin: var(--spacing-md) auto;
+    margin: 2rem auto 1rem auto; /* more space above for facts box */
 }
 
 .loading-wave span {
@@ -318,7 +319,7 @@ body.hide-time #time-display {
 }
 
 .space-fact {
-    margin-top: var(--spacing-md);
+    margin-top: 4rem; /* significant space from loading wave */
     padding: var(--spacing-lg) var(--spacing-xl);
     background: rgba(0, 207, 255, 0.1);
     border: 2px solid var(--neon-blue-glow);

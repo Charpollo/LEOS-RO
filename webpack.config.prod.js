@@ -84,6 +84,7 @@ module.exports = {
         { from: 'frontend/data', to: 'data' }
       ]
     }),
+<<<<<<< HEAD
     // JavaScript obfuscation - optimized for lower memory usage
     new JavaScriptObfuscator({
       // Lighter obfuscation settings to reduce memory usage
@@ -97,6 +98,23 @@ module.exports = {
       numbersToExpressions: false, // Disabled - memory intensive
       renameGlobals: false,
       selfDefending: false,
+=======
+    // JavaScript obfuscation - aggressive but avoiding known issues
+    new JavaScriptObfuscator({
+      // Aggressive obfuscation minus features that break workers
+      compact: true,
+      controlFlowFlattening: true,
+      controlFlowFlatteningThreshold: 0.75,
+      deadCodeInjection: true,
+      deadCodeInjectionThreshold: 0.4,
+      debugProtection: false, // Keep false - can break in production
+      disableConsoleOutput: true,
+      identifierNamesGenerator: 'hexadecimal',
+      log: false,
+      numbersToExpressions: true,
+      renameGlobals: false, // MUST be false - breaks Babylon.js
+      selfDefending: false, // Keep false - can break in production
+>>>>>>> bug/fixes
       simplify: true,
       splitStrings: true,
       splitStringsChunkLength: 5,
@@ -114,9 +132,15 @@ module.exports = {
       transformObjectKeys: false, // Disabled - memory intensive
       unicodeEscapeSequence: false // Disabled - memory intensive
     }, [
+<<<<<<< HEAD
       // Exclude vendor bundles from obfuscation
+=======
+      // Exclude vendor bundles and any file with 'worker' in the name
+>>>>>>> bug/fixes
       'babylon.*.js',
-      'vendors.*.js'
+      'vendors.*.js',
+      '*worker*.js',
+      '*Worker*.js'
     ]),
     // Gzip compression for smaller file sizes
     new CompressionPlugin({
