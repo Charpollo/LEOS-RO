@@ -84,42 +84,40 @@ module.exports = {
         { from: 'frontend/data', to: 'data' }
       ]
     }),
-    // JavaScript obfuscation for additional security
+    // JavaScript obfuscation - minimal settings to start
     new JavaScriptObfuscator({
-      // Balanced obfuscation - secure but not too performance-heavy
+      // Start with VERY minimal obfuscation
       compact: true,
-      controlFlowFlattening: true,
-      controlFlowFlatteningThreshold: 0.75,
-      deadCodeInjection: true,
-      deadCodeInjectionThreshold: 0.4,
-      debugProtection: false, // Keep false to avoid performance issues
-      disableConsoleOutput: true,
+      controlFlowFlattening: false,
+      deadCodeInjection: false,
+      debugProtection: false,
+      disableConsoleOutput: true, // Remove console logs
       identifierNamesGenerator: 'hexadecimal',
       log: false,
-      numbersToExpressions: true,
-      renameGlobals: false, // Keep false to preserve BABYLON and other globals
-      selfDefending: false, // Keep false to avoid performance issues
-      simplify: true,
-      splitStrings: true,
-      splitStringsChunkLength: 10,
-      stringArray: true,
-      stringArrayCallsTransform: true,
-      stringArrayCallsTransformThreshold: 0.75,
-      stringArrayEncoding: ['base64'],
-      stringArrayIndexShift: true,
-      stringArrayRotate: true,
-      stringArrayShuffle: true,
-      stringArrayWrappersCount: 2,
-      stringArrayWrappersChainedCalls: true,
-      stringArrayWrappersParametersMaxCount: 4,
-      stringArrayWrappersType: 'function',
+      numbersToExpressions: false,
+      renameGlobals: false, // MUST be false
+      selfDefending: false,
+      simplify: false, // Keep false to avoid breaking
+      splitStrings: false,
+      stringArray: true, // Basic string obfuscation
+      stringArrayCallsTransform: false,
+      stringArrayEncoding: [], // No encoding
+      stringArrayIndexShift: false,
+      stringArrayRotate: false,
+      stringArrayShuffle: false,
+      stringArrayWrappersCount: 0,
+      stringArrayWrappersChainedCalls: false,
+      stringArrayWrappersParametersMaxCount: 2,
+      stringArrayWrappersType: 'variable',
       stringArrayThreshold: 0.75,
-      transformObjectKeys: true,
-      unicodeEscapeSequence: true
+      transformObjectKeys: false,
+      unicodeEscapeSequence: false
     }, [
-      // Exclude vendor bundles from obfuscation to preserve performance
+      // Exclude vendor bundles and any file with 'worker' in the name
       'babylon.*.js',
-      'vendors.*.js'
+      'vendors.*.js',
+      '*worker*.js',
+      '*Worker*.js'
     ]),
     // Gzip compression for smaller file sizes
     new CompressionPlugin({
