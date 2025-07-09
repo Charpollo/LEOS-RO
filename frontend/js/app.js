@@ -1614,9 +1614,8 @@ function initializeSettingsModal() {
     
     // Global settings object to store all simulation settings
     window.simulationSettings = {
-        // Time Control
-        timeMultiplier: 1.0,
-        timezone: 'UTC',
+        // Security & Classification
+        applyUnclassBanner: false,
         
         // Performance
         renderQuality: 'medium',
@@ -1692,7 +1691,6 @@ function initializeSettingsModal() {
     };
     
     // Initialize all range inputs
-    initializeRangeInput('time-multiplier-range', 'time-multiplier-value', 'x');
     initializeRangeInput('trail-length', 'trail-length-value', ' min');
     initializeRangeInput('trail-opacity', 'trail-opacity-value', '%');
     initializeRangeInput('satellite-scale', 'satellite-scale-value', '%');
@@ -1702,26 +1700,6 @@ function initializeSettingsModal() {
     initializeRangeInput('update-frequency', 'update-frequency-value', ' FPS');
     initializeRangeInput('earth-rotation-rate', 'earth-rotation-rate-value', '%');
     
-    // Speed preset buttons
-    const speedPresetBtns = document.querySelectorAll('.speed-preset-btn');
-    const timeMultiplierRange = document.getElementById('time-multiplier-range');
-    speedPresetBtns.forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const speed = parseFloat(e.target.dataset.speed);
-            timeMultiplierRange.value = speed;
-            timeMultiplierRange.dispatchEvent(new Event('input')); // Update display
-            
-            // Update active button styling
-            speedPresetBtns.forEach(b => {
-                b.classList.remove('active');
-                b.style.background = 'rgba(0,207,255,0.2)';
-                b.style.color = '#66d9ff';
-            });
-            e.target.classList.add('active');
-            e.target.style.background = 'rgba(0,207,255,0.4)';
-            e.target.style.color = '#fff';
-        });
-    });
     
     // Settings presets
     const presets = {
@@ -1923,14 +1901,6 @@ function initializeSettingsModal() {
             }
         });
         
-        // Apply time multiplier
-        if (window.simState) {
-            window.simState.timeMultiplier = settings.timeMultiplier;
-            window.currentTimeMultiplier = settings.timeMultiplier;
-        }
-        
-        // Apply timezone setting
-        window.displayTimezone = settings.timezone;
         
         // Apply performance settings (render quality, FPS limiting)
         applyRenderQuality(settings);
@@ -1942,6 +1912,9 @@ function initializeSettingsModal() {
         
         // Apply visual settings
         applyVisualSettings(settings);
+        
+        // Apply UNCLASS banner
+        applyUnclassBanner(settings);
         
         // Apply camera settings
         applyCameraSettings(settings);
@@ -2281,6 +2254,46 @@ function applyVisualSettings(settings) {
     }
 }
 
+function applyUnclassBanner(settings) {
+    const banner = document.getElementById('unclass-banner');
+    const timeDisplay = document.getElementById('time-display');
+    const controlDock = document.getElementById('control-dock-container');
+    
+    if (banner) {
+        if (settings.applyUnclassBanner) {
+            // Show banner
+            banner.style.display = 'block';
+            
+            // Adjust time display position
+            if (timeDisplay) {
+                timeDisplay.style.top = '64px'; // 40px banner + 24px offset
+            }
+            
+            // Adjust control dock position  
+            if (controlDock) {
+                controlDock.style.top = '56px'; // 40px banner + 16px offset
+            }
+            
+            console.log('UNCLASSIFIED banner applied');
+        } else {
+            // Hide banner
+            banner.style.display = 'none';
+            
+            // Reset time display position
+            if (timeDisplay) {
+                timeDisplay.style.top = '24px';
+            }
+            
+            // Reset control dock position
+            if (controlDock) {
+                controlDock.style.top = '16px';
+            }
+            
+            console.log('UNCLASSIFIED banner removed');
+        }
+    }
+}
+
 function applyCameraSettings(settings) {
     if (window.camera) {
         // Camera sensitivity (affects rotation speed)
@@ -2315,10 +2328,6 @@ window.showSimulationSettingsModal = function showSimulationSettingsModal() {
         initializeSettingsModal();
     }
     
-    // Update current time multiplier from simulation state
-    if (window.currentTimeMultiplier) {
-        window.simulationSettings.timeMultiplier = window.currentTimeMultiplier;
-    }
     
     // Update modal UI to reflect current settings
     const updateModalFromSettings = () => {
