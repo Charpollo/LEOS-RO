@@ -1,5 +1,5 @@
 [build]
-  command = "npm install && npm run build:prod"
+  command = "npm install --production=false && npm run build:prod"
   publish = "frontend/dist"
   
 [build.environment]
