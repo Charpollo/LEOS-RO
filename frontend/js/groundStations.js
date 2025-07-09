@@ -79,12 +79,14 @@ export function createGroundStations(scene, advancedTexture = null) {
   cleanupGroundStations(scene);
   const earthMesh = scene.getMeshByName('earth');
   GROUND_STATIONS.forEach(station => {
-    // Convert geodetic to Babylon.js coordinate system - place on visual Earth surface
+    // Convert geodetic to Babylon.js coordinate system - place on actual Earth mesh surface
     // Calculate position directly without using toBabylonPosition to avoid visual surface scaling
     const phi = toRadians(station.lat);
     const lambda = toRadians(station.lon);
-    // Use EARTH_VISUAL_SURFACE_RADIUS to place directly on the visual Earth surface
-    const radius = EARTH_VISUAL_SURFACE_RADIUS; // Use visual surface radius directly
+    const stationDiameter = 0.008;
+    // Position slightly above Earth mesh to avoid z-fighting/choppy appearance
+    // Small offset above radius 1.0 for clean visual
+    const radius = 1.0 + 0.001;
     const pos = new BABYLON.Vector3(
       radius * Math.cos(phi) * Math.cos(lambda),
       radius * Math.sin(phi), 
@@ -92,7 +94,7 @@ export function createGroundStations(scene, advancedTexture = null) {
     );
     const mesh = BABYLON.MeshBuilder.CreateSphere(
       station.name.replace(/\s+/g, '_'),
-      { diameter: 0.008 }, // smaller ground station markers for better scale
+      { diameter: stationDiameter }, // smaller ground station markers for better scale
       scene
     );
     mesh.position = pos;
@@ -631,8 +633,8 @@ export function createCoverageCircles(scene, maxSatAltKm = 2000, segments = 64) 
         Math.sin(theta) * Math.sin(phi) * Math.cos(lat0),
         Math.cos(phi) - Math.sin(lat0) * Math.sin(lat2)
       );
-      // Place circle directly on visual Earth surface
-      const circleRadius = EARTH_VISUAL_SURFACE_RADIUS + 0.0005; // Just slightly above visual surface
+      // Place circle slightly above Earth mesh surface to avoid z-fighting
+      const circleRadius = 1.0 + 0.0002; // Very slight elevation for clean rendering
       const circlePos = new BABYLON.Vector3(
         circleRadius * Math.cos(lat2) * Math.cos(lon2),
         circleRadius * Math.sin(lat2),
