@@ -84,40 +84,37 @@ module.exports = {
         { from: 'frontend/data', to: 'data' }
       ]
     }),
-    // JavaScript obfuscation for additional security
+    // JavaScript obfuscation - optimized for lower memory usage
     new JavaScriptObfuscator({
-      // Balanced obfuscation - secure but not too performance-heavy
+      // Lighter obfuscation settings to reduce memory usage
       compact: true,
-      controlFlowFlattening: true,
-      controlFlowFlatteningThreshold: 0.75,
-      deadCodeInjection: true,
-      deadCodeInjectionThreshold: 0.4,
-      debugProtection: false, // Keep false to avoid performance issues
+      controlFlowFlattening: false, // Disabled - very memory intensive
+      deadCodeInjection: false, // Disabled - very memory intensive
+      debugProtection: false,
       disableConsoleOutput: true,
       identifierNamesGenerator: 'hexadecimal',
       log: false,
-      numbersToExpressions: true,
-      renameGlobals: false, // Keep false to preserve BABYLON and other globals
-      selfDefending: false, // Keep false to avoid performance issues
+      numbersToExpressions: false, // Disabled - memory intensive
+      renameGlobals: false,
+      selfDefending: false,
       simplify: true,
       splitStrings: true,
-      splitStringsChunkLength: 10,
+      splitStringsChunkLength: 5,
       stringArray: true,
-      stringArrayCallsTransform: true,
-      stringArrayCallsTransformThreshold: 0.75,
-      stringArrayEncoding: ['base64'],
+      stringArrayCallsTransform: false, // Disabled - memory intensive
+      stringArrayEncoding: [], // No encoding - reduces memory
       stringArrayIndexShift: true,
       stringArrayRotate: true,
       stringArrayShuffle: true,
-      stringArrayWrappersCount: 2,
-      stringArrayWrappersChainedCalls: true,
-      stringArrayWrappersParametersMaxCount: 4,
-      stringArrayWrappersType: 'function',
+      stringArrayWrappersCount: 1,
+      stringArrayWrappersChainedCalls: false,
+      stringArrayWrappersParametersMaxCount: 2,
+      stringArrayWrappersType: 'variable',
       stringArrayThreshold: 0.75,
-      transformObjectKeys: true,
-      unicodeEscapeSequence: true
+      transformObjectKeys: false, // Disabled - memory intensive
+      unicodeEscapeSequence: false // Disabled - memory intensive
     }, [
-      // Exclude vendor bundles from obfuscation to preserve performance
+      // Exclude vendor bundles from obfuscation
       'babylon.*.js',
       'vendors.*.js'
     ]),

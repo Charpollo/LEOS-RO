@@ -6,7 +6,7 @@
   "scripts": {
     "clean": "rimraf frontend/dist",
     "build": "webpack --config webpack.config.js",
-    "build:prod": "NODE_ENV=production webpack --config webpack.config.prod.js",
+    "build:prod": "NODE_OPTIONS='--max-old-space-size=4096' NODE_ENV=production webpack --config webpack.config.prod.js",
     "build:prod:analyze": "NODE_ENV=production webpack --config webpack.config.prod.js --analyze",
     "watch": "webpack --config webpack.config.js --watch",
     "start": "./run-frontend.sh",
