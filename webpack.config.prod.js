@@ -84,21 +84,6 @@ module.exports = {
         { from: 'frontend/data', to: 'data' }
       ]
     }),
-<<<<<<< HEAD
-    // JavaScript obfuscation - optimized for lower memory usage
-    new JavaScriptObfuscator({
-      // Lighter obfuscation settings to reduce memory usage
-      compact: true,
-      controlFlowFlattening: false, // Disabled - very memory intensive
-      deadCodeInjection: false, // Disabled - very memory intensive
-      debugProtection: false,
-      disableConsoleOutput: true,
-      identifierNamesGenerator: 'hexadecimal',
-      log: false,
-      numbersToExpressions: false, // Disabled - memory intensive
-      renameGlobals: false,
-      selfDefending: false,
-=======
     // JavaScript obfuscation - aggressive but avoiding known issues
     new JavaScriptObfuscator({
       // Aggressive obfuscation minus features that break workers
@@ -114,29 +99,25 @@ module.exports = {
       numbersToExpressions: true,
       renameGlobals: false, // MUST be false - breaks Babylon.js
       selfDefending: false, // Keep false - can break in production
->>>>>>> bug/fixes
       simplify: true,
       splitStrings: true,
-      splitStringsChunkLength: 5,
+      splitStringsChunkLength: 10,
       stringArray: true,
-      stringArrayCallsTransform: false, // Disabled - memory intensive
-      stringArrayEncoding: [], // No encoding - reduces memory
+      stringArrayCallsTransform: true,
+      stringArrayCallsTransformThreshold: 0.75,
+      stringArrayEncoding: ['base64'],
       stringArrayIndexShift: true,
       stringArrayRotate: true,
       stringArrayShuffle: true,
-      stringArrayWrappersCount: 1,
-      stringArrayWrappersChainedCalls: false,
-      stringArrayWrappersParametersMaxCount: 2,
-      stringArrayWrappersType: 'variable',
+      stringArrayWrappersCount: 2,
+      stringArrayWrappersChainedCalls: true,
+      stringArrayWrappersParametersMaxCount: 4,
+      stringArrayWrappersType: 'function',
       stringArrayThreshold: 0.75,
-      transformObjectKeys: false, // Disabled - memory intensive
-      unicodeEscapeSequence: false // Disabled - memory intensive
+      transformObjectKeys: true,
+      unicodeEscapeSequence: true
     }, [
-<<<<<<< HEAD
-      // Exclude vendor bundles from obfuscation
-=======
       // Exclude vendor bundles and any file with 'worker' in the name
->>>>>>> bug/fixes
       'babylon.*.js',
       'vendors.*.js',
       '*worker*.js',
