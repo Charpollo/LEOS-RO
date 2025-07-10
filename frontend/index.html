@@ -628,15 +628,15 @@
         <!-- Support Modal -->
         <div id="support-modal" class="modal-overlay" style="display: none;">
             <div class="modal-content support-modal-content">
-                <div class="modal-header" style="position: relative; text-align: center; padding: 2em 2em 0 2em;">
-                    <button class="close-button" id="support-modal-close" style="position: absolute; top: 20px; right: 20px; background: none; border: none; color: #66d9ff; font-size: 24px; cursor: pointer; z-index: 10;">&times;</button>
-                    <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 1em;">
-                        <div style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 1em; box-shadow: 0 0 20px rgba(34,197,94,0.4);">
-                            <img src="/assets/support.svg" style="width: 24px; height: 24px; filter: brightness(0) invert(1);" alt="Support">
+                <div class="modal-header" style="position: relative; text-align: center; padding: 0.5em 2em 0 2em;">
+                    <button class="close-button" id="support-modal-close" style="position: absolute; top: 15px; right: 20px; background: none; border: none; color: #66d9ff; font-size: 24px; cursor: pointer; z-index: 10;">&times;</button>
+                    <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 0.3em;">
+                        <div style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 0.8em; box-shadow: 0 0 15px rgba(34,197,94,0.4);">
+                            <img src="assets/support.svg" style="width: 22px; height: 22px; filter: brightness(0) invert(1);" alt="Support">
                         </div>
                         <div>
-                            <h2 class="modal-title" style="margin: 0; background: linear-gradient(135deg, #00cfff, #66d9ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">LEOS Mission Control</h2>
-                            <div class="modal-subtitle subtitle" style="margin: 0; font-style: italic; color: #66d9ff;">Your direct line to our team</div>
+                            <h2 class="modal-title" style="margin: 0; font-size: 1.5rem; background: linear-gradient(135deg, #00cfff, #66d9ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">LEOS Mission Control</h2>
+                            <div class="modal-subtitle subtitle" style="margin: 0; font-style: italic; color: #66d9ff; font-size: 0.9rem;">Your direct line to our team</div>
                         </div>
                     </div>
                 </div>
@@ -649,33 +649,26 @@
                             <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5em; text-align: center;">
                                 <div style="padding: 1em;">
                                     <div style="background: rgba(0,207,255,0.2); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.8em; transition: all 0.3s ease; cursor: pointer;" onmouseover="this.style.transform='scale(1.1)'; this.style.background='rgba(0,207,255,0.3)'; this.style.boxShadow='0 0 20px rgba(0,207,255,0.4)';" onmouseout="this.style.transform='scale(1)'; this.style.background='rgba(0,207,255,0.2)'; this.style.boxShadow='none';">
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00cfff" stroke-width="2">
-                                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                                            <circle cx="9" cy="7" r="4"/>
-                                            <path d="m22 21-3-3m3 3-3 3m3-3h-3"/>
-                                        </svg>
+                                        <img src="assets/support.svg" style="width: 22px; height: 22px; filter: brightness(0) saturate(100%) invert(53%) sepia(95%) saturate(468%) hue-rotate(151deg) brightness(99%) contrast(105%);" alt="Support">
                                     </div>
                                     <p style="margin: 0; color: #00cfff; font-weight: bold; font-size: 0.9em;">Mission Support Team</p>
-                                    <p style="margin: 0.3em 0 0 0; color: #66d9ff; font-size: 0.8em;">Ready to assist 24/7</p>
+                                    <p style="margin: 0.3em 0 0 0; color: #66d9ff; font-size: 0.8em;">Quick response</p>
                                 </div>
                                 <div style="padding: 1em;">
-                                    <div style="background: rgba(0,207,255,0.2); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.8em; transition: all 0.3s ease; cursor: pointer;" onmouseover="this.style.transform='scale(1.1)'; this.style.background='rgba(0,207,255,0.3)'; this.style.boxShadow='0 0 20px rgba(0,207,255,0.4)';" onmouseout="this.style.transform='scale(1)'; this.style.background='rgba(0,207,255,0.2)'; this.style.boxShadow='none';">
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00cfff" stroke-width="2">
-                                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                                            <polyline points="22,6 12,13 2,6"/>
-                                        </svg>
-                                    </div>
+                                    <a href="mailto:mission_support@cyberrts.com" style="text-decoration: none;">
+                                        <div style="background: rgba(0,207,255,0.2); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.8em; transition: all 0.3s ease; cursor: pointer;" onmouseover="this.style.transform='scale(1.1)'; this.style.background='rgba(0,207,255,0.3)'; this.style.boxShadow='0 0 20px rgba(0,207,255,0.4)';" onmouseout="this.style.transform='scale(1)'; this.style.background='rgba(0,207,255,0.2)'; this.style.boxShadow='none';">
+                                            <img src="assets/email.svg" style="width: 20px; height: 20px; filter: brightness(0) saturate(100%) invert(53%) sepia(95%) saturate(468%) hue-rotate(151deg) brightness(99%) contrast(105%);" alt="Email">
+                                        </div>
+                                    </a>
                                     <p style="margin: 0; color: #00cfff; font-weight: bold; font-size: 0.9em;">Direct Email</p>
                                     <p style="margin: 0.3em 0 0 0; color: #66d9ff; font-size: 0.8em;">mission_support@cyberrts.com</p>
                                 </div>
                                 <div style="padding: 1em;">
-                                    <div style="background: rgba(0,207,255,0.2); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.8em; transition: all 0.3s ease; cursor: pointer;" onmouseover="this.style.transform='scale(1.1)'; this.style.background='rgba(0,207,255,0.3)'; this.style.boxShadow='0 0 20px rgba(0,207,255,0.4)';" onmouseout="this.style.transform='scale(1)'; this.style.background='rgba(0,207,255,0.2)'; this.style.boxShadow='none';">
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00cfff" stroke-width="2">
-                                            <circle cx="12" cy="12" r="10"/>
-                                            <line x1="2" y1="12" x2="22" y2="12"/>
-                                            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-                                        </svg>
-                                    </div>
+                                    <a href="https://www.cyberrts.com" target="_blank" style="text-decoration: none;">
+                                        <div style="background: rgba(0,207,255,0.2); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.8em; transition: all 0.3s ease; cursor: pointer;" onmouseover="this.style.transform='scale(1.1)'; this.style.background='rgba(0,207,255,0.3)'; this.style.boxShadow='0 0 20px rgba(0,207,255,0.4)';" onmouseout="this.style.transform='scale(1)'; this.style.background='rgba(0,207,255,0.2)'; this.style.boxShadow='none';">
+                                            <img src="assets/earth.svg" style="width: 20px; height: 20px; filter: brightness(0) saturate(100%) invert(53%) sepia(95%) saturate(468%) hue-rotate(151deg) brightness(99%) contrast(105%);" alt="Website">
+                                        </div>
+                                    </a>
                                     <p style="margin: 0; color: #00cfff; font-weight: bold; font-size: 0.9em;">Website</p>
                                     <p style="margin: 0.3em 0 0 0; color: #66d9ff; font-size: 0.8em;">cyberrts.com</p>
                                 </div>
@@ -754,24 +747,6 @@
                         </div>
                     </form>
                 </div>
-                    
-                    <!-- Section Divider -->
-                    <div style="height: 2px; background: linear-gradient(90deg, transparent 0%, #00cfff 50%, transparent 100%); margin: 3em 0; opacity: 0.3;"></div>
-                    
-                    <!-- Additional Information -->
-                    <div style="background: linear-gradient(135deg, rgba(0,207,255,0.08) 0%, rgba(0,207,255,0.04) 100%); padding: 20px; border-radius: 12px; border-left: 4px solid #00cfff; text-align: center;">
-                        <h3 style="color: #66d9ff; margin: 0 0 15px 0;">Response Times</h3>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                            <div>
-                                <p style="margin: 0; color: #00cfff; font-weight: bold;">General Inquiries</p>
-                                <p style="margin: 0; color: #66d9ff; font-size: 0.9em;">Within 24-48 hours</p>
-                            </div>
-                            <div>
-                                <p style="margin: 0; color: #00cfff; font-weight: bold;">Technical Issues</p>
-                                <p style="margin: 0; color: #66d9ff; font-size: 0.9em;">Within 12-24 hours</p>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
