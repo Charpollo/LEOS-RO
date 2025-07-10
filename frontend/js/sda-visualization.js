@@ -1314,15 +1314,19 @@ class SDAVisualization {
     // Get current simulation time
     const currentTime = window.getCurrentSimTime ? window.getCurrentSimTime() : new Date();
     
-    // Batch update strategy - update different orbit classes in rotation
-    // This spreads the computational load across frames
+    // Update all orbit classes every frame, but with different amounts
+    // This ensures all objects move smoothly
     const orbitClasses = Object.keys(this.instancedMeshes);
-    const classToUpdate = orbitClasses[this.updateClassIndex % orbitClasses.length];
     
-    // Update one orbit class per frame for smooth performance
-    this.updateOrbitClass(classToUpdate, currentTime);
+    for (const orbitClass of orbitClasses) {
+      // Skip if mesh is not enabled
+      if (!this.instancedMeshes[orbitClass] || !this.instancedMeshes[orbitClass].isEnabled()) continue;
+      
+      // Update this orbit class
+      this.updateOrbitClass(orbitClass, currentTime);
+    }
     
-    // Move to next class
+    // Increment frame counter for logging
     this.updateClassIndex = (this.updateClassIndex || 0) + 1;
   }
   
@@ -1336,12 +1340,27 @@ class SDAVisualization {
     // Get objects in this class
     const objectsInClass = Object.values(this.objectData).filter(obj => obj.meshClass === orbitClass);
     
+    // Initialize update index for this class if not exists
+    if (!this.classUpdateIndices) {
+      this.classUpdateIndices = {};
+    }
+    if (this.classUpdateIndices[orbitClass] === undefined) {
+      this.classUpdateIndices[orbitClass] = 0;
+    }
+    
     // Update positions using TLE data
     let updateCount = 0;
-    const maxUpdatesPerFrame = 500; // Limit updates per frame for performance
+    const maxUpdatesPerFrame = orbitClass === 'LEO' ? 2000 : 500; // More updates for LEO since it has more objects
     
-    for (const obj of objectsInClass) {
+    // Start from where we left off last frame
+    const startIndex = this.classUpdateIndices[orbitClass];
+    
+    for (let i = 0; i < objectsInClass.length; i++) {
       if (updateCount >= maxUpdatesPerFrame) break;
+      
+      // Wrap around to beginning if we reach the end
+      const objIndex = (startIndex + i) % objectsInClass.length;
+      const obj = objectsInClass[objIndex];
       
       // Skip if object is hidden
       if (obj.isVisibleInScene === false) continue;
@@ -1397,33 +1416,117 @@ class SDAVisualization {
     if (updateCount > 0) {
       mesh.thinInstanceSetBuffer("matrix", matrices, 16);
       
+      // Save where we left off for next frame
+      this.classUpdateIndices[orbitClass] = (startIndex + updateCount) % objectsInClass.length;
+      
       // Only log periodically to avoid spam
       if (this.updateClassIndex % 60 === 0) {
-        console.log(`Updated ${updateCount} ${orbitClass} objects`);
+        console.log(`Updated ${updateCount}/${objectsInClass.length} ${orbitClass} objects`);
       }
     }
   }
   
   calculateFallbackPosition(obj, currentTime) {
-    // Simple circular orbit calculation for objects without TLE data
+    // More realistic orbital calculation for objects without TLE data
     const altitude = parseFloat(obj.altitude) || 500; // Default 500km
     const inclination = (parseFloat(obj.inclination) || 0) * Math.PI / 180;
     
-    // Simple orbital period calculation (minutes)
-    const period = 90 + (altitude / 1000) * 5; // Rough approximation
-    const angularVelocity = (2 * Math.PI) / (period * 60); // radians per second
+    // Use stored orbital parameters if available
+    if (!obj.orbitalParams) {
+      // Initialize orbital parameters on first call
+      obj.orbitalParams = this.initializeOrbitalParams(obj);
+    }
     
-    // Time since epoch
+    const params = obj.orbitalParams;
+    
+    // Kepler's third law for orbital period (more accurate)
+    const earthMu = 398600.4418; // km³/s² (Earth's gravitational parameter)
+    const semiMajorAxis = 6371 + altitude;
+    const orbitalPeriod = 2 * Math.PI * Math.sqrt(Math.pow(semiMajorAxis, 3) / earthMu);
+    
+    // Time since epoch with phase offset
     const timeSeconds = currentTime.getTime() / 1000;
-    const angle = (timeSeconds * angularVelocity) % (2 * Math.PI);
+    const meanAnomaly = ((timeSeconds / orbitalPeriod) * 2 * Math.PI + params.initialPhase) % (2 * Math.PI);
     
-    // Calculate position in orbital plane
-    const radius = (6371 + altitude); // Earth radius + altitude in km
-    const x = radius * Math.cos(angle);
-    const y = radius * Math.sin(angle) * Math.sin(inclination);
-    const z = radius * Math.sin(angle) * Math.cos(inclination);
+    // Add slight eccentricity for realism
+    const eccentricAnomaly = this.solveKeplersEquation(meanAnomaly, params.eccentricity);
+    const trueAnomaly = this.eccentricToTrueAnomaly(eccentricAnomaly, params.eccentricity);
+    
+    // Calculate radius with eccentricity
+    const radius = semiMajorAxis * (1 - params.eccentricity * params.eccentricity) / 
+                  (1 + params.eccentricity * Math.cos(trueAnomaly));
+    
+    // Position in orbital plane
+    const xOrbit = radius * Math.cos(trueAnomaly);
+    const yOrbit = radius * Math.sin(trueAnomaly);
+    
+    // Apply 3D rotation for inclination and RAAN
+    const cosI = Math.cos(inclination);
+    const sinI = Math.sin(inclination);
+    const cosO = Math.cos(params.raan);
+    const sinO = Math.sin(params.raan);
+    const cosW = Math.cos(params.argPerigee);
+    const sinW = Math.sin(params.argPerigee);
+    
+    // Transform to ECI coordinates
+    const x = (cosO * cosW - sinO * sinW * cosI) * xOrbit + 
+              (-cosO * sinW - sinO * cosW * cosI) * yOrbit;
+    const y = (sinO * cosW + cosO * sinW * cosI) * xOrbit + 
+              (-sinO * sinW + cosO * cosW * cosI) * yOrbit;
+    const z = (sinI * sinW) * xOrbit + (sinI * cosW) * yOrbit;
     
     return { x, y, z, altitude, inclination };
+  }
+  
+  initializeOrbitalParams(obj) {
+    // Initialize realistic orbital parameters
+    const params = {
+      eccentricity: 0,
+      raan: 0,
+      argPerigee: 0,
+      initialPhase: Math.random() * 2 * Math.PI
+    };
+    
+    // Special handling for debris - create clustered patterns
+    if (obj.class === 'DEBRIS') {
+      // Debris should cluster around parent orbits
+      const debrisGroup = Math.floor(Math.random() * 20); // 20 debris groups
+      
+      // Each group has similar orbital parameters
+      params.raan = (debrisGroup * 18 + Math.random() * 5) * Math.PI / 180;
+      params.argPerigee = Math.random() * 2 * Math.PI;
+      params.eccentricity = 0.001 + Math.random() * 0.05; // Slightly eccentric
+      
+      // Debris in same group have similar phases (creates clouds)
+      const groupPhase = debrisGroup * 0.3;
+      params.initialPhase = groupPhase + (Math.random() - 0.5) * 0.2;
+    } else {
+      // Regular satellites - more spread out
+      params.raan = Math.random() * 2 * Math.PI;
+      params.argPerigee = Math.random() * 2 * Math.PI;
+      params.eccentricity = Math.random() * 0.01; // Nearly circular
+    }
+    
+    return params;
+  }
+  
+  solveKeplersEquation(M, e, tolerance = 1e-6) {
+    // Newton-Raphson method to solve Kepler's equation
+    let E = M; // Initial guess
+    let delta = 1;
+    
+    while (Math.abs(delta) > tolerance) {
+      delta = (M - E + e * Math.sin(E)) / (1 - e * Math.cos(E));
+      E += delta;
+    }
+    
+    return E;
+  }
+  
+  eccentricToTrueAnomaly(E, e) {
+    // Convert eccentric anomaly to true anomaly
+    const beta = e / (1 + Math.sqrt(1 - e * e));
+    return E + 2 * Math.atan(beta * Math.sin(E) / (1 - beta * Math.cos(E)));
   }
 
   updateLegendCounts(classCounts, totalCount) {
