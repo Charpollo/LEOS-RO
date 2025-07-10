@@ -14,6 +14,7 @@ class SDAVisualization {
     this.updateIndex = 0;
     this.objectKeys = [];
     this.isInitialized = false;
+    this.orbitalMotionEnabled = false; // Off by default
     
     // Performance optimization structures
     this.masterMesh = null;
@@ -69,10 +70,81 @@ class SDAVisualization {
     document.addEventListener('click', (event) => {
       if (event.target.closest('.sda-toggle')) {
         const toggle = event.target.closest('.sda-toggle');
-        const orbitClass = toggle.dataset.toggle;
-        this.toggleOrbitClass(orbitClass, toggle);
+        const toggleType = toggle.dataset.toggle;
+        
+        // Handle orbital motion toggle
+        if (toggleType === 'MOTION') {
+          this.toggleOrbitalMotion(toggle);
+        } else {
+          // Handle orbit class toggles
+          this.toggleOrbitClass(toggleType, toggle);
+        }
       }
     });
+  }
+
+  toggleOrbitalMotion(toggleElement) {
+    const isActive = toggleElement.classList.contains('active');
+    
+    if (isActive) {
+      // Disable orbital motion
+      toggleElement.classList.remove('active');
+      this.orbitalMotionEnabled = false;
+      console.log('SDA Orbital Motion: DISABLED');
+      
+      // Show performance improvement message
+      this.showMotionToggleMessage('Orbital motion disabled - Performance optimized', '#00ff64');
+    } else {
+      // Enable orbital motion
+      toggleElement.classList.add('active');
+      this.orbitalMotionEnabled = true;
+      console.log('SDA Orbital Motion: ENABLED');
+      
+      // Show performance warning
+      this.showMotionToggleMessage('Orbital motion enabled - May impact performance on lower-end systems', '#ffc800');
+    }
+  }
+  
+  showMotionToggleMessage(message, color) {
+    // Create temporary notification
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+      position: fixed;
+      top: 20%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.9);
+      color: ${color};
+      padding: 15px 25px;
+      border-radius: 8px;
+      border: 2px solid ${color};
+      font-family: 'Orbitron', monospace;
+      font-size: 14px;
+      z-index: 10001;
+      box-shadow: 0 0 20px rgba(0, 207, 255, 0.3);
+      animation: fadeInOut 3s ease-in-out;
+    `;
+    notification.textContent = message;
+    
+    // Add fade animation
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes fadeInOut {
+        0% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+        20% { opacity: 1; transform: translateX(-50%) translateY(0); }
+        80% { opacity: 1; transform: translateX(-50%) translateY(0); }
+        100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+      }
+    `;
+    document.head.appendChild(style);
+    
+    document.body.appendChild(notification);
+    
+    // Remove after animation
+    setTimeout(() => {
+      notification.remove();
+      style.remove();
+    }, 3000);
   }
 
   toggleOrbitClass(orbitClass, toggleElement) {
@@ -1233,14 +1305,125 @@ class SDAVisualization {
   }
 
   updateThinInstances() {
-    // Placeholder for real-time updates when needed
-    // For static visualization, no updates are necessary
-    // This method exists to prevent the error when called from the render loop
+    // Only update if orbital motion is enabled
+    if (!this.orbitalMotionEnabled) return;
     
-    // In future versions, this could update orbital positions in real-time:
-    // - Calculate new positions based on current simulation time
-    // - Update thin instance matrices for visible objects
-    // - Batch updates for performance (update subset per frame)
+    // Update orbital positions for realistic motion
+    if (!this.instancedMeshes || Object.keys(this.instancedMeshes).length === 0) return;
+    
+    // Get current simulation time
+    const currentTime = window.getCurrentSimTime ? window.getCurrentSimTime() : new Date();
+    
+    // Batch update strategy - update different orbit classes in rotation
+    // This spreads the computational load across frames
+    const orbitClasses = Object.keys(this.instancedMeshes);
+    const classToUpdate = orbitClasses[this.updateClassIndex % orbitClasses.length];
+    
+    // Update one orbit class per frame for smooth performance
+    this.updateOrbitClass(classToUpdate, currentTime);
+    
+    // Move to next class
+    this.updateClassIndex = (this.updateClassIndex || 0) + 1;
+  }
+  
+  updateOrbitClass(orbitClass, currentTime) {
+    const mesh = this.instancedMeshes[orbitClass];
+    if (!mesh || !mesh.isEnabled()) return;
+    
+    const matrices = this.instanceMatrices[orbitClass];
+    if (!matrices) return;
+    
+    // Get objects in this class
+    const objectsInClass = Object.values(this.objectData).filter(obj => obj.meshClass === orbitClass);
+    
+    // Update positions using TLE data
+    let updateCount = 0;
+    const maxUpdatesPerFrame = 500; // Limit updates per frame for performance
+    
+    for (const obj of objectsInClass) {
+      if (updateCount >= maxUpdatesPerFrame) break;
+      
+      // Skip if object is hidden
+      if (obj.isVisibleInScene === false) continue;
+      
+      const instanceIndex = obj.instanceIndex;
+      if (instanceIndex === undefined || instanceIndex < 0) continue;
+      
+      // Calculate new position
+      let newPosition = null;
+      
+      if (obj.tle1 && obj.tle2) {
+        // Use SGP4 for accurate orbital propagation
+        try {
+          newPosition = this.calculateSimpleOrbitPosition(obj.tle1, obj.tle2, currentTime);
+        } catch (error) {
+          // Fallback to circular orbit approximation
+          newPosition = this.calculateFallbackPosition(obj, currentTime);
+        }
+      } else {
+        // Use simple circular orbit for objects without TLE data
+        newPosition = this.calculateFallbackPosition(obj, currentTime);
+      }
+      
+      if (newPosition) {
+        const babylonPos = this.positionToBabylon(newPosition);
+        if (babylonPos) {
+          // Update the transformation matrix
+          const matrixOffset = instanceIndex * 16;
+          
+          // Get the current matrix to preserve scale
+          const currentMatrix = BABYLON.Matrix.FromArray(matrices, matrixOffset);
+          
+          // Extract scale from the current matrix
+          const scale = new BABYLON.Vector3();
+          currentMatrix.decompose(scale);
+          
+          // Create new transformation matrix with updated position
+          const matrix = BABYLON.Matrix.Compose(
+            scale,
+            BABYLON.Quaternion.Identity(),
+            babylonPos
+          );
+          
+          // Copy to the matrices array
+          matrix.copyToArray(matrices, matrixOffset);
+          
+          updateCount++;
+        }
+      }
+    }
+    
+    // Apply updates if any were made
+    if (updateCount > 0) {
+      mesh.thinInstanceSetBuffer("matrix", matrices, 16);
+      
+      // Only log periodically to avoid spam
+      if (this.updateClassIndex % 60 === 0) {
+        console.log(`Updated ${updateCount} ${orbitClass} objects`);
+      }
+    }
+  }
+  
+  calculateFallbackPosition(obj, currentTime) {
+    // Simple circular orbit calculation for objects without TLE data
+    const altitude = parseFloat(obj.altitude) || 500; // Default 500km
+    const inclination = (parseFloat(obj.inclination) || 0) * Math.PI / 180;
+    
+    // Simple orbital period calculation (minutes)
+    const period = 90 + (altitude / 1000) * 5; // Rough approximation
+    const angularVelocity = (2 * Math.PI) / (period * 60); // radians per second
+    
+    // Time since epoch
+    const timeSeconds = currentTime.getTime() / 1000;
+    const angle = (timeSeconds * angularVelocity) % (2 * Math.PI);
+    
+    // Calculate position in orbital plane
+    const radius = (6371 + altitude); // Earth radius + altitude in km
+    const x = radius * Math.cos(angle);
+    const y = radius * Math.sin(angle) * Math.sin(inclination);
+    const z = radius * Math.sin(angle) * Math.cos(inclination);
+    
+    return { x, y, z, altitude, inclination };
   }
 
   updateLegendCounts(classCounts, totalCount) {
