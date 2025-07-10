@@ -423,6 +423,17 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
             const SATELLITE_VISUAL_SCALE = isBulldog ? 0.0006 : 0.002; // Increased scale for better visibility
             satelliteMesh.scaling = new BABYLON.Vector3(SATELLITE_VISUAL_SCALE, SATELLITE_VISUAL_SCALE, SATELLITE_VISUAL_SCALE);
             
+            // Apply different rotations based on satellite type
+            // to ensure antennas and sensors are pointing correctly
+            if (isCRTS) {
+                // CRTS: Rotate 270 degrees around Y-axis (180 + 90)
+                satelliteMesh.rotation.y = Math.PI * 1.5; // 270 degrees in radians
+            } else if (isBulldog) {
+                // Bulldog: Rotate to point dish down at Earth
+                satelliteMesh.rotation.x = -Math.PI / 2; // 90 degrees up (negative = up)
+                satelliteMesh.rotation.y = Math.PI; // 180 degrees around Y
+            }
+            
             // Wait one frame for the mesh to be properly positioned before starting animations
             const animationSetupCallback = () => {
                 scene.onAfterRenderObservable.removeCallback(animationSetupCallback);

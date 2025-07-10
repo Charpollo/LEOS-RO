@@ -1236,6 +1236,17 @@ async function initModelViewer() {
             }
             previewMesh.position = adjustedCenter.negate();
             
+            // Apply different rotations based on satellite type
+            // to ensure antennas and sensors are pointing correctly
+            if (satName.toUpperCase().includes('CRTS')) {
+                // CRTS: Rotate 270 degrees around Y-axis (180 + 90)
+                previewMesh.rotation.y = Math.PI * 1.5; // 270 degrees in radians
+            } else if (satName.toUpperCase().includes('BULLDOG')) {
+                // Bulldog: Rotate to point dish down at Earth
+                previewMesh.rotation.x = -Math.PI / 2; // 90 degrees up (negative = up)
+                previewMesh.rotation.y = Math.PI; // 180 degrees around Y
+            }
+            
             // Add smooth auto-rotation animation with proper cleanup
             const rotationObserver = previewScene.onBeforeRenderObservable.add(() => {
                 if (previewMesh && previewMesh.rotation) {
