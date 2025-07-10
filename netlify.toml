@@ -1,11 +1,7 @@
 [build]
-<<<<<<< HEAD
-  command = "npm install --production=false && npm run build:prod"
-=======
-  # Production build command with obfuscation enabled
-  # Uses webpack.config.prod.js which includes minimal obfuscation settings
+  # Production build command (obfuscation currently disabled)
+  # Uses webpack.config.prod.js with minification and optimization
   command = "npm install && npm run build:prod"
->>>>>>> bug/fixes
   publish = "frontend/dist"
   
 [build.environment]
