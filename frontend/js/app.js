@@ -72,6 +72,24 @@ export async function initApp() {
     // Initialize 3D model viewer panel
     initModelViewer();
     
+    // Initialize SDA panel minimize buttons
+    setTimeout(() => {
+        const sdaLegendMinBtn = document.getElementById('minimize-sda-legend-btn');
+        const sdaBrowserMinBtn = document.getElementById('minimize-sda-browser-btn');
+        
+        if (sdaLegendMinBtn) {
+            sdaLegendMinBtn.addEventListener('click', () => {
+                minimizeSDAPanel('legend');
+            });
+        }
+        
+        if (sdaBrowserMinBtn) {
+            sdaBrowserMinBtn.addEventListener('click', () => {
+                minimizeSDAPanel('browser');
+            });
+        }
+    }, 500);
+    
     // Set up listener for LEOS dial buttons
     window.addEventListener('leos-dial-action', (event) => {
         const action = event.detail.action;
@@ -1505,6 +1523,117 @@ function cleanupMinimizedTabs() {
 
 // Make cleanup function globally accessible
 window.cleanupMinimizedTabs = cleanupMinimizedTabs;
+
+/**
+ * Minimizes SDA panels and creates minimized tabs
+ */
+function minimizeSDAPanel(panelType) {
+    const tabsContainer = document.getElementById('minimized-tabs-container');
+    
+    if (panelType === 'legend') {
+        const sdaLegend = document.getElementById('sda-legend');
+        const existingTab = document.getElementById('minimized-sda-legend-tab');
+        
+        // Hide the panel
+        if (sdaLegend) {
+            sdaLegend.style.display = 'none';
+            sdaLegend.classList.remove('visible');
+        }
+        
+        // Create minimized tab if it doesn't exist
+        if (!existingTab && tabsContainer) {
+            const tab = document.createElement('div');
+            tab.id = 'minimized-sda-legend-tab';
+            tab.className = 'minimized-tab sda-legend-tab';
+            tab.innerHTML = `<img src="/assets/sat.svg" style="width:18px; height:18px; filter:brightness(0) invert(1);" alt="SDA Visualization">`;
+            tab.title = 'Click to restore SDA visualization panel';
+            
+            // Purple color for SDA
+            tab.style.background = 'rgba(138, 43, 226, 0.7)';
+            tab.style.borderColor = '#8a2be2';
+            
+            tab.addEventListener('click', () => {
+                restoreSDAPanel('legend');
+            });
+            
+            tabsContainer.appendChild(tab);
+        }
+        
+    } else if (panelType === 'browser') {
+        const sdaBrowser = document.getElementById('sda-data-browser');
+        const existingTab = document.getElementById('minimized-sda-browser-tab');
+        
+        // Hide the panel
+        if (sdaBrowser) {
+            sdaBrowser.style.display = 'none';
+            sdaBrowser.classList.remove('visible');
+        }
+        
+        // Create minimized tab if it doesn't exist
+        if (!existingTab && tabsContainer) {
+            const tab = document.createElement('div');
+            tab.id = 'minimized-sda-browser-tab';
+            tab.className = 'minimized-tab sda-browser-tab';
+            tab.innerHTML = `<img src="/assets/telem.svg" style="width:18px; height:18px; filter:brightness(0) invert(1);" alt="Satellite Database">`;
+            tab.title = 'Click to restore satellite database panel';
+            
+            // Green color for database
+            tab.style.background = 'rgba(34, 197, 94, 0.7)';
+            tab.style.borderColor = '#22c55e';
+            
+            tab.addEventListener('click', () => {
+                restoreSDAPanel('browser');
+            });
+            
+            tabsContainer.appendChild(tab);
+        }
+    }
+    
+    updateDockVisibility();
+}
+
+/**
+ * Restores a minimized SDA panel and removes its tab
+ */
+function restoreSDAPanel(panelType) {
+    if (panelType === 'legend') {
+        const sdaLegend = document.getElementById('sda-legend');
+        const tab = document.getElementById('minimized-sda-legend-tab');
+        
+        // Show the panel
+        if (sdaLegend) {
+            sdaLegend.style.display = 'block';
+            sdaLegend.classList.add('visible');
+        }
+        
+        // Remove the tab
+        if (tab) {
+            tab.remove();
+        }
+        
+    } else if (panelType === 'browser') {
+        const sdaBrowser = document.getElementById('sda-data-browser');
+        const tab = document.getElementById('minimized-sda-browser-tab');
+        
+        // Show the panel
+        if (sdaBrowser) {
+            sdaBrowser.style.display = '';
+            sdaBrowser.classList.add('visible');
+        }
+        
+        // Remove the tab
+        if (tab) {
+            tab.remove();
+        }
+    }
+    
+    updateDockVisibility();
+}
+
+// Make SDA functions globally accessible
+window.minimizeSDAPanel = minimizeSDAPanel;
+window.restoreSDAPanel = restoreSDAPanel;
+window.updateDockVisibility = updateDockVisibility;
 
 /**
  * Updates the visibility of the minimize dock based on minimized panels

@@ -301,6 +301,26 @@ class SDAVisualization {
       addTleButton.style.display = visible ? 'block' : 'none';
     }
     
+    // Clean up minimized tabs when SDA is turned off
+    if (!visible) {
+      // Remove any minimized SDA tabs from the dock
+      const sdaLegendTab = document.getElementById('minimized-sda-legend-tab');
+      const sdaBrowserTab = document.getElementById('minimized-sda-browser-tab');
+      
+      if (sdaLegendTab) {
+        sdaLegendTab.remove();
+      }
+      
+      if (sdaBrowserTab) {
+        sdaBrowserTab.remove();
+      }
+      
+      // Update dock visibility
+      if (window.updateDockVisibility) {
+        window.updateDockVisibility();
+      }
+    }
+    
     console.log(`SDA visualization visibility set to: ${visible}`);
   }
 

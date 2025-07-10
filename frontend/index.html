@@ -136,6 +136,7 @@
             <h4>
                 Space Domain Awareness <span id="sda-object-count" style="color: #00cfff; font-weight: normal;">(0 objects)</span>
                 <span class="beta-badge">BETA</span>
+                <button class="minimize-btn" id="minimize-sda-legend-btn" style="position: absolute; right: 10px; top: 10px; background: none; border: none; cursor: pointer; padding: 0; color: #66d9ff; font-size: 24px; line-height: 1; transition: all 0.3s ease;" title="Minimize to dock" onmouseover="this.style.color='#00cfff'; this.style.transform='scale(1.2)';" onmouseout="this.style.color='#66d9ff'; this.style.transform='scale(1)';">−</button>
             </h4>
             <div style="background: rgba(255, 200, 0, 0.1); border: 1px solid #ffc800; border-radius: 4px; padding: 8px; margin-bottom: 15px; font-size: 11px; color: #ffc800;">
                 🚧 <strong>BETA VERSION:</strong> Data is for demonstration purposes. Real satellites use 1-week-old NORAD data, not live real-time positions.
@@ -239,7 +240,10 @@
         
         <!-- SDA Data Browser (hidden by default) -->
         <div class="sda-data-browser" id="sda-data-browser">
-            <h4>Satellite Database</h4>
+            <h4>
+                Satellite Database
+                <button class="minimize-btn" id="minimize-sda-browser-btn" style="position: absolute; right: 10px; top: 10px; background: none; border: none; cursor: pointer; padding: 0; color: #66d9ff; font-size: 24px; line-height: 1; transition: all 0.3s ease;" title="Minimize to dock" onmouseover="this.style.color='#00cfff'; this.style.transform='scale(1.2)';" onmouseout="this.style.color='#66d9ff'; this.style.transform='scale(1)';">−</button>
+            </h4>
             
             <div class="sda-search-controls">
                 <input type="text" class="sda-search-input" id="sda-search-input" placeholder="Search satellites...">
