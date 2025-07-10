@@ -1351,14 +1351,31 @@ class SDAVisualization {
       return matchesSearch && matchesFilter;
     });
 
-    // Sort by name
-    filteredData.sort((a, b) => a.name.localeCompare(b.name));
+    // Sort by source (real first) then by name
+    filteredData.sort((a, b) => {
+      // Prioritize real NORAD satellites
+      if (a.isReal && !b.isReal) return -1;
+      if (!a.isReal && b.isReal) return 1;
+      // Then sort by orbit class
+      const classOrder = ['LEO', 'MEO', 'GEO', 'HEO', 'DEBRIS'];
+      const aIndex = classOrder.indexOf(a.class);
+      const bIndex = classOrder.indexOf(b.class);
+      if (aIndex !== bIndex) return aIndex - bIndex;
+      // Finally sort by name
+      return a.name.localeCompare(b.name);
+    });
 
-    // Limit to 100 items for performance
-    filteredData = filteredData.slice(0, 100);
+    // Show more items with pagination
+    const itemsPerPage = 500;
+    const currentPage = this.currentPage || 0;
+    const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+    const startIndex = currentPage * itemsPerPage;
+    const endIndex = Math.min(startIndex + itemsPerPage, filteredData.length);
+    
+    const paginatedData = filteredData.slice(startIndex, endIndex);
 
     // Generate HTML
-    const html = filteredData.map(item => {
+    const html = paginatedData.map(item => {
       const classColors = {
         'LEO': '#33ffff',
         'MEO': '#ffff33', 
@@ -1369,9 +1386,12 @@ class SDAVisualization {
       };
 
       return `
-        <div class="sda-data-item" data-object-id="${item.id}">
+        <div class="sda-data-item ${item.isReal ? 'real-satellite' : ''}" data-object-id="${item.id}">
           <div class="sda-data-header">
-            <span class="sda-data-name">${item.name}</span>
+            <span class="sda-data-name">
+              ${item.isReal ? '<span style="color: #00ff64; font-weight: bold;">✓</span> ' : ''}
+              ${item.name}
+            </span>
             <span class="sda-data-class" style="background: ${classColors[item.class] || '#888'}; color: black;">${item.class}</span>
           </div>
           <div class="sda-data-details">
@@ -1401,12 +1421,47 @@ class SDAVisualization {
               <span>${item.launch}</span>
             </div>
             ` : ''}
+            <div class="sda-data-row">
+              <span>Source:</span>
+              <span style="color: ${item.isReal ? '#00ff64' : '#ff8833'}; font-weight: bold;">
+                ${item.source || (item.isReal ? 'NORAD' : 'Simulated')}
+              </span>
+            </div>
           </div>
         </div>
       `;
     }).join('');
 
-    dataList.innerHTML = html;
+    // Add pagination info and controls
+    const paginationHtml = `
+      <div style="padding: 15px; text-align: center; border-top: 1px solid #333; margin-top: 10px;">
+        <div style="color: #66d9ff; margin-bottom: 10px;">
+          Showing ${startIndex + 1}-${endIndex} of ${filteredData.length} satellites
+          ${filteredData.length > 0 && filteredData.filter(s => s.isReal).length > 0 ? 
+            `<br><span style="color: #00ff64;">✓ ${filteredData.filter(s => s.isReal).length} Real NORAD</span> | 
+             <span style="color: #ff8833;">${filteredData.filter(s => !s.isReal).length} Simulated</span>` : ''}
+        </div>
+        ${totalPages > 1 ? `
+          <div style="display: flex; justify-content: center; gap: 10px; align-items: center;">
+            <button id="sda-prev-page" ${currentPage === 0 ? 'disabled' : ''} 
+              style="padding: 5px 15px; background: ${currentPage === 0 ? '#333' : '#00cfff'}; 
+                     color: ${currentPage === 0 ? '#666' : '#000'}; border: none; 
+                     border-radius: 4px; cursor: ${currentPage === 0 ? 'default' : 'pointer'};">
+              Previous
+            </button>
+            <span style="color: #fff;">Page ${currentPage + 1} of ${totalPages}</span>
+            <button id="sda-next-page" ${currentPage >= totalPages - 1 ? 'disabled' : ''} 
+              style="padding: 5px 15px; background: ${currentPage >= totalPages - 1 ? '#333' : '#00cfff'}; 
+                     color: ${currentPage >= totalPages - 1 ? '#666' : '#000'}; border: none; 
+                     border-radius: 4px; cursor: ${currentPage >= totalPages - 1 ? 'default' : 'pointer'};">
+              Next
+            </button>
+          </div>
+        ` : ''}
+      </div>
+    `;
+
+    dataList.innerHTML = html + paginationHtml;
 
     // Add click handlers for expansion
     dataList.querySelectorAll('.sda-data-item').forEach(item => {
@@ -1414,9 +1469,28 @@ class SDAVisualization {
         item.classList.toggle('expanded');
       });
     });
+
+    // Add pagination handlers
+    const prevBtn = document.getElementById('sda-prev-page');
+    const nextBtn = document.getElementById('sda-next-page');
+    
+    if (prevBtn) {
+      prevBtn.addEventListener('click', () => {
+        this.currentPage = Math.max(0, (this.currentPage || 0) - 1);
+        this.renderDataList();
+      });
+    }
+    
+    if (nextBtn) {
+      nextBtn.addEventListener('click', () => {
+        this.currentPage = Math.min(totalPages - 1, (this.currentPage || 0) + 1);
+        this.renderDataList();
+      });
+    }
   }
 
   filterDataList() {
+    this.currentPage = 0; // Reset to first page when filtering
     this.renderDataList();
   }
 

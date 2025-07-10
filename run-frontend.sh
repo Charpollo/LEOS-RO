@@ -1,24 +1,25 @@
 #!/bin/bash
 
 # run-frontend.sh - Runs the LEOS First Orbit frontend
-# Usage: ./run-frontend.sh [--clean] [--port PORT] [--prod]
-#   --clean: Clean build directory before building
-#   --port:  Specify port (default: 8080)
-#   --prod:  Build with production mode (minified & obfuscated)
+# Usage: ./run-frontend.sh [--clean] [--port PORT] [--obfuscate]
+#   --clean:     Clean build directory before building
+#   --port:      Specify port (default: 8080)
+#   --obfuscate: Build with production mode (minified only - obfuscation currently disabled)
 
 set -e
 
 # Default values
 PORT=8080
 CLEAN=false
-PRODUCTION=false
+OBFUSCATE=false
 
 # Parse arguments
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         --clean) CLEAN=true ;;
         --port) PORT="$2"; shift ;;
-        --prod) PRODUCTION=true ;;
+        --obfuscate) OBFUSCATE=true ;;
+        --prod) OBFUSCATE=true ;; # Keep --prod for backwards compatibility
         *) echo "Unknown parameter: $1"; exit 1 ;;
     esac
     shift
@@ -37,8 +38,10 @@ if [ "$CLEAN" = true ]; then
 fi
 
 # Build the frontend
-if [ "$PRODUCTION" = true ]; then
-    echo "Building frontend for PRODUCTION (minified & obfuscated)..."
+if [ "$OBFUSCATE" = true ]; then
+    echo "Building frontend with PRODUCTION mode (minified, no obfuscation)..."
+    echo "Note: Obfuscation is currently disabled due to Web Worker compatibility"
+    echo "This may take a moment..."
     npm run build:prod
 else
     echo "Building frontend for development..."
