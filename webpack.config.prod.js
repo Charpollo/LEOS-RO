@@ -84,35 +84,34 @@ module.exports = {
         { from: 'frontend/data', to: 'data' }
       ]
     }),
-    // JavaScript obfuscation - balanced security without breaking functionality
+    // JavaScript obfuscation - minimal to prevent breaking
     new JavaScriptObfuscator({
-      // Moderate obfuscation to prevent undefined reference errors
+      // Minimal obfuscation that won't break the code
       compact: true,
-      controlFlowFlattening: false, // Disabled - often causes undefined references
-      deadCodeInjection: false, // Disabled - can cause runtime errors
+      controlFlowFlattening: false,
+      deadCodeInjection: false,
       debugProtection: false,
       disableConsoleOutput: true,
       identifierNamesGenerator: 'hexadecimal',
       log: false,
-      numbersToExpressions: true,
+      numbersToExpressions: false, // Disabled - can cause issues
       renameGlobals: false, // MUST be false - breaks Babylon.js
       selfDefending: false,
-      simplify: true,
-      splitStrings: true,
-      splitStringsChunkLength: 10,
+      simplify: false, // Disabled - can cause issues
+      splitStrings: false, // Disabled - can cause issues
       stringArray: true,
-      stringArrayCallsTransform: false, // Disabled - can cause undefined references
-      stringArrayEncoding: ['base64'],
-      stringArrayIndexShift: true,
-      stringArrayRotate: true,
-      stringArrayShuffle: true,
-      stringArrayWrappersCount: 1, // Reduced from 2
-      stringArrayWrappersChainedCalls: false, // Disabled - can cause issues
-      stringArrayWrappersParametersMaxCount: 2, // Reduced from 4
-      stringArrayWrappersType: 'variable', // Changed from 'function' - more stable
+      stringArrayCallsTransform: false,
+      stringArrayEncoding: ['none'], // Use 'none' instead of false
+      stringArrayIndexShift: false,
+      stringArrayRotate: false,
+      stringArrayShuffle: false,
+      stringArrayWrappersCount: 0,
+      stringArrayWrappersChainedCalls: false,
+      stringArrayWrappersParametersMaxCount: 2, // Minimum is 2
+      stringArrayWrappersType: 'variable',
       stringArrayThreshold: 0.75,
-      transformObjectKeys: true,
-      unicodeEscapeSequence: false // Disabled - can cause encoding issues
+      transformObjectKeys: false, // Disabled - can cause issues
+      unicodeEscapeSequence: false
     }, [
       // Exclude vendor bundles and any file with 'worker' in the name
       'babylon.*.js',
