@@ -1007,7 +1007,7 @@ class SDAVisualization {
       
       // Create master mesh with subtle but visible sizing
       const masterMesh = BABYLON.MeshBuilder.CreateSphere(`sda_master_${orbitClass}`, {
-        diameter: orbitClass === 'GEO' ? 0.016 : orbitClass === 'DEBRIS' ? 0.006 : orbitClass === 'LEO' ? 0.009 : 0.012, // Smaller debris and LEO
+        diameter: orbitClass === 'GEO' ? 0.012 : orbitClass === 'DEBRIS' ? 0.004 : orbitClass === 'LEO' ? 0.006 : 0.008, // Smaller orbs for better visibility
         segments: 4      // Reduced segments for performance
       }, this.scene);
       
