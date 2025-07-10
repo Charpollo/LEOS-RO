@@ -6,7 +6,7 @@ export async function createEarth(scene, getTimeMultiplier, sunDirection) {
     
     // Create base Earth mesh with optimized polygon count
     const earthMesh = BABYLON.MeshBuilder.CreateSphere('earth', { 
-        segments: 128, // Increased resolution for smoother mesh
+        segments: 256, // Higher resolution for smoother mesh and reduced seams
         diameter: 2 // Unit sphere (radius 1)
     }, scene);
     
@@ -35,15 +35,13 @@ export async function createEarth(scene, getTimeMultiplier, sunDirection) {
         () => console.log("Earth night texture loaded successfully")
     );
     
-    // Configure texture wrapping to wrap seamless at U boundary
-    // Move seam to Pacific to hide it
-    dayTexture.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
-    dayTexture.uOffset = 0.25;  // Shift horizontal seam to 90°W
+    // Configure texture wrapping for seamless spherical mapping
+    // Use WRAP mode to allow continuous UV coordinates
+    dayTexture.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
     dayTexture.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
     
     // Configure night texture likewise
-    nightTexture.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
-    nightTexture.uOffset = 0.25;
+    nightTexture.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
     nightTexture.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
     
     // Create a simple blank texture for specular instead of trying to load .tif/.tiff
@@ -86,10 +84,11 @@ export async function createEarth(scene, getTimeMultiplier, sunDirection) {
             vNormal = normalize(mat3(world) * normal);
             
             // Adjust texture coordinates to align with ground station positions
-            // Flip and shift U coordinate, wrap seamlessly
+            // Flip horizontally and shift by 180 degrees for proper alignment
             vec2 correctedUV = uv;
-            float flipped = 1.0 - uv.x;
-            correctedUV.x = fract(flipped + 0.5); // Flip and shift, then wrap with fract
+            correctedUV.x = 1.0 - uv.x; // Flip horizontally
+            correctedUV.x = correctedUV.x + 0.5; // Shift by 180 degrees
+            // Don't use fract() here - let the texture sampler handle wrapping
             vUV = correctedUV;
             
             vViewDirection = normalize(cameraPosition - worldPosition.xyz);
@@ -223,13 +222,9 @@ export async function createEarth(scene, getTimeMultiplier, sunDirection) {
     const cloudsMaterial = new BABYLON.StandardMaterial('cloudsMaterial', scene);
     const cloudsTexture = new BABYLON.Texture('assets/earth_clouds.jpg', scene);
     
-    // Apply same texture correction as Earth surface
-    cloudsTexture.uOffset = 1.0;
-    cloudsTexture.vOffset = 0.0;
-    cloudsTexture.uScale = -1.0;
-    cloudsTexture.vScale = 1.0;
-    cloudsTexture.wrapU = BABYLON.Texture.MIRROR_ADDRESSMODE;
-    cloudsTexture.wrapV = BABYLON.Texture.MIRROR_ADDRESSMODE;
+    // Apply consistent texture wrapping for seamless clouds
+    cloudsTexture.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
+    cloudsTexture.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
     
     cloudsMaterial.diffuseTexture = cloudsTexture;
     cloudsMaterial.opacityTexture = cloudsTexture;
