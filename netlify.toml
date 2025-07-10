@@ -1,7 +1,8 @@
 [build]
   # Production build command (obfuscation currently disabled)
   # Uses webpack.config.prod.js with minification and optimization
-  command = "npm install && npm run build:prod"
+  # Install with --production=false to get devDependencies (webpack, etc.)
+  command = "npm install --production=false && npm run build:prod"
   publish = "frontend/dist"
   
 [build.environment]
