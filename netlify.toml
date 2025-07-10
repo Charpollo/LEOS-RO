@@ -1,4 +1,6 @@
 [build]
+  # Production build command with obfuscation enabled
+  # Uses webpack.config.prod.js which includes minimal obfuscation settings
   command = "npm install && npm run build:prod"
   publish = "frontend/dist"
   

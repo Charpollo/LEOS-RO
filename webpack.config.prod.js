@@ -84,9 +84,11 @@ module.exports = {
         { from: 'frontend/data', to: 'data' }
       ]
     }),
-    // JavaScript obfuscation - minimal to prevent breaking
+    // JavaScript obfuscation DISABLED - was breaking Web Workers
+    // Uncomment the block below to re-enable obfuscation if needed
+    /*
     new JavaScriptObfuscator({
-      // Minimal obfuscation that won't break the code
+      // Minimal obfuscation settings
       compact: true,
       controlFlowFlattening: false,
       deadCodeInjection: false,
@@ -94,31 +96,31 @@ module.exports = {
       disableConsoleOutput: true,
       identifierNamesGenerator: 'hexadecimal',
       log: false,
-      numbersToExpressions: false, // Disabled - can cause issues
-      renameGlobals: false, // MUST be false - breaks Babylon.js
+      numbersToExpressions: false,
+      renameGlobals: false,
       selfDefending: false,
-      simplify: false, // Disabled - can cause issues
-      splitStrings: false, // Disabled - can cause issues
+      simplify: false,
+      splitStrings: false,
       stringArray: true,
       stringArrayCallsTransform: false,
-      stringArrayEncoding: ['none'], // Use 'none' instead of false
+      stringArrayEncoding: ['none'],
       stringArrayIndexShift: false,
       stringArrayRotate: false,
       stringArrayShuffle: false,
       stringArrayWrappersCount: 0,
       stringArrayWrappersChainedCalls: false,
-      stringArrayWrappersParametersMaxCount: 2, // Minimum is 2
+      stringArrayWrappersParametersMaxCount: 2,
       stringArrayWrappersType: 'variable',
       stringArrayThreshold: 0.75,
-      transformObjectKeys: false, // Disabled - can cause issues
+      transformObjectKeys: false,
       unicodeEscapeSequence: false
     }, [
-      // Exclude vendor bundles and any file with 'worker' in the name
       'babylon.*.js',
       'vendors.*.js',
       '*worker*.js',
       '*Worker*.js'
     ]),
+    */
     // Gzip compression for smaller file sizes
     new CompressionPlugin({
       algorithm: 'gzip',
