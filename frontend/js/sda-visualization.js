@@ -33,7 +33,8 @@ class SDAVisualization {
       GEO: new BABYLON.Color3(1, 0.2, 0.2),   // Bright Red
       HEO: new BABYLON.Color3(1, 0.2, 1),     // Bright Purple
       DEBRIS: new BABYLON.Color3(1, 0.5, 0.2), // Orange for debris
-      REAL: new BABYLON.Color3(1, 1, 1)       // White for real NORAD satellites
+      REAL: new BABYLON.Color3(1, 1, 1),      // White for real NORAD satellites
+      SPECIAL: new BABYLON.Color3(0.46, 0.73, 0) // System76 Green for tribute satellites
     };
     
     // Frustum culling optimization
@@ -329,6 +330,15 @@ class SDAVisualization {
     this.isVisible = visible;
     if (this.mesh) {
       this.mesh.setEnabled(visible);
+    }
+    
+    // Toggle special satellites visibility
+    if (this.specialSatellites) {
+      this.specialSatellites.forEach(special => {
+        if (special.mesh) {
+          special.mesh.setEnabled(visible);
+        }
+      });
     }
     
     // Update UI elements visibility
@@ -900,18 +910,34 @@ class SDAVisualization {
     // Debug logging for real satellite detection
     console.log(`Tooltip for ${cleanName}: isReal=${satelliteData.isReal}, source=${satelliteData.source}, class=${orbitClass}, determined as: ${dataSource}`);
     
-    tooltip.innerHTML = `
-      <h4>${cleanName}</h4>
-      <div style="background: rgba(${isRealSatellite ? '0, 255, 100' : '255, 136, 0'}, 0.1); padding: 6px 8px; border-radius: 4px; margin: 8px 0;">
-        <p style="font-size: 12px; color: ${sourceColor}; margin: 0; font-weight: bold;">${dataSource}</p>
-      </div>
-      <p><strong>Class:</strong> <span class="orbit-class ${orbitClass.toLowerCase()}">${orbitClass}</span></p>
-      <p><strong>NORAD ID:</strong> ${noradId}</p>
-      <p><strong>Altitude:</strong> ${altitude}</p>
-      <p><strong>Inclination:</strong> ${inclination}</p>
-      <p><strong>Country:</strong> ${country}</p>
-      ${satelliteData.rcs ? `<p><strong>RCS:</strong> ${satelliteData.rcs}</p>` : ''}
-    `;
+    // Special handling for Thelio-1
+    if (satelliteData.isSpecial && satelliteData.name === 'Thelio-1 (Tribute)') {
+      tooltip.innerHTML = `
+        <h4 style="color: #76B900;">${cleanName}</h4>
+        <div style="background: rgba(118, 185, 0, 0.2); padding: 8px 10px; border-radius: 4px; margin: 8px 0;">
+          <p style="font-size: 12px; color: #00ccff; margin: 0; font-style: italic;">${satelliteData.message}</p>
+        </div>
+        <p><strong>Class:</strong> <span class="orbit-class ${orbitClass.toLowerCase()}">${orbitClass}</span></p>
+        <p><strong>NORAD ID:</strong> ${noradId}</p>
+        <p><strong>Altitude:</strong> ${altitude}</p>
+        <p><strong>Inclination:</strong> ${inclination}</p>
+        <p><strong>Launch Site:</strong> ${satelliteData.launchSite}</p>
+        <p><strong>Launch Date:</strong> ${satelliteData.launch}</p>
+      `;
+    } else {
+      tooltip.innerHTML = `
+        <h4>${cleanName}</h4>
+        <div style="background: rgba(${isRealSatellite ? '0, 255, 100' : '255, 136, 0'}, 0.1); padding: 6px 8px; border-radius: 4px; margin: 8px 0;">
+          <p style="font-size: 12px; color: ${sourceColor}; margin: 0; font-weight: bold;">${dataSource}</p>
+        </div>
+        <p><strong>Class:</strong> <span class="orbit-class ${orbitClass.toLowerCase()}">${orbitClass}</span></p>
+        <p><strong>NORAD ID:</strong> ${noradId}</p>
+        <p><strong>Altitude:</strong> ${altitude}</p>
+        <p><strong>Inclination:</strong> ${inclination}</p>
+        <p><strong>Country:</strong> ${country}</p>
+        ${satelliteData.rcs ? `<p><strong>RCS:</strong> ${satelliteData.rcs}</p>` : ''}
+      `;
+    }
     
     // Position tooltip
     tooltip.style.left = (x + 10) + 'px';
@@ -958,6 +984,16 @@ class SDAVisualization {
       if (mesh) mesh.dispose();
     });
     
+    // Clean up special satellites
+    if (this.specialSatellites) {
+      this.specialSatellites.forEach(special => {
+        if (special.mesh) {
+          special.mesh.dispose();
+        }
+      });
+      this.specialSatellites = [];
+    }
+    
     // Reset all data structures
     this.objectData = {};
     this.instancedMeshes = {};
@@ -985,6 +1021,97 @@ class SDAVisualization {
       material.freeze(); // Freeze material for better performance
       this.sharedMaterials[orbitClass] = material;
     });
+    
+    // Track special satellites for animation
+    this.specialSatellites = [];
+  }
+  
+  async createSpecialSatellites() {
+    // Find all special satellites like Thelio-1
+    const specialSats = Object.entries(this.objectData).filter(([id, data]) => data.isSpecial);
+    
+    if (specialSats.length === 0) return;
+    
+    console.log(`Creating ${specialSats.length} special tribute satellites`);
+    
+    for (const [id, satData] of specialSats) {
+      // Create a separate sphere for each special satellite
+      const sphere = BABYLON.MeshBuilder.CreateSphere(`special_${id}`, {
+        diameter: 0.4 * (satData.specialSize || 1.5), // Larger size
+        segments: 16
+      }, this.scene);
+      
+      // Apply special material
+      sphere.material = this.sharedMaterials.special;
+      
+      // Set position
+      if (satData.position) {
+        const pos = this.positionToBabylon(satData.position);
+        sphere.position = pos;
+      }
+      
+      // Add to glow layer
+      if (!this.scene.glowLayer) {
+        this.scene.glowLayer = new BABYLON.GlowLayer("sda_glow", this.scene);
+        this.scene.glowLayer.intensity = 0.5;
+      }
+      this.scene.glowLayer.addIncludedOnlyMesh(sphere);
+      
+      // Store reference for animation
+      this.specialSatellites.push({
+        mesh: sphere,
+        data: satData,
+        pulsePhase: 0
+      });
+      
+      // Hide the original instance if it exists
+      this.hideSpecialSatelliteInstance(satData);
+    }
+    
+    // Set up pulse animation
+    this.scene.registerBeforeRender(() => {
+      this.animateSpecialSatellites();
+    });
+  }
+  
+  hideSpecialSatelliteInstance(satData) {
+    // Find and hide the thin instance for this special satellite
+    const orbitClass = satData.meshClass || satData.class;
+    const instanceIndex = satData.instanceIndex;
+    
+    if (orbitClass && instanceIndex !== undefined && this.instanceMatrices[orbitClass]) {
+      const matrices = this.instanceMatrices[orbitClass];
+      const matrixOffset = instanceIndex * 16;
+      
+      // Scale to zero to hide
+      matrices[matrixOffset + 0] = 0;      // X scale
+      matrices[matrixOffset + 5] = 0;      // Y scale  
+      matrices[matrixOffset + 10] = 0;     // Z scale
+      
+      // Update the mesh
+      if (this.instancedMeshes[orbitClass]) {
+        this.instancedMeshes[orbitClass].thinInstanceSetBuffer("matrix", matrices, 16);
+      }
+    }
+  }
+  
+  animateSpecialSatellites() {
+    const time = performance.now() * 0.001; // Convert to seconds
+    
+    for (const special of this.specialSatellites) {
+      // Pulse effect: scale between 1.0 and 1.3
+      const pulseScale = 1.0 + 0.3 * Math.sin(time * 2);
+      const baseSize = special.data.specialSize || 1.5;
+      special.mesh.scaling.setAll(pulseScale * baseSize);
+      
+      // Rotate slowly
+      special.mesh.rotation.y = time * 0.5;
+      
+      // Update glow intensity for pulse
+      if (this.scene.glowLayer) {
+        this.scene.glowLayer.intensity = 0.3 + 0.2 * Math.sin(time * 2);
+      }
+    }
   }
   
   async createThinInstances() {
@@ -1062,7 +1189,7 @@ class SDAVisualization {
     console.log(`🔍 Class counts:`, classCounts);
     
     // Create thin instances for each orbit class in order: REAL first, then others
-    const creationOrder = ['REAL', 'LEO', 'MEO', 'GEO', 'HEO', 'DEBRIS', 'USER'];
+    const creationOrder = ['REAL', 'LEO', 'MEO', 'GEO', 'HEO', 'DEBRIS', 'USER', 'SPECIAL'];
     let totalInstancesCreated = 0;
     
     for (const orbitClass of creationOrder) {
@@ -1147,11 +1274,28 @@ class SDAVisualization {
         }
         
         // Create transformation matrix using validInstanceCount for proper indexing
-        const matrix = BABYLON.Matrix.Translation(babylonPos.x, babylonPos.y, babylonPos.z);
+        // Check for special satellites like Thelio-1
+        let scaleVector = new BABYLON.Vector3(1, 1, 1);
+        if (obj.isSpecial && obj.specialSize) {
+          scaleVector = new BABYLON.Vector3(obj.specialSize, obj.specialSize, obj.specialSize);
+        }
+        
+        const matrix = BABYLON.Matrix.Compose(
+          scaleVector,
+          BABYLON.Quaternion.Identity(),
+          babylonPos
+        );
         matrix.copyToArray(matrices, validInstanceCount * 16);
         
-        // Set color with special treatment for real NORAD satellites
-        if (obj.isReal && obj.source === 'NORAD') {
+        // Set color with special treatment for special satellites and real NORAD satellites
+        if (obj.isSpecial && obj.specialColor) {
+          // Special satellites like Thelio-1: use custom color
+          const specialColor = BABYLON.Color3.FromHexString(obj.specialColor);
+          colors[validInstanceCount * 4] = specialColor.r;
+          colors[validInstanceCount * 4 + 1] = specialColor.g;
+          colors[validInstanceCount * 4 + 2] = specialColor.b;
+          colors[validInstanceCount * 4 + 3] = 1.0; // Full opacity for special satellites
+        } else if (obj.isReal && obj.source === 'NORAD') {
           // Real satellites: brighter with white tint to distinguish them
           colors[validInstanceCount * 4] = Math.min(color.r * 1.5 + 0.3, 1.0);     // Add white tint
           colors[validInstanceCount * 4 + 1] = Math.min(color.g * 1.5 + 0.3, 1.0); // Add white tint
@@ -1182,7 +1326,15 @@ class SDAVisualization {
           labelVisible: false,
           isReal: obj.isReal || false,
           source: obj.source || 'Unknown',
-          isVisibleInScene: true // Track visibility for tooltip system
+          isVisibleInScene: true, // Track visibility for tooltip system
+          position: position, // Store original position for special satellites
+          // Special properties for Thelio-1
+          isSpecial: obj.isSpecial || false,
+          mission: obj.mission || '',
+          message: obj.message || '',
+          greekMessage: obj.greekMessage || '',
+          website: obj.website || '',
+          launchSite: obj.launchSite || ''
         };
         
         // Store instance mapping
@@ -1289,6 +1441,9 @@ class SDAVisualization {
     }
     
     console.log(`Total instances created: ${totalInstancesCreated} out of ${this.tleData.length} TLE objects`);
+    
+    // Create special satellites with glow and pulse
+    // await this.createSpecialSatellites(); // Disabled - too complex
     
     // Update legend with object counts
     this.updateLegendCounts(classCounts, totalInstancesCreated);
@@ -1671,6 +1826,56 @@ class SDAVisualization {
         'USER': '#ffffff'
       };
 
+      // Special handling for Thelio-1
+      if (item.isSpecial && item.name === 'Thelio-1 (Tribute)') {
+        return `
+          <div class="sda-data-item special-satellite" data-object-id="${item.id}" style="border: 1px solid #76B900; background: rgba(118, 185, 0, 0.05);">
+            <div class="sda-data-header">
+              <span class="sda-data-name" style="color: #76B900;">
+                <span style="font-size: 16px;">🟢</span> ${item.name}
+              </span>
+              <span class="sda-data-class" style="background: ${classColors[item.class] || '#888'}; color: black;">${item.class}</span>
+            </div>
+            <div class="sda-data-details">
+              <div style="background: rgba(118, 185, 0, 0.1); padding: 8px; border-radius: 4px; margin-bottom: 8px;">
+                <p style="font-size: 11px; color: #76B900; margin: 0 0 4px 0; font-weight: bold;">Special Tribute Satellite</p>
+                <p style="font-size: 11px; color: #00ccff; margin: 0;">Look for the larger green orb in the MEO belt!</p>
+              </div>
+              <div class="sda-data-row">
+                <span>NORAD ID:</span>
+                <span>${item.noradId}</span>
+              </div>
+              <div class="sda-data-row">
+                <span>Altitude:</span>
+                <span>${item.altitude} km</span>
+              </div>
+              <div class="sda-data-row">
+                <span>Inclination:</span>
+                <span>${item.inclination}°</span>
+              </div>
+              <div class="sda-data-row">
+                <span>Launch Site:</span>
+                <span>${item.launchSite}</span>
+              </div>
+              <div class="sda-data-row">
+                <span>Launch:</span>
+                <span>${item.launch}</span>
+              </div>
+              <div class="sda-data-row">
+                <span>Mission:</span>
+                <span style="font-size: 10px; color: #aaa;">${item.mission}</span>
+              </div>
+              <div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(118, 185, 0, 0.3);">
+                <a href="${item.website}" target="_blank" style="color: #76B900; text-decoration: none; font-weight: bold; display: block; text-align: center; padding: 6px; background: rgba(118, 185, 0, 0.1); border-radius: 4px;">
+                  Visit System76.com →
+                </a>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+      
+      // Regular satellite rendering
       return `
         <div class="sda-data-item ${item.isReal ? 'real-satellite' : ''}" data-object-id="${item.id}">
           <div class="sda-data-header">
@@ -2217,6 +2422,7 @@ class SDAVisualization {
       { name: 'MEO-GLONASS', ratio: 0.0005, altitude: 19100, inclination: 65, class: 'MEO' },
       { name: 'MEO-BeiDou', ratio: 0.0006, altitude: 21500, inclination: 55, class: 'MEO' },
       { name: 'MEO-Commercial', ratio: 0.0019, altitude: 25000, inclination: 50, class: 'MEO' },
+      { name: 'MEO-CRTS-Belt', ratio: 0.0002, altitude: 22000, inclination: 40, class: 'MEO' }, // Special CRTS belt for Thelio-1
       
       // GEO Belt (0.9% of total)
       { name: 'GEO-CommSats', ratio: 0.0052, altitude: 35786, inclination: 0, class: 'GEO' },
@@ -2246,6 +2452,9 @@ class SDAVisualization {
     let objectId = 10000;
     
     for (const shell of orbitalShells) {
+      if (shell.name === 'MEO-CRTS-Belt') {
+        console.log(`🟢 MEO-CRTS-Belt: Creating ${shell.count} objects`);
+      }
       for (let i = 0; i < shell.count; i++) {
         // Distribute objects around the orbital shell
         const raan = (i * 360 / shell.count) + (Math.random() - 0.5) * 10;
@@ -2261,6 +2470,33 @@ class SDAVisualization {
           argPerigee
         );
         
+        // Special handling for Thelio-1 in the CRTS belt
+        if (shell.name === 'MEO-CRTS-Belt' && i === 0) {
+          console.log('🟢 Creating special Thelio-1 satellite in MEO-CRTS-Belt');
+          staticObjects.push({
+            name: 'Thelio-1 (Tribute)',
+            norad: 'SYSTEM76-001',
+            class: 'SPECIAL',  // Use SPECIAL class for green color
+            position: position,
+            altitude: shell.altitude,
+            inclination: shell.inclination,
+            rcs: 'LARGE',
+            country: 'USA',
+            launch: '2025-01-11', // Today's date from Aurora, Colorado
+            launchSite: 'Aurora, Colorado',
+            isStatic: true,
+            isSpecial: true,
+            specialColor: '#76B900', // System76 brand green
+            specialSize: 2.0, // Make it 2x larger for visibility
+            mission: 'In gratitude to System76, whose machines helped build the LEOS universe and whose people helped architect the dream.',
+            message: '"Apo ti Gi, chtisame to sympan." — From Earth, we built the cosmos.',
+            greekMessage: 'Apo ti Gi, chtisame to sympan',
+            website: 'https://system76.com'
+          });
+          continue; // Skip creating the regular satellite for this position
+        }
+        
+        // Regular satellite creation
         staticObjects.push({
           name: `${shell.name}-${i + 1}`,
           norad: `${objectId++}`,
