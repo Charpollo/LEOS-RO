@@ -301,6 +301,15 @@ class SDAVisualization {
     } else {
       console.log(`⚠️ No mesh found for ${orbitClass} class`);
     }
+    
+    // Also hide SPECIAL class when hiding other orbit classes
+    // since special satellites are placed in various orbits
+    if (orbitClass === 'LEO' || orbitClass === 'MEO' || orbitClass === 'GEO') {
+      if (this.instancedMeshes['SPECIAL']) {
+        this.instancedMeshes['SPECIAL'].setEnabled(false);
+        console.log(`✓ Also hidden SPECIAL satellites`);
+      }
+    }
   }
 
   showOrbitClass(orbitClass) {
@@ -310,8 +319,90 @@ class SDAVisualization {
     } else {
       console.log(`⚠️ No mesh found for ${orbitClass} class`);
     }
+    
+    // Check if any orbit class is visible to show SPECIAL satellites
+    if (orbitClass === 'LEO' || orbitClass === 'MEO' || orbitClass === 'GEO') {
+      const leoVisible = this.instancedMeshes['LEO']?.isEnabled() ?? false;
+      const meoVisible = this.instancedMeshes['MEO']?.isEnabled() ?? false;
+      const geoVisible = this.instancedMeshes['GEO']?.isEnabled() ?? false;
+      
+      // Show SPECIAL satellites if any orbit class they belong to is visible
+      if ((leoVisible || meoVisible || geoVisible) && this.instancedMeshes['SPECIAL']) {
+        this.instancedMeshes['SPECIAL'].setEnabled(true);
+        console.log(`✓ Also shown SPECIAL satellites`);
+      }
+    }
   }
 
+  setupKeyboardShortcuts() {
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'f' || event.key === 'F') {
+        this.toggleFamilySatellites();
+      }
+    });
+  }
+  
+  toggleFamilySatellites() {
+    this.familySatellitesVisible = !this.familySatellitesVisible;
+    
+    // Get all family satellites from objectData
+    const familyNames = ['Luna-1', 'Alex-1', 'Mateo-1', 'Belen-1'];
+    
+    if (this.familySatellitesVisible) {
+      // Show family satellites if their orbit class is visible
+      const leoVisible = this.instancedMeshes['LEO']?.isEnabled() ?? false;
+      const meoVisible = this.instancedMeshes['MEO']?.isEnabled() ?? false;
+      const geoVisible = this.instancedMeshes['GEO']?.isEnabled() ?? false;
+      
+      if ((leoVisible || meoVisible || geoVisible) && this.instancedMeshes['SPECIAL']) {
+        // First enable the SPECIAL mesh
+        this.instancedMeshes['SPECIAL'].setEnabled(true);
+        
+        // Then update visibility of individual instances
+        this.updateFamilySatellitesVisibility(true);
+        console.log('👨‍👩‍👧‍👦 Family satellites revealed!');
+      }
+    } else {
+      // Hide family satellites but keep Thelio-1 visible
+      this.updateFamilySatellitesVisibility(false);
+      console.log('👨‍👩‍👧‍👦 Family satellites hidden');
+    }
+  }
+  
+  updateFamilySatellitesVisibility(visible) {
+    const familyNames = ['Luna-1', 'Alex-1', 'Mateo-1', 'Belen-1'];
+    const matrices = this.instanceMatrices['SPECIAL'];
+    
+    if (!matrices) return;
+    
+    // Update visibility for family satellites
+    Object.entries(this.objectData).forEach(([id, data]) => {
+      if (familyNames.includes(data.name) && data.instanceIndex !== undefined) {
+        const matrixOffset = data.instanceIndex * 16;
+        
+        if (visible) {
+          // Restore original scale
+          const originalMatrices = this.originalMatrices['SPECIAL'];
+          if (originalMatrices) {
+            for (let i = 0; i < 16; i++) {
+              matrices[matrixOffset + i] = originalMatrices[matrixOffset + i];
+            }
+          }
+        } else {
+          // Hide by scaling to zero
+          matrices[matrixOffset + 0] = 0;  // X scale
+          matrices[matrixOffset + 5] = 0;  // Y scale  
+          matrices[matrixOffset + 10] = 0; // Z scale
+        }
+      }
+    });
+    
+    // Update the mesh
+    if (this.instancedMeshes['SPECIAL']) {
+      this.instancedMeshes['SPECIAL'].thinInstanceSetBuffer("matrix", matrices, 16);
+    }
+  }
+  
   setupDataBrowser() {
     // Set up data browser functionality
     const searchInput = document.getElementById('sda-search-input');
@@ -609,6 +700,9 @@ class SDAVisualization {
     
     // Set up mouse interaction
     this.setupMouseInteraction();
+    
+    // Set up keyboard shortcuts
+    this.setupKeyboardShortcuts();
   }
 
   setupMouseInteraction() {
@@ -910,18 +1004,24 @@ class SDAVisualization {
     // Debug logging for real satellite detection
     console.log(`Tooltip for ${cleanName}: isReal=${satelliteData.isReal}, source=${satelliteData.source}, class=${orbitClass}, determined as: ${dataSource}`);
     
-    // Special handling for Thelio-1
-    if (satelliteData.isSpecial && satelliteData.name === 'Thelio-1 (Tribute)') {
+    // Special handling for all special satellites
+    if (satelliteData.isSpecial) {
+      // Get color from specialColor or default to white
+      const headerColor = satelliteData.specialColor || '#FFFFFF';
+      const rgbColor = BABYLON.Color3.FromHexString(headerColor);
+      const bgColor = `rgba(${Math.floor(rgbColor.r * 255)}, ${Math.floor(rgbColor.g * 255)}, ${Math.floor(rgbColor.b * 255)}, 0.2)`;
+      
       tooltip.innerHTML = `
-        <h4 style="color: #76B900;">${cleanName}</h4>
-        <div style="background: rgba(118, 185, 0, 0.2); padding: 8px 10px; border-radius: 4px; margin: 8px 0;">
+        <h4 style="color: ${headerColor};">${cleanName}</h4>
+        <div style="background: ${bgColor}; padding: 8px 10px; border-radius: 4px; margin: 8px 0;">
+          ${satelliteData.mission ? `<p style="font-size: 11px; color: #fff; margin: 0 0 4px 0;">${satelliteData.mission}</p>` : ''}
           <p style="font-size: 12px; color: #00ccff; margin: 0; font-style: italic;">${satelliteData.message}</p>
         </div>
         <p><strong>Class:</strong> <span class="orbit-class ${orbitClass.toLowerCase()}">${orbitClass}</span></p>
         <p><strong>NORAD ID:</strong> ${noradId}</p>
         <p><strong>Altitude:</strong> ${altitude}</p>
         <p><strong>Inclination:</strong> ${inclination}</p>
-        <p><strong>Launch Site:</strong> ${satelliteData.launchSite}</p>
+        ${satelliteData.launchSite ? `<p><strong>Launch Site:</strong> ${satelliteData.launchSite}</p>` : ''}
         <p><strong>Launch Date:</strong> ${satelliteData.launch}</p>
       `;
     } else {
@@ -1024,6 +1124,9 @@ class SDAVisualization {
     
     // Track special satellites for animation
     this.specialSatellites = [];
+    
+    // Track family satellites visibility
+    this.familySatellitesVisible = false;
   }
   
   async createSpecialSatellites() {
@@ -1289,7 +1392,7 @@ class SDAVisualization {
         
         // Set color with special treatment for special satellites and real NORAD satellites
         if (obj.isSpecial && obj.specialColor) {
-          // Special satellites like Thelio-1: use custom color
+          // Special satellites: use their custom colors
           const specialColor = BABYLON.Color3.FromHexString(obj.specialColor);
           colors[validInstanceCount * 4] = specialColor.r;
           colors[validInstanceCount * 4 + 1] = specialColor.g;
@@ -1457,6 +1560,9 @@ class SDAVisualization {
     // Cache object keys for efficient batched updates
     this.objectKeys = Object.keys(this.objectData);
     this.updateIndex = 0;
+    
+    // Initially hide family satellites
+    this.updateFamilySatellitesVisibility(false);
   }
 
   updateThinInstances() {
@@ -2423,6 +2529,10 @@ class SDAVisualization {
       { name: 'MEO-BeiDou', ratio: 0.0006, altitude: 21500, inclination: 55, class: 'MEO' },
       { name: 'MEO-Commercial', ratio: 0.0019, altitude: 25000, inclination: 50, class: 'MEO' },
       { name: 'MEO-CRTS-Belt', ratio: 0.0002, altitude: 22000, inclination: 40, class: 'MEO' }, // Special CRTS belt for Thelio-1
+      { name: 'LEO-Family-Luna', ratio: 0.00005, altitude: 600, inclination: 45, class: 'LEO' }, // Luna's orbit
+      { name: 'MEO-Family-Alex', ratio: 0.00005, altitude: 20000, inclination: 60, class: 'MEO' }, // Alex's orbit
+      { name: 'LEO-Family-Mateo', ratio: 0.00005, altitude: 800, inclination: 30, class: 'LEO' }, // Mateo's orbit
+      { name: 'GEO-Family-Belen', ratio: 0.00005, altitude: 35786, inclination: 0, class: 'GEO' }, // Belen's orbit
       
       // GEO Belt (0.9% of total)
       { name: 'GEO-CommSats', ratio: 0.0052, altitude: 35786, inclination: 0, class: 'GEO' },
@@ -2488,12 +2598,104 @@ class SDAVisualization {
             isSpecial: true,
             specialColor: '#76B900', // System76 brand green
             specialSize: 2.0, // Make it 2x larger for visibility
-            mission: 'In gratitude to System76, whose machines helped build the LEOS universe and whose people helped architect the dream.',
-            message: '"Apo ti Gi, chtisame to sympan." — From Earth, we built the cosmos.',
+            mission: '',
+            message: 'Apo ti Gi, chtisame to sympan — From Earth, we built the cosmos',
             greekMessage: 'Apo ti Gi, chtisame to sympan',
             website: 'https://system76.com'
           });
           continue; // Skip creating the regular satellite for this position
+        }
+        
+        // Special handling for Luna's satellite
+        if (shell.name === 'LEO-Family-Luna' && i === 0) {
+          console.log('💜 Creating special Luna satellite');
+          staticObjects.push({
+            name: 'Luna-1',
+            norad: 'LUNA-001',
+            class: 'SPECIAL',
+            position: position,
+            altitude: shell.altitude,
+            inclination: shell.inclination,
+            rcs: 'MEDIUM',
+            country: 'FAMILY',
+            launch: '2025-01-11',
+            isStatic: true,
+            isSpecial: true,
+            specialColor: '#9B59B6', // Purple for Luna
+            specialSize: 1.8,
+            mission: '',
+            message: 'To the moon and back — For my daughter Luna'
+          });
+          continue;
+        }
+        
+        // Special handling for Alex's satellite
+        if (shell.name === 'MEO-Family-Alex' && i === 0) {
+          console.log('🔵 Creating special Alex satellite');
+          staticObjects.push({
+            name: 'Alex-1',
+            norad: 'ALEX-001',
+            class: 'SPECIAL',
+            position: position,
+            altitude: shell.altitude,
+            inclination: shell.inclination,
+            rcs: 'MEDIUM',
+            country: 'FAMILY',
+            launch: '2025-01-11',
+            isStatic: true,
+            isSpecial: true,
+            specialColor: '#3498DB', // Blue for Alex
+            specialSize: 1.8,
+            mission: '',
+            message: 'Reach for the stars — For my oldest son Alex'
+          });
+          continue;
+        }
+        
+        // Special handling for Mateo's satellite
+        if (shell.name === 'LEO-Family-Mateo' && i === 0) {
+          console.log('🟡 Creating special Mateo satellite');
+          staticObjects.push({
+            name: 'Mateo-1',
+            norad: 'MATEO-001',
+            class: 'SPECIAL',
+            position: position,
+            altitude: shell.altitude,
+            inclination: shell.inclination,
+            rcs: 'MEDIUM',
+            country: 'FAMILY',
+            launch: '2025-01-11',
+            isStatic: true,
+            isSpecial: true,
+            specialColor: '#F39C12', // Orange/Gold for Mateo
+            specialSize: 1.8,
+            mission: '',
+            message: 'Dream big, little astronaut — For my youngest son Mateo'
+          });
+          continue;
+        }
+        
+        // Special handling for Belen's satellite
+        if (shell.name === 'GEO-Family-Belen' && i === 0) {
+          console.log('❤️ Creating special Belen satellite');
+          staticObjects.push({
+            name: 'Belen-1',
+            norad: 'BELEN-001',
+            class: 'SPECIAL',
+            position: position,
+            altitude: shell.altitude,
+            inclination: shell.inclination,
+            rcs: 'MEDIUM',
+            country: 'FAMILY',
+            launch: '2025-01-11',
+            isStatic: true,
+            isSpecial: true,
+            specialColor: '#E74C3C', // Red/Pink for Belen
+            specialSize: 2.0,
+            mission: '',
+            message: 'None of this would exist without you — For my wife Belen'
+          });
+          continue;
         }
         
         // Regular satellite creation
