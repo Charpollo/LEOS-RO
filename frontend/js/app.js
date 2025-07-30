@@ -980,6 +980,7 @@ async function initModelViewer() {
     previewScene.freezeActiveMeshes(); // Will unfreeze when loading new models
     previewScene.setRenderingAutoClearDepthStencil(0, true, true, true); // Optimize rendering
     previewScene.getEngine().setDepthFunction(BABYLON.Engine.LEQUAL); // Better depth testing
+    previewScene.useLogarithmicDepth = false; // Disable logarithmic depth to prevent flickering at close range
     
     // Create simplified starfield background that won't interfere
     try {
@@ -1012,9 +1013,9 @@ async function initModelViewer() {
     
     // Camera setup with improved settings for smooth interaction
     previewCamera = new BABYLON.ArcRotateCamera('previewCam', -Math.PI/2, Math.PI/3, 3, new BABYLON.Vector3(0,0,0), previewScene);
-    previewCamera.lowerRadiusLimit = 0.1; // Allow closer zoom
+    previewCamera.lowerRadiusLimit = 0.5; // Prevent getting too close to avoid z-fighting
     previewCamera.upperRadiusLimit = 15; // Allow more zoom out
-    previewCamera.minZ = 0.0001; // Balanced near clipping plane
+    previewCamera.minZ = 0.01; // Increased near clipping plane to prevent flickering
     previewCamera.maxZ = 1000; // Far clipping plane
     
     // Smooth camera controls
@@ -1033,9 +1034,10 @@ async function initModelViewer() {
 
     // Enhance lighting for better model viewing with reduced reflections
     const hemisphericLight = new BABYLON.HemisphericLight('previewLight', new BABYLON.Vector3(0,1,0), previewScene);
-    hemisphericLight.intensity = 1.2; // Increased base intensity for better visibility
+    hemisphericLight.intensity = 1.0; // Balanced intensity
     hemisphericLight.diffuse = new BABYLON.Color3(0.9, 0.9, 1.0);
-    hemisphericLight.specular = new BABYLON.Color3(0.15, 0.15, 0.2); // Lower specular to reduce reflective "static"
+    hemisphericLight.specular = new BABYLON.Color3(0.05, 0.05, 0.05); // Minimal specular to eliminate flickering
+    hemisphericLight.groundColor = new BABYLON.Color3(0.2, 0.2, 0.3); // Soft ground color
     
     // Add subtle particle system for stars in background
     const particleSystem = new BABYLON.ParticleSystem("stars", 200, previewScene);
@@ -1273,8 +1275,9 @@ async function initModelViewer() {
             } else {
                 // BULLDOG satellite - keep in default orientation (no rotation to prevent floating pieces)
                 scaleFactor = 0.5;
-                previewCamera.radius = 5.0; // Zoomed-out viewing distance for BULLDOG
+                previewCamera.radius = 3.0; // Optimal viewing distance for BULLDOG
                 previewCamera.beta = Math.PI/3; // Better initial angle for viewing
+                previewCamera.lowerRadiusLimit = 1.0; // Prevent getting too close to Bulldog model
                 // Removed the 180-degree rotation that was causing floating pieces
             }
             previewMesh.scaling = new BABYLON.Vector3(scaleFactor, scaleFactor, scaleFactor);
@@ -1312,12 +1315,30 @@ async function initModelViewer() {
             // Store the observer for cleanup
             previewMesh.userData = { rotationObserver };
             
+            // Adjust materials on Bulldog model to reduce flickering
+            if (satName.toUpperCase().includes('BULLDOG')) {
+                previewScene.meshes.forEach(mesh => {
+                    if (mesh.material) {
+                        // Reduce specular on all materials to prevent flickering
+                        if (mesh.material.specularColor) {
+                            mesh.material.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+                        }
+                        if (mesh.material.specularPower) {
+                            mesh.material.specularPower = 10; // Lower specular power
+                        }
+                        // Ensure material uses standard rendering
+                        mesh.material.backFaceCulling = true;
+                        mesh.material.separateCullingPass = false;
+                    }
+                });
+            }
+            
             // Add enhanced lighting for better model visibility with reduced reflections
             const pointLight = new BABYLON.PointLight("modelSpotlight", 
                 new BABYLON.Vector3(4, 3, 4), previewScene);
-            pointLight.intensity = satName.toUpperCase().includes('CRTS') ? 2.5 : 1.2; // Much brighter lighting for CRTS
+            pointLight.intensity = satName.toUpperCase().includes('CRTS') ? 2.5 : 0.8; // Reduced intensity for Bulldog to prevent overexposure
             pointLight.diffuse = new BABYLON.Color3(1.0, 1.0, 1.0);
-            pointLight.specular = new BABYLON.Color3(0.2, 0.2, 0.3); // Lower specular to reduce static-like reflections
+            pointLight.specular = new BABYLON.Color3(0.1, 0.1, 0.1); // Very low specular to eliminate flickering
             
             // Add softer rim lighting for better definition without harsh reflections
             const rimLight = new BABYLON.DirectionalLight("rimLight", 

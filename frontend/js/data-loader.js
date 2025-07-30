@@ -75,7 +75,7 @@ export class DataLoader {
                     argument_of_perigee_deg: 90.0,
                     mean_anomaly_deg: 180.0,
                     epoch: "2025-01-01T00:00:00Z",
-                    model_file: "bulldog_sat.glb",
+                    model_file: "bulldog_sat_mobile.glb",
                     color: "#FF6600"
                 }
             },
