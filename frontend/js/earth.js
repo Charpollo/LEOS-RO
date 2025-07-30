@@ -215,7 +215,7 @@ export async function createEarth(scene, getTimeMultiplier, sunDirection) {
     // Create clouds layer
     const cloudsMesh = BABYLON.MeshBuilder.CreateSphere('clouds', {
         segments: 32,
-        diameter: 2.008 // Slightly larger than Earth
+        diameter: 2.02 // Further from Earth to prevent flickering
     }, scene);
     
     // Create clouds material with standard material but improved settings
@@ -247,7 +247,7 @@ export async function createEarth(scene, getTimeMultiplier, sunDirection) {
     // Create enhanced atmosphere layer with two layers for more realistic scattering
     const atmosphereMesh = BABYLON.MeshBuilder.CreateSphere('atmosphere', {
         segments: 36, // Higher detail for smoother appearance
-        diameter: 2.015 // Slightly larger than clouds
+        diameter: 2.04 // Larger than clouds to prevent overlap
     }, scene);
     
     const atmosphereMaterial = new BABYLON.StandardMaterial('atmosphereMaterial', scene);
@@ -260,7 +260,7 @@ export async function createEarth(scene, getTimeMultiplier, sunDirection) {
     // Create outer atmosphere glow for more depth
     const outerAtmosphere = BABYLON.MeshBuilder.CreateSphere('outerAtmosphere', {
         segments: 24,
-        diameter: 2.05 // Even larger for outer glow
+        diameter: 2.06 // Even larger for outer glow, properly spaced
     }, scene);
     
     const outerAtmMaterial = new BABYLON.StandardMaterial('outerAtmMaterial', scene);

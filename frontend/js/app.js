@@ -541,8 +541,8 @@ export async function initApp() {
         // Focus camera on selected satellite
         const satMesh = getSatelliteMeshes()[activeSatellite];
         if (camera && satMesh) {
-            // Temporarily remove radius limits to allow close zoom to satellite
-            camera.lowerRadiusLimit = 0.0001; // Allow extremely close zoom
+            // Allow very close zoom to satellite
+            camera.lowerRadiusLimit = 0.0001; // Very close zoom
             camera.setTarget(satMesh.position);
             // compute azimuth so camera looks straight down on satellite
             const pos = satMesh.position;
@@ -561,12 +561,14 @@ export async function initApp() {
                 targetR = Math.max(safeDistance, distanceToSat * 1.1); // 10% farther than the satellite
                 camera.beta = 0.4; // Less steep angle to see more context around the satellite
             } else {
-                // For satellite mesh clicks, allow much closer view
+                // For satellite mesh clicks, allow extremely close view
                 camera.beta = 0.2;  // near-top-down angle
-                // Allow camera to get very close to the satellite
+                // Get extremely close to the satellite
                 const distanceToSat = BABYLON.Vector3.Distance(BABYLON.Vector3.Zero(), satMesh.position);
-                // Allow camera to get VERY close to the satellite (within 1km)
-                targetR = Math.max(0.001, distanceToSat - 0.001); // Get within 1km of satellite
+                // Zoom in extremely close - right up to the satellite
+                const isBulldog = activeSatellite.toUpperCase().includes('BULLDOG');
+                const satelliteSize = isBulldog ? 0.0004 : 0.0015;
+                targetR = distanceToSat - satelliteSize * 2; // Get within 2x the satellite size
             }
             
             // Animate camera movement smoothly
@@ -769,6 +771,7 @@ async function createScene() {
         stencil: true,
         deterministicLockstep: false,
         lockstepMaxSteps: 4,
+        useHighPrecisionFloats: true, // Better precision for large scenes
         adaptToDeviceRatio: true, // Enable for proper scaling with device DPI
         antialias: true // Enable antialiasing for better visual quality
     });
@@ -791,12 +794,13 @@ async function createScene() {
     // Create camera with optimized settings first (before any rendering pipelines)
     camera = new BABYLON.ArcRotateCamera('camera', -Math.PI / 2, Math.PI / 2, 20, BABYLON.Vector3.Zero(), scene);
     camera.attachControl(canvas, true);
-    camera.minZ = 0.01;
-    camera.maxZ = 10000;
+    camera.minZ = 0.001; // Slightly larger to improve precision
+    camera.maxZ = 100000; // Much larger far plane for distant viewing
+    camera.useLogarithmicDepth = true; // Better depth precision for large scale differences
     // Set lower radius limit to allow VERY close zoom to satellites
     // CRTS1 and Bulldog are at ~800km altitude (1.125 Babylon units from center)
     // Allow camera to get extremely close to satellites for detailed view
-    camera.lowerRadiusLimit = 0.1; // Allow camera to get within 100 meters of any object
+    camera.lowerRadiusLimit = 0.00001; // Allow extremely close zoom
     camera.upperRadiusLimit = EARTH_RADIUS_KM * EARTH_SCALE * 100; // Allow zoom far out
     camera.useAutoRotationBehavior = false;
     camera.inertia = 0.7; // Slightly higher for smoother movement
@@ -1008,9 +1012,9 @@ async function initModelViewer() {
     
     // Camera setup with improved settings for smooth interaction
     previewCamera = new BABYLON.ArcRotateCamera('previewCam', -Math.PI/2, Math.PI/3, 3, new BABYLON.Vector3(0,0,0), previewScene);
-    previewCamera.lowerRadiusLimit = 0.5; // Prevent getting too close to avoid clipping
+    previewCamera.lowerRadiusLimit = 0.1; // Allow closer zoom
     previewCamera.upperRadiusLimit = 15; // Allow more zoom out
-    previewCamera.minZ = 0.01; // Better near clipping plane
+    previewCamera.minZ = 0.0001; // Balanced near clipping plane
     previewCamera.maxZ = 1000; // Far clipping plane
     
     // Smooth camera controls

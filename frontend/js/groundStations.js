@@ -634,7 +634,7 @@ export function createCoverageCircles(scene, maxSatAltKm = 2000, segments = 64) 
         Math.cos(phi) - Math.sin(lat0) * Math.sin(lat2)
       );
       // Place circle slightly above Earth mesh surface to avoid z-fighting
-      const circleRadius = 1.0 + 0.0002; // Very slight elevation for clean rendering
+      const circleRadius = 1.0 + 0.001; // Higher elevation to prevent flickering
       const circlePos = new BABYLON.Vector3(
         circleRadius * Math.cos(lat2) * Math.cos(lon2),
         circleRadius * Math.sin(lat2),
@@ -649,8 +649,8 @@ export function createCoverageCircles(scene, maxSatAltKm = 2000, segments = 64) 
     );
     circle.color = new BABYLON.Color3(0, 1, 0);
     circle.alpha = 0.7; // Make slightly transparent for better appearance
-    // Render circles just above Earth surface to avoid z-fighting but stay flush
-    circle.renderingGroupId = 0; // Same as Earth to keep them together
+    // Render circles above Earth surface to avoid z-fighting
+    circle.renderingGroupId = 1; // Render after Earth to prevent flickering
     circle.material = new BABYLON.StandardMaterial(`${station.name.replace(/\s+/g, '_')}_coverage_mat`, scene);
     circle.material.emissiveColor = new BABYLON.Color3(0, 1, 0);
     circle.material.disableLighting = true;
