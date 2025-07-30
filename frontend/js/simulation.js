@@ -1,6 +1,7 @@
 import { TIME_ACCELERATION } from './constants.js';
 import { updateTelemetryUI } from './telemetry.js';
 import { updateCometTrails } from './satellites.js';
+import { getSun } from './app.js';
 
 let currentSimTime = null;
 export function getCurrentSimTime() {
@@ -73,6 +74,12 @@ export function startSimulationLoop(scene, satelliteData, orbitalElements, simul
         
         // Update comet trails if in comet trail mode
         updateCometTrails();
+        
+        // Update sun if it exists - DISABLED for simple sun
+        // const sun = getSun();
+        // if (sun) {
+        //     sun.update(deltaRealSeconds);
+        // }
     });
     
     return simulationTime;

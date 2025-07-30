@@ -1,6 +1,7 @@
 import * as BABYLON from '@babylonjs/core';
 import '@babylonjs/loaders';
 import { AdvancedDynamicTexture, TextBlock, Rectangle } from '@babylonjs/gui';
+import { GlowLayer } from '@babylonjs/core/Layers/glowLayer';
 
 // Import UI components and manager
 import './components/telemetry-card.js';
@@ -20,6 +21,7 @@ import { EARTH_RADIUS_KM, EARTH_SCALE, MIN_LEO_ALTITUDE_KM, MOON_DISTANCE, MOON_
 import { createSkybox } from './skybox.js';
 import { createEarth } from './earth.js';
 import { createMoon } from './moon.js';
+import { Sun } from './sun.js';
 import { createSatellites, getSatelliteMeshes, getTelemetryData, getDetailedTelemetryForSatellite, createManualSolarPanelAnimation } from './satellites.js';
 import { updateTelemetryUI } from './telemetry.js';
 import { startSimulationLoop, updateTimeDisplay, getCurrentSimTime } from './simulation.js';
@@ -36,6 +38,7 @@ let scene;
 let camera;
 let earthMesh;
 let moonMesh;
+let sun; // Sun instance
 let satelliteData = {};
 let activeSatellite = null;
 let isInitialized = false;
@@ -57,6 +60,11 @@ let sunDirection = new BABYLON.Vector3(1, 0, 0);
 
 // Ground station dashboard state
 let groundStationDashboardOpen = false;
+
+// Export sun instance for other modules
+export function getSun() {
+    return sun;
+}
 
 export async function initApp() {
     // Delay UI initialization until after scene is created for better startup performance
@@ -869,6 +877,38 @@ async function createScene() {
     
     // Create the skybox first (background)
     createSkybox(scene);
+    
+    // Create the Sun - simple approach that worked
+    const sunMesh = BABYLON.MeshBuilder.CreateSphere('sun', { 
+        segments: 32,
+        diameter: 2  // 2 Babylon units diameter (1 unit radius)
+    }, scene);
+    
+    // Position sun far away - exactly like moon does it
+    sunMesh.position = new BABYLON.Vector3(500, 0, 0);
+    
+    // Simple emissive material
+    const sunMaterial = new BABYLON.StandardMaterial("sunMaterial", scene);
+    sunMaterial.emissiveColor = new BABYLON.Color3(1, 0.95, 0.8);
+    sunMaterial.emissiveIntensity = 1.2;
+    sunMaterial.disableLighting = true;
+    sunMesh.material = sunMaterial;
+    
+    // Add glow effect
+    const glowLayer = new GlowLayer("sunGlow", scene);
+    glowLayer.intensity = 0.5;
+    glowLayer.addIncludedOnlyMesh(sunMesh);
+    
+    // Add slow rotation to sun
+    scene.registerBeforeRender(() => {
+        sunMesh.rotation.y += 0.0001;
+    });
+    
+    // Store reference for later use
+    sun = { mesh: sunMesh };
+    
+    console.log('Simple sun created at position:', sunMesh.position);
+    console.log('Sun position x:', sunMesh.position.x);
     
     // Then create Earth and Moon
     earthMesh = await createEarth(scene, () => simState.timeMultiplier, sunDirection);
