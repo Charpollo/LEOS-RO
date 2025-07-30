@@ -881,28 +881,39 @@ async function createScene() {
     // Create the Sun - simple approach that worked
     const sunMesh = BABYLON.MeshBuilder.CreateSphere('sun', { 
         segments: 32,
-        diameter: 2  // 2 Babylon units diameter (1 unit radius)
+        diameter: 3  // 3 Babylon units diameter (1.5x Earth size)
     }, scene);
     
     // Position sun far away - exactly like moon does it
     sunMesh.position = new BABYLON.Vector3(500, 0, 0);
     
-    // Simple emissive material
+    // Sharp, bright material - no atmosphere in space
     const sunMaterial = new BABYLON.StandardMaterial("sunMaterial", scene);
-    sunMaterial.emissiveColor = new BABYLON.Color3(1, 0.95, 0.8);
-    sunMaterial.emissiveIntensity = 1.2;
+    sunMaterial.emissiveColor = new BABYLON.Color3(1, 1, 0.95); // Bright white-yellow
+    sunMaterial.emissiveIntensity = 1.5; // Bright
     sunMaterial.disableLighting = true;
+    sunMaterial.backFaceCulling = true;
     sunMesh.material = sunMaterial;
     
-    // Add glow effect
-    const glowLayer = new GlowLayer("sunGlow", scene);
-    glowLayer.intensity = 0.5;
-    glowLayer.addIncludedOnlyMesh(sunMesh);
+    // Add glow effect - DISABLED to fix rendering through objects
+    // const glowLayer = new GlowLayer("sunGlow", scene);
+    // glowLayer.intensity = 0.5;
+    // glowLayer.addIncludedOnlyMesh(sunMesh);
+    
+    // No corona - sharp ball in space
     
     // Add slow rotation to sun
     scene.registerBeforeRender(() => {
         sunMesh.rotation.y += 0.0001;
     });
+    
+    // Update directional light to come from sun
+    const directionalLight = scene.getLightByName("sunLight");
+    if (directionalLight && directionalLight instanceof BABYLON.DirectionalLight) {
+        // Calculate direction from sun to origin (Earth)
+        const sunToEarth = BABYLON.Vector3.Zero().subtract(sunMesh.position);
+        directionalLight.direction = sunToEarth.normalize();
+    }
     
     // Store reference for later use
     sun = { mesh: sunMesh };
