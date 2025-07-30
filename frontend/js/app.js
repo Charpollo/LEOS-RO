@@ -1185,7 +1185,7 @@ async function initModelViewer() {
         // Determine model file by name
         const modelFile = satName.toUpperCase().includes('CRTS')
             ? 'assets/crts_satellite.glb'
-            : 'assets/bulldog_sat.glb';
+            : 'assets/bulldog_sat_mobile.glb';
         try {
             // Unfreeze active meshes before loading new model
             previewScene.unfreezeActiveMeshes();
@@ -1220,10 +1220,10 @@ async function initModelViewer() {
                     // Rename for uniqueness
                     animationGroup.name = `preview_${satName}_animation_${index}`;
                     
-                    // Set to the end state to show fully deployed satellite
-                    // This shows solar panels extended, antennas positioned, etc.
+                    // Set to the start state to avoid floating parts
+                    // This shows the satellite in its resting configuration
                     animationGroup.reset();
-                    animationGroup.goToFrame(animationGroup.to); // Jump to the end state
+                    animationGroup.goToFrame(animationGroup.from); // Jump to the start state
                     
                     console.log(`Set animation '${animationGroup.name}' to deployed state (frame ${animationGroup.to})`);
                 });

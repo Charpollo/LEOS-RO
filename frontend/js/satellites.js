@@ -352,9 +352,10 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
         }
         
         // Handle model paths to work in both local and cloud environments
+        // Use mobile version of Bulldog for better performance
         const modelName = satName.toUpperCase().includes('CRTS') 
             ? 'crts_satellite.glb' 
-            : 'bulldog_sat.glb';
+            : 'bulldog_sat_mobile.glb';
         
         try {
             // Use proper parameter format for Babylon.js SceneLoader
@@ -420,7 +421,8 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
             // Set mesh scaling BEFORE starting animations to avoid breaking them
             const isCRTS = satName.toUpperCase().includes('CRTS');
             const isBulldog = satName.toUpperCase().includes('BULLDOG');
-            const SATELLITE_VISUAL_SCALE = isBulldog ? 0.0006 : 0.002; // Increased scale for better visibility
+            // Smaller scale for mobile version of Bulldog
+            const SATELLITE_VISUAL_SCALE = isBulldog ? 0.0004 : 0.0015; // Reduced scale for better performance
             satelliteMesh.scaling = new BABYLON.Vector3(SATELLITE_VISUAL_SCALE, SATELLITE_VISUAL_SCALE, SATELLITE_VISUAL_SCALE);
             
             // Apply different rotations based on satellite type
@@ -448,16 +450,24 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
                         // Reset to start position
                         animationGroup.reset();
                         
+                        // For better visual stability, reset animation to start position
+                        animationGroup.goToFrame(0);
+                        
                         // Create a repeating animation cycle with pause
                         const startAnimationCycle = () => {
+                            // Reset to start position before playing
+                            animationGroup.goToFrame(0);
+                            
                             // Play animation once (not looping)
-                            animationGroup.start(false, 1.0, 0, animationGroup.to, false);
+                            animationGroup.start(false, 1.0, animationGroup.from, animationGroup.to, false);
                             
                             // Set up pause and restart after animation completes
                             animationGroup.onAnimationGroupEndObservable.addOnce(() => {
+                                // Reset to start position during pause to avoid floating parts
+                                animationGroup.goToFrame(0);
+                                
                                 // Wait 5 seconds, then restart
                                 setTimeout(() => {
-                                    animationGroup.reset();
                                     startAnimationCycle(); // Restart the cycle
                                 }, 5000);
                             });
