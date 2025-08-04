@@ -1,8 +1,12 @@
 {
-  "name": "leos-first-orbit",
+  "name": "leos-red-orbit",
   "version": "1.0.0",
-  "description": "LEOS First Orbit Project",
+  "description": "LEOS Red Orbit - Space Disaster Simulation Platform",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Charpollo/LEOS-RO.git"
+  },
   "scripts": {
     "clean": "rimraf frontend/dist",
     "build": "webpack --config webpack.config.js",
@@ -20,7 +24,8 @@
     "@babylonjs/gui": "^6.27.1",
     "@babylonjs/loaders": "^6.27.1",
     "@babylonjs/materials": "^6.27.1",
-    "satellite.js": "^6.0.1"
+    "satellite.js": "^6.0.1",
+    "ammo.js": "^0.0.10"
   },
   "devDependencies": {
     "compression-webpack-plugin": "^10.0.0",
