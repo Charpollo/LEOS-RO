@@ -1,0 +1,4 @@
+2025-08-05 13:12:53,002 - LEOS-Server - INFO - Starting server at http://0.0.0.0:8080/ serving from /Users/missioncontrol/LEOS-RO/frontend/dist
+2025-08-05 13:12:59,814 - LEOS-Server - INFO - 127.0.0.1 - "GET / HTTP/1.1" 200 -
+2025-08-05 13:13:18,254 - LEOS-Server - INFO - 127.0.0.1 - "GET /js/bundle.js HTTP/1.1" 200 -
+2025-08-05 13:13:24,659 - LEOS-Server - INFO - 127.0.0.1 - "GET / HTTP/1.1" 200 -

@@ -2,13 +2,13 @@
 
 ## CRITICAL: This is Your Complete Implementation Blueprint
 
-This document is for the **NEW Red Orbit codebase** at https://github.com/Charpollo/LEOS-RS. You have cloned First Orbit (LEOS-FO) and will build Red Orbit ON TOP of it, keeping all First Orbit functionality.
+This document is for the **NEW Red Orbit codebase** at https://github.com/Charpollo/LEOS-RO. You have cloned First Orbit (LEOS-FO) and will build Red Orbit ON TOP of it, keeping all First Orbit functionality.
 
 ## Current Situation
 
-- You have cloned First Orbit and created https://github.com/Charpollo/LEOS-RS
+- You have cloned First Orbit and created https://github.com/Charpollo/LEOS-RO
 - This codebase is currently a direct copy of First Orbit (LEOS-FO)
-- The LEOS-RS repository is empty and this will be your first commit
+- The LEOS-RO repository is empty and this will be your first commit
 - You MUST update git remotes to point to LEOS-RS (not First Orbit)
 - You will KEEP all First Orbit educational features
 - You will ADD Red Orbit disaster simulation features on top
