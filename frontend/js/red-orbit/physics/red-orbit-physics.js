@@ -35,7 +35,7 @@ export class RedOrbitPhysics {
         // Performance optimization
         this.updateCounter = 0;
         this.meshUpdateFrequency = 1; // Update meshes every physics step for smooth motion
-        this.physicsTimeMultiplier = 1000; // Physics runs at 1000x speed for visible orbital motion
+        this.physicsTimeMultiplier = 3600; // Match Earth rotation (1 hour = 1 second)
         
         this.initialized = false;
     }
@@ -80,29 +80,30 @@ export class RedOrbitPhysics {
     populateInitialOrbits() {
         console.log('RED ORBIT: Populating space with orbital objects...');
         
-        // LEO satellites (200-2000 km)
-        for (let i = 0; i < 200; i++) {
+        // LEO satellites (200-2000 km) - reduced for performance
+        for (let i = 0; i < 50; i++) {
             this.createRandomSatellite('LEO', i);
         }
         
         // MEO satellites (2000-20000 km) - reduced range for visibility
-        for (let i = 0; i < 50; i++) {
+        for (let i = 0; i < 20; i++) {
             this.createRandomSatellite('MEO', i);
         }
         
         // High orbit satellites (10000-15000 km) - instead of GEO
-        for (let i = 0; i < 30; i++) {
+        for (let i = 0; i < 10; i++) {
             this.createRandomSatellite('HIGH', i);
         }
         
         // Space debris in various orbits
-        for (let i = 0; i < 100; i++) {
+        for (let i = 0; i < 20; i++) {
             this.createRandomDebris(i);
         }
         
         console.log(`RED ORBIT: Created ${this.bodies.size} orbital objects!`);
         console.log('RED ORBIT: Objects in stable orbits - collisions unlikely unless triggered');
-        console.log('RED ORBIT: Physics time multiplier:', this.physicsTimeMultiplier, 'x');
+        console.log('RED ORBIT: Physics time multiplier:', this.physicsTimeMultiplier, 'x (1 hour = 1 second)');
+        console.log('RED ORBIT: Orbit types include: polar, sun-synchronous, equatorial, Molniya, and various inclinations');
         
         // Debug: Log first few objects to verify they exist
         let count = 0;
@@ -122,18 +123,38 @@ export class RedOrbitPhysics {
     createRandomSatellite(orbitType, index) {
         let altitude, inclination;
         
+        // Create realistic orbit types
+        const orbitStyles = [
+            'polar',      // 90° inclination
+            'sun-sync',   // ~98° inclination (retrograde)
+            'equatorial', // 0° inclination
+            'molniya',    // High inclination, eccentric
+            'inclined'    // Various inclinations
+        ];
+        
+        const style = orbitStyles[Math.floor(Math.random() * orbitStyles.length)];
+        
         switch(orbitType) {
             case 'LEO':
                 altitude = 200 + Math.random() * 1800; // 200-2000 km
-                inclination = Math.random() * 180; // Various inclinations
+                // Set inclination based on orbit style
+                if (style === 'polar') inclination = 85 + Math.random() * 10; // 85-95°
+                else if (style === 'sun-sync') inclination = 96 + Math.random() * 8; // 96-104° (retrograde)
+                else if (style === 'equatorial') inclination = Math.random() * 10; // 0-10°
+                else if (style === 'molniya') inclination = 63.4 + Math.random() * 5; // ~63.4° (critical inclination)
+                else inclination = 20 + Math.random() * 60; // 20-80° general
                 break;
             case 'MEO':
                 altitude = 2000 + Math.random() * 18000; // 2000-20000 km
-                inclination = Math.random() * 90; // Lower inclinations
+                // MEO often used for navigation (GPS, GLONASS)
+                if (Math.random() < 0.5) inclination = 55 + Math.random() * 10; // GPS-like
+                else inclination = 64.8 + Math.random() * 5; // GLONASS-like
                 break;
             case 'HIGH':
                 altitude = 10000 + Math.random() * 5000; // 10000-15000 km
-                inclination = Math.random() * 30; // Lower inclinations
+                // Mix of GEO-transfer and Molniya-type orbits
+                if (Math.random() < 0.3) inclination = Math.random() * 5; // Near-equatorial
+                else inclination = 40 + Math.random() * 40; // Various high inclinations
                 break;
         }
         
@@ -260,17 +281,25 @@ export class RedOrbitPhysics {
         
         // Velocity perpendicular to position (circular orbit)
         // For circular orbit, v = sqrt(μ/r) in tangential direction
-        // Cross product of z-axis with position gives tangent direction
-        const tangent = {
-            x: -position.y,
-            y: position.x,
-            z: 0
+        // Normalize position vector
+        const r = Math.sqrt(position.x * position.x + position.y * position.y + position.z * position.z);
+        
+        // Define orbit normal (for inclination)
+        const orbitNormal = {
+            x: Math.sin(incRad) * Math.sin(angle),
+            y: 0,
+            z: Math.cos(incRad)
         };
-        const tangentMag = Math.sqrt(tangent.x * tangent.x + tangent.y * tangent.y + tangent.z * tangent.z);
+        
+        // Cross product: velocity = normal × position (for prograde orbit)
+        // For retrograde (sun-sync), reverse the velocity
+        const isRetrograde = inclination > 90 && inclination < 180;
+        const direction = isRetrograde ? -1 : 1;
+        
         const velocity = {
-            x: (tangent.x / tangentMag) * orbitalSpeed,
-            y: (tangent.y / tangentMag) * orbitalSpeed,
-            z: (tangent.z / tangentMag) * orbitalSpeed
+            x: direction * (orbitNormal.y * position.z - orbitNormal.z * position.y) / r * orbitalSpeed,
+            y: direction * (orbitNormal.z * position.x - orbitNormal.x * position.z) / r * orbitalSpeed,
+            z: direction * (orbitNormal.x * position.y - orbitNormal.y * position.x) / r * orbitalSpeed
         };
         
         // Log only first few satellites to avoid spam
