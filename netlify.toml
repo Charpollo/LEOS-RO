@@ -2,7 +2,7 @@
   # RED ORBIT Build Configuration
   # Install all dependencies including devDependencies for webpack
   # Use regular build command (build:prod if you have production webpack config)
-  command = "npm install --production=false && npm run build:prod"
+  command = "npm install --production=false && npm run build"
   publish = "frontend/dist"
   base = "/"
   

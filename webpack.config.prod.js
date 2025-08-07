@@ -19,14 +19,14 @@ module.exports = {
       new TerserPlugin({
         terserOptions: {
           compress: {
-            drop_console: true, // Remove console logs
+            drop_console: false, // Keep console logs for now (physics debugging)
             drop_debugger: true,
-            pure_funcs: ['console.log', 'console.info', 'console.debug'],
+            // pure_funcs: ['console.log', 'console.info', 'console.debug'],
             passes: 2
           },
           mangle: {
-            toplevel: true,
-            reserved: ['BABYLON'] // Keep BABYLON global intact
+            toplevel: false, // Don't mangle top level to preserve physics
+            reserved: ['BABYLON', 'Ammo', 'redOrbitPhysics'] // Keep important globals intact
           },
           output: {
             comments: false,
