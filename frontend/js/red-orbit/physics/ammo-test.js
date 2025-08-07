@@ -7,7 +7,7 @@ export async function testAmmoJS() {
     try {
         // Load Ammo.js
         const script = document.createElement('script');
-        script.src = 'https://cdn.babylonjs.com/ammo.js';
+        script.src = 'assets/ammo.js';  // Local copy for offline functionality
         document.head.appendChild(script);
         
         await new Promise((resolve, reject) => {

@@ -3,118 +3,98 @@
  * UI for triggering and managing collisions
  */
 
+import * as BABYLON from '@babylonjs/core';
+
 export function createCollisionControls(scene) {
-    const controlsContainer = document.createElement('div');
-    controlsContainer.id = 'red-orbit-collision-controls';
-    controlsContainer.style.cssText = `
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        background: rgba(20, 0, 0, 0.9);
-        border: 2px solid #ff3300;
-        border-radius: 8px;
-        padding: 15px;
-        color: #ff6600;
-        font-family: monospace;
-        z-index: 1000;
-        box-shadow: 0 0 20px rgba(255, 51, 0, 0.5);
-    `;
+    // Controls are now integrated into the Red Orbit modal
+    // This function only sets up event listeners, no UI overlay
     
-    controlsContainer.innerHTML = `
-        <h3 style="margin: 0 0 10px 0; color: #ff3300;">Red Orbit Controls</h3>
-        <button id="trigger-collision" style="
-            background: #ff3300;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            cursor: pointer;
-            margin: 5px 0;
-            width: 100%;
-            font-weight: bold;
-        ">Trigger Collision</button>
-        <button id="toggle-physics" style="
-            background: #ff6600;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            cursor: pointer;
-            margin: 5px 0;
-            width: 100%;
-        ">Enable Physics</button>
-        <div id="physics-stats" style="
-            margin-top: 10px;
-            font-size: 12px;
-            color: #ffaa00;
-        ">
-            <div>Satellites: <span id="sat-count">0</span></div>
-            <div>Debris: <span id="debris-count">0</span></div>
-            <div>Physics Active: <span id="physics-active">No</span></div>
-        </div>
-    `;
-    
-    document.body.appendChild(controlsContainer);
-    
-    // Button handlers
-    const triggerBtn = document.getElementById('trigger-collision');
-    const toggleBtn = document.getElementById('toggle-physics');
-    
-    triggerBtn.addEventListener('click', () => {
-        if (window.hybridOrbitalSystem) {
-            triggerTestCollision();
-        } else {
-            alert('Physics system not initialized!');
-        }
+    // Listen for Red Orbit modal trigger
+    window.addEventListener('redOrbitCollision', () => {
+        triggerTestCollision();
     });
     
-    toggleBtn.addEventListener('click', () => {
-        if (window.hybridOrbitalSystem) {
-            toggleBtn.textContent = window.hybridOrbitalSystem.initialized ? 'Physics Enabled' : 'Enable Physics';
-            updateStats();
-        }
-    });
-    
-    // Update stats periodically
+    // Update stats periodically for the modal
     setInterval(updateStats, 1000);
     
-    return controlsContainer;
+    return null; // No UI container created
 }
 
 /**
- * Trigger a test collision between two satellites
+ * Trigger a test collision between SDA orbs
  */
 function triggerTestCollision() {
-    const system = window.hybridOrbitalSystem;
-    if (!system) return;
+    const system = window.redOrbitPhysics;
+    const scene = window.scene;
+    if (!system || !scene) return;
     
-    // Get two random satellites
-    const satellites = Array.from(system.satellites.keys());
-    if (satellites.length < 2) {
-        alert('Need at least 2 satellites for collision!');
+    // Get all SDA orb meshes
+    const sdaOrbs = scene.meshes.filter(mesh => 
+        mesh.name && (mesh.name.includes('sda_instance') || mesh.name.includes('special_'))
+    );
+    
+    if (sdaOrbs.length >= 2) {
+        // Pick two random SDA orbs
+        const orb1 = sdaOrbs[Math.floor(Math.random() * sdaOrbs.length)];
+        const orb2 = sdaOrbs[Math.floor(Math.random() * sdaOrbs.length)];
+        
+        if (orb1 === orb2 && sdaOrbs.length > 2) {
+            // Pick a different orb
+            const index = sdaOrbs.indexOf(orb1);
+            orb2 = sdaOrbs[(index + 1) % sdaOrbs.length];
+        }
+        
+        console.log(`Triggering catastrophic collision between SDA orbs!`);
+        
+        // Create massive explosion at collision point
+        const collisionPos = {
+            x: (orb1.position.x + orb2.position.x) / 2,
+            y: (orb1.position.y + orb2.position.y) / 2,
+            z: (orb1.position.z + orb2.position.z) / 2
+        };
+        
+        // Create cascading debris field
+        createCascadingDebris(collisionPos, orb1, orb2);
+        
+        // Hide/destroy the colliding orbs
+        orb1.isVisible = false;
+        orb2.isVisible = false;
+        
+        // Trigger chain reaction after delay
+        setTimeout(() => {
+            triggerChainReaction(collisionPos, sdaOrbs);
+        }, 500);
+        
         return;
     }
     
-    // Pick two satellites
+    // Fallback to satellites
+    const satellites = Array.from(system.satellites.keys());
+    if (satellites.length < 2) {
+        console.log('Need at least 2 objects for collision!');
+        return;
+    }
+    
     const sat1Id = satellites[0];
     const sat2Id = satellites[1];
-    
-    console.log(`Triggering collision between ${sat1Id} and ${sat2Id}`);
-    
-    // Get current positions
     const sat1 = system.satellites.get(sat1Id);
     const sat2 = system.satellites.get(sat2Id);
     
     if (!sat1 || !sat2) return;
     
-    // Calculate collision position (midpoint)
+    // Get proper satellite positions from orbital mechanics
+    // Satellites are at ~800km altitude, not at Earth surface
     const pos1 = sat1.mesh.position;
     const pos2 = sat2.mesh.position;
     
+    // These positions are already scaled, need to get actual orbital radius
+    // Assuming LEO at 800km altitude = 7171km from Earth center
+    const orbitalRadius = 7171; // km (Earth radius 6371 + 800km altitude)
+    
     const collisionPos = {
-        x: (pos1.x + pos2.x) / 2 * 6371, // Convert to km
-        y: (pos1.y + pos2.y) / 2 * 6371,
-        z: (pos1.z + pos2.z) / 2 * 6371
+        x: (pos1.x + pos2.x) / 2 * orbitalRadius,
+        y: (pos1.y + pos2.y) / 2 * orbitalRadius,
+        z: (pos1.z + pos2.z) / 2 * orbitalRadius
     };
     
     // Simulate high-speed collision
@@ -140,13 +120,14 @@ function createCollisionFlash(position) {
     if (!scene) return;
     
     const flash = BABYLON.MeshBuilder.CreateSphere('collision-flash', {
-        diameter: 0.2,
-        segments: 16
+        diameter: 1.0,  // Larger initial size
+        segments: 32
     }, scene);
     
     const material = new BABYLON.StandardMaterial('flash-mat', scene);
-    material.emissiveColor = new BABYLON.Color3(1, 0.5, 0);
+    material.emissiveColor = new BABYLON.Color3(1, 0.3, 0);  // Bright red-orange
     material.disableLighting = true;
+    material.alpha = 1.0;
     flash.material = material;
     
     // Position at collision point
@@ -154,34 +135,159 @@ function createCollisionFlash(position) {
     flash.position.y = position.y / 6371;
     flash.position.z = position.z / 6371;
     
-    // Animate flash
+    // Create expanding ring effect
+    const ring = BABYLON.MeshBuilder.CreateTorus('collision-ring', {
+        diameter: 2,
+        thickness: 0.1,
+        tessellation: 32
+    }, scene);
+    
+    const ringMat = new BABYLON.StandardMaterial('ring-mat', scene);
+    ringMat.emissiveColor = new BABYLON.Color3(1, 0.5, 0);
+    ringMat.disableLighting = true;
+    ringMat.alpha = 0.8;
+    ring.material = ringMat;
+    ring.position = flash.position.clone();
+    
+    // Animate flash and ring
     let scale = 1;
+    let ringScale = 1;
     let alpha = 1;
     
     const animationId = setInterval(() => {
-        scale += 0.2;
-        alpha -= 0.05;
+        scale += 0.3;  // Faster expansion
+        ringScale += 0.5;
+        alpha -= 0.02;  // Slower fade
         
         if (alpha <= 0) {
             clearInterval(animationId);
             flash.dispose();
+            ring.dispose();
         } else {
             flash.scaling = new BABYLON.Vector3(scale, scale, scale);
+            ring.scaling = new BABYLON.Vector3(ringScale, ringScale, ringScale);
             material.alpha = alpha;
+            ringMat.alpha = alpha * 0.8;
         }
     }, 16);
+}
+
+/**
+ * Create cascading debris from collision
+ */
+function createCascadingDebris(position, orb1, orb2) {
+    const scene = window.scene;
+    if (!scene) return;
+    
+    // Create multiple debris pieces
+    const debrisCount = 20 + Math.floor(Math.random() * 30);
+    
+    for (let i = 0; i < debrisCount; i++) {
+        const debris = BABYLON.MeshBuilder.CreateSphere(`debris_${Date.now()}_${i}`, {
+            diameter: 0.002 + Math.random() * 0.008,
+            segments: 8
+        }, scene);
+        
+        // Red/orange/yellow debris colors
+        const material = new BABYLON.StandardMaterial(`debris_mat_${i}`, scene);
+        const colorChoice = Math.random();
+        if (colorChoice < 0.33) {
+            material.emissiveColor = new BABYLON.Color3(1, 0, 0); // Red
+        } else if (colorChoice < 0.66) {
+            material.emissiveColor = new BABYLON.Color3(1, 0.5, 0); // Orange
+        } else {
+            material.emissiveColor = new BABYLON.Color3(1, 1, 0); // Yellow
+        }
+        material.disableLighting = true;
+        debris.material = material;
+        
+        // Position at collision point
+        debris.position = position.clone();
+        
+        // Add explosive velocity
+        const speed = 0.001 + Math.random() * 0.005;
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.random() * Math.PI;
+        
+        const velocity = new BABYLON.Vector3(
+            Math.sin(phi) * Math.cos(theta) * speed,
+            Math.sin(phi) * Math.sin(theta) * speed,
+            Math.cos(phi) * speed
+        );
+        
+        // Animate debris
+        let frame = 0;
+        scene.registerBeforeRender(() => {
+            if (debris && !debris.isDisposed()) {
+                debris.position.addInPlace(velocity);
+                
+                // Fade out and remove after time
+                frame++;
+                if (frame > 300) {
+                    material.alpha = Math.max(0, 1 - (frame - 300) / 100);
+                    if (frame > 400) {
+                        debris.dispose();
+                    }
+                }
+            }
+        });
+    }
+}
+
+/**
+ * Trigger chain reaction with nearby objects
+ */
+function triggerChainReaction(epicenter, allOrbs) {
+    const scene = window.scene;
+    if (!scene) return;
+    
+    // Find orbs within blast radius
+    const blastRadius = 0.5;
+    const affectedOrbs = allOrbs.filter(orb => {
+        if (!orb.isVisible) return false;
+        const distance = BABYLON.Vector3.Distance(orb.position, epicenter);
+        return distance < blastRadius && distance > 0;
+    });
+    
+    // Create secondary explosions
+    affectedOrbs.forEach((orb, index) => {
+        setTimeout(() => {
+            if (orb.isVisible) {
+                createCollisionFlash({
+                    x: orb.position.x * 6371,
+                    y: orb.position.y * 6371,
+                    z: orb.position.z * 6371
+                });
+                
+                // Create more debris
+                createCascadingDebris(orb.position, orb, orb);
+                
+                // Hide the orb
+                orb.isVisible = false;
+                
+                // Update debris count
+                const debrisCount = document.getElementById('active-debris-count');
+                if (debrisCount) {
+                    const current = parseInt(debrisCount.textContent) || 0;
+                    debrisCount.textContent = current + 10 + Math.floor(Math.random() * 20);
+                }
+            }
+        }, index * 200); // Staggered explosions
+    });
 }
 
 /**
  * Update statistics display
  */
 function updateStats() {
-    const system = window.hybridOrbitalSystem;
+    const system = window.redOrbitPhysics;
     if (!system) return;
     
     const stats = system.getStats();
     
-    document.getElementById('sat-count').textContent = stats.satelliteCount;
-    document.getElementById('debris-count').textContent = stats.debrisCount;
-    document.getElementById('physics-active').textContent = system.initialized ? 'Yes' : 'No';
+    // Update modal stats if visible
+    const modalDebrisCount = document.getElementById('modal-debris-count');
+    if (modalDebrisCount) {
+        modalDebrisCount.textContent = stats.debrisCount;
+    }
 }

@@ -7,14 +7,14 @@ import { GlowLayer } from '@babylonjs/core/Layers/glowLayer';
 import './components/telemetry-card.js';
 import './components/telemetry-item.js';
 import { uiManager } from './ui/manager.js';
-import { initBrandUI, hideLoadingScreen, showWelcomeModal, showHelpButton } from './ui/brand-ui.js';
+import { initBrandUI, hideLoadingScreen, showHelpButton } from './ui/brand-ui.js';
 import { createTelemetryItem } from './ui/template-manager.js';
 
 // Import frontend-only data loader
 import { dataLoader } from './data-loader.js';
 
-// Import SDA visualization
-import { initSDAVisualization, createTLEInputModal } from './sda-visualization.js';
+// Import navigation controller
+import { initNavigationController } from './navigation-controller.js';
 
 // Import our modular components
 import { EARTH_RADIUS_KM, EARTH_SCALE, MIN_LEO_ALTITUDE_KM, MOON_DISTANCE, MOON_SCALE, LOS_DEFAULT_KM, LOS_DEFAULT_BABYLON, calculateHorizonDistance } from './constants.js';
@@ -26,19 +26,15 @@ import { createSatellites, getSatelliteMeshes, getTelemetryData, getDetailedTele
 import { updateTelemetryUI } from './telemetry.js';
 import { startSimulationLoop, updateTimeDisplay, getCurrentSimTime } from './simulation.js';
 import { setupKeyboardControls } from './controls.js';
-import { createGroundStations, updateGroundStationsLOS, createCoverageCircles, getGroundStationMeshes, clearAutoLOSBeams, getGroundStationDefinitions } from './groundStations.js';
+// Ground stations removed for Red Orbit
+// import { createGroundStations, updateGroundStationsLOS, createCoverageCircles, getGroundStationMeshes, clearAutoLOSBeams, getGroundStationDefinitions } from './groundStations.js';
 import { initAuroraBackground, cleanupAuroraBackground } from './aurora-background.js';
 
 // Import orbital mechanics functions
 import { calculateSatellitePosition, toBabylonPosition, generateRealTimeTelemetry } from './orbital-mechanics.js';
 
-// Import Red Orbit physics test
-import { initPhysicsTest } from './red-orbit/core/physics-test.js';
-import { createPhysicsUI } from './red-orbit/ui/physics-ui.js';
-import { SimpleDebrisTest } from './red-orbit/core/simple-debris-test.js';
-import { testAmmoJS } from './red-orbit/physics/ammo-test.js';
-import { HybridOrbitalSystem } from './red-orbit/physics/hybrid-orbital-system.js';
-import { createCollisionControls } from './red-orbit/ui/collision-controls.js';
+// Import Red Orbit physics - PURE PHYSICS ENGINE
+import { RedOrbitPhysics } from './red-orbit/physics/red-orbit-physics.js';
 
 // Globals
 let engine;
@@ -53,16 +49,16 @@ let isInitialized = false;
 let sceneLoaded = false;
 let advancedTexture; 
 let sdaController; // SDA visualization controller
-let redOrbitPhysics = null; // Red Orbit physics test instance
-let hybridOrbitalSystem = null; // Red Orbit hybrid physics system
-let redOrbitUI = null; // Red Orbit UI controller
-let simpleDebrisTest = null; // Simple debris test
+let redOrbitPhysics = null; // Red Orbit PURE physics system
 
 // Use a shared state object for timeMultiplier
 const simState = {
-    timeMultiplier: 1.0, // Start at 1x speed (realistic but sped up 60:1)
+    timeMultiplier: 1.0, // Keep Earth rotation at normal speed
     lastTimeMultiplier: 1.0
 };
+
+// Expose time multiplier globally for physics engine
+window.getTimeMultiplier = () => simState.timeMultiplier;
 
 // Orbital elements and real-time calculation data
 let orbitalElements = {};
@@ -92,23 +88,7 @@ export async function initApp() {
     // Initialize 3D model viewer panel
     initModelViewer();
     
-    // Initialize SDA panel minimize buttons
-    setTimeout(() => {
-        const sdaLegendMinBtn = document.getElementById('minimize-sda-legend-btn');
-        const sdaBrowserMinBtn = document.getElementById('minimize-sda-browser-btn');
-        
-        if (sdaLegendMinBtn) {
-            sdaLegendMinBtn.addEventListener('click', () => {
-                minimizeSDAPanel('legend');
-            });
-        }
-        
-        if (sdaBrowserMinBtn) {
-            sdaBrowserMinBtn.addEventListener('click', () => {
-                minimizeSDAPanel('browser');
-            });
-        }
-    }, 500);
+    // Dashboard is initialized after scene loads
     
     // Set up listener for LEOS dial buttons
     window.addEventListener('leos-dial-action', (event) => {
@@ -135,8 +115,8 @@ export async function initApp() {
      // Set flag to disable automatic LOS beams
      groundStationDashboardOpen = true;
      
-     // Clear any existing automatic LOS beams
-     clearAutoLOSBeams();
+     // Ground stations removed for Red Orbit
+     // clearAutoLOSBeams();
      
      // clear previous LOS lines
      currentLOS.forEach(line => {
@@ -148,7 +128,8 @@ export async function initApp() {
       
       // Get station info including pre-calculated horizon distance
       const stationKey = station.name.replace(/\s+/g, '_');
-      const groundStationMeshes = getGroundStationMeshes();
+      // Ground stations removed for Red Orbit
+      const groundStationMeshes = {}; // getGroundStationMeshes();
       const stationEntry = groundStationMeshes[stationKey];
       if (!stationEntry) {
         console.warn('Ground station mesh not found for key:', stationKey, 'Available keys:', Object.keys(groundStationMeshes));
@@ -487,95 +468,17 @@ export async function initApp() {
                 () => simState.timeMultiplier
             );
             
-            // Create simple debris test first
-            simpleDebrisTest = new SimpleDebrisTest(scene);
             
-            // Create Red Orbit UI
-            redOrbitUI = createPhysicsUI();
-            redOrbitUI.show();
+            // Red Orbit UI removed - using collision controls instead
             
-            // Add keyboard shortcut 'P' to trigger simple test
-            window.addEventListener('keydown', (e) => {
-                if (e.key === 'P' || e.key === 'p') {
-                    if (simpleDebrisTest) {
-                        const stats = simpleDebrisTest.getStats();
-                        if (!stats.isRunning) {
-                            console.log('Starting Red Orbit simple debris test...');
-                            simpleDebrisTest.start();
-                            redOrbitUI.updateStatus(true, {
-                                debrisStats: { activeDebris: stats.debrisCount },
-                                physicsBodyCount: 0,
-                                collisionOccurred: false
-                            });
-                        } else {
-                            console.log('Stopping Red Orbit debris test...');
-                            simpleDebrisTest.stop();
-                            redOrbitUI.updateStatus(false, stats);
-                        }
-                    }
-                }
-            });
+            // Red Orbit keyboard shortcuts and UI updates removed
+            // Physics is always active, controlled via Red Orbit modal
             
-            // Update UI periodically
-            setInterval(() => {
-                if (simpleDebrisTest && redOrbitUI) {
-                    const stats = simpleDebrisTest.getStats();
-                    if (stats.isRunning) {
-                        redOrbitUI.updateStatus(true, {
-                            debrisStats: { activeDebris: stats.debrisCount },
-                            physicsBodyCount: 0,
-                            collisionOccurred: stats.satelliteCount === 0
-                        });
-                    }
-                }
-            }, 100);
+            // Red Orbit physics initialized after satellites are loaded
             
-            // Run Ammo.js diagnostic test
-            console.log('Running Ammo.js diagnostic...');
-            testAmmoJS().then(success => {
-                if (success) {
-                    console.log('Ammo.js diagnostic passed! Initializing physics test...');
-                    // Initialize physics test
-                    return initPhysicsTest(scene);
-                } else {
-                    throw new Error('Ammo.js diagnostic failed');
-                }
-            }).then(physicsTest => {
-                console.log('Red Orbit Physics Test initialized successfully');
-                redOrbitPhysics = physicsTest;
-                
-                // Add keyboard shortcut 'O' for physics test
-                window.addEventListener('keydown', (e) => {
-                    if (e.key === 'O' || e.key === 'o') {
-                        if (redOrbitPhysics) {
-                            const stats = redOrbitPhysics.getStats();
-                            if (!stats.isRunning) {
-                                console.log('Starting Red Orbit PHYSICS collision test...');
-                                redOrbitPhysics.start();
-                                
-                                // Re-enable physics update
-                                window.redOrbitPhysicsEnabled = true;
-                            } else {
-                                console.log('Stopping Red Orbit physics test...');
-                                redOrbitPhysics.stop();
-                                window.redOrbitPhysicsEnabled = false;
-                            }
-                        }
-                    }
-                });
-            }).catch(error => {
-                console.error('Failed to initialize Red Orbit physics:', error);
-                console.log('Physics disabled - using visual-only test');
-            });
             
-            // Show welcome modal after a slight delay
-            setTimeout(() => {
-                showWelcomeModal();
-            }, 500);
-            
-            // Initialize SDA in the background as optional feature
-            // This runs completely independent and won't block the main app
-            initSDAInBackground(scene);
+            // Initialize Navigation Controller
+            initNavigationController();
             
             // Add event listener for the Add TLE button
             const addTleBtn = document.getElementById('add-tle-button');
@@ -593,10 +496,10 @@ export async function initApp() {
                 });
             }
         }
-        // Only update automatic LOS beams when ground station dashboard is NOT open
-        if (!groundStationDashboardOpen) {
-            updateGroundStationsLOS(scene);
-        }
+        // Ground stations removed for Red Orbit
+        // if (!groundStationDashboardOpen) {
+        //     updateGroundStationsLOS(scene);
+        // }
     });
     
     // Throttle resize events for better performance
@@ -1028,9 +931,9 @@ async function createScene() {
     // Then create Earth and Moon
     earthMesh = await createEarth(scene, () => simState.timeMultiplier, sunDirection);
     moonMesh = await createMoon(scene, () => simState.timeMultiplier);
-    // Create ground stations and coverage circles
-    createGroundStations(scene, advancedTexture);
-    createCoverageCircles(scene, LOS_DEFAULT_KM, 128); // Use default LOS distance for fallback
+    // Ground stations removed for Red Orbit
+    // createGroundStations(scene, advancedTexture);
+    // createCoverageCircles(scene, LOS_DEFAULT_KM, 128); // Use default LOS distance for fallback
     
     // Finally load satellite data
     await loadSatelliteData();
@@ -1735,9 +1638,9 @@ function minimizeSDAPanel(panelType) {
             tab.innerHTML = `<img src="/assets/sat.svg" style="width:18px; height:18px; filter:brightness(0) invert(1);" alt="SDA Visualization">`;
             tab.title = 'Click to restore SDA visualization panel';
             
-            // Purple color for SDA
-            tab.style.background = 'rgba(138, 43, 226, 0.7)';
-            tab.style.borderColor = '#8a2be2';
+            // Red color for Red Orbit
+            tab.style.background = 'rgba(255, 0, 0, 0.7)';
+            tab.style.borderColor = '#ff0000';
             
             tab.addEventListener('click', () => {
                 restoreSDAPanel('legend');
@@ -1943,7 +1846,7 @@ function initializeSettingsModal() {
         showFpsCounter: false,
         
         // Visual Display
-        showOrbitPaths: true,
+        showOrbitPaths: false,
         showSatelliteLabels: true,
         showGroundStations: true,
         showLineOfSight: true,
@@ -2124,7 +2027,7 @@ function initializeSettingsModal() {
             window.simulationSettings = {
                 timeMultiplier: 1.0,
                 timezone: 'UTC',
-                showOrbitPaths: true,
+                showOrbitPaths: false,
                 showSatelliteLabels: true,
                 showGroundStations: true,
                 showLineOfSight: true,
@@ -2791,8 +2694,8 @@ async function loadSatelliteData() {
         // Initialize Red Orbit hybrid physics system
         initializeHybridPhysics();
         
-        // Create Red Orbit collision controls UI
-        createCollisionControls(scene);
+        // Don't create separate collision controls - using modal instead
+        // createCollisionControls(scene);
 
     // --- Satellite orbital mechanics render loop synchronized with Earth rotation ---
     scene.onBeforeRenderObservable.add(() => {
@@ -2803,10 +2706,11 @@ async function loadSatelliteData() {
       const meshes = getSatelliteMeshes();
       const telemetryObj = getTelemetryData();
       
-      // If hybrid physics is active, let it handle position updates
-      if (hybridOrbitalSystem && hybridOrbitalSystem.initialized) {
-        hybridOrbitalSystem.updateSatellites(currentSimTime);
-        return;
+      // If RED ORBIT physics is active, let it handle ALL position updates
+      if (redOrbitPhysics && redOrbitPhysics.initialized) {
+        // Step physics simulation
+        redOrbitPhysics.step(1/60); // Step at 60 FPS
+        // Don't return here - we still want to update other satellites if they exist
       }
       
       // Otherwise, use normal TLE-based updates
@@ -2967,50 +2871,52 @@ function setupSDAToggleButton() {
 }
 
 /**
- * Initialize Red Orbit hybrid physics system
+ * Initialize Red Orbit PURE physics system - NO HYBRID, REAL PHYSICS ONLY
  */
 async function initializeHybridPhysics() {
     try {
-        console.log('Initializing Red Orbit hybrid physics system...');
+        console.log('RED ORBIT: Initializing PURE physics engine - no more hybrid bullshit!');
         
-        hybridOrbitalSystem = new HybridOrbitalSystem(scene);
-        await hybridOrbitalSystem.initialize();
+        redOrbitPhysics = new RedOrbitPhysics(scene);
+        await redOrbitPhysics.initialize();
         
-        // Register all existing satellites with the physics system
+        // Expose globally for UI access
+        window.redOrbitPhysics = redOrbitPhysics;
+        
+        // Create satellites with REAL orbital parameters
         const meshes = getSatelliteMeshes();
-        const telemetryObj = getTelemetryData();
+        let satIndex = 0;
         
-        Object.entries(orbitalElements).forEach(([satName, elems]) => {
-            const mesh = meshes[satName];
-            if (mesh && elems) {
-                // Get TLE data if available
-                const satData = satelliteData[satName] || {};
-                
-                hybridOrbitalSystem.registerSatellite(satName, {
-                    mesh: mesh,
-                    orbitalElements: elems,
-                    tle1: satData.tle1,
-                    tle2: satData.tle2,
-                    mass: satData.mass || 1000,
-                    radius: satData.radius || 2
-                });
-            }
+        // Various realistic LEO altitudes and inclinations
+        const altitudes = [400, 550, 700, 850, 1000, 1200]; // km
+        const inclinations = [0, 51.6, 53, 90, 98.7, 97.4]; // degrees
+        
+        Object.entries(meshes).forEach(([satName, mesh]) => {
+            // Get satellite data if available
+            const satData = satelliteData[satName] || {};
+            
+            // Create satellite with real orbital mechanics
+            redOrbitPhysics.createSatellite({
+                id: satName,
+                altitude: altitudes[satIndex % altitudes.length],
+                inclination: inclinations[satIndex % inclinations.length],
+                mass: satData.mass || 500,
+                radius: satData.radius || 2,
+                mesh: mesh
+            });
+            
+            satIndex++;
         });
         
-        // Set up collision handler
-        hybridOrbitalSystem.onCollision = (collision) => {
-            console.log('Red Orbit: Collision detected!', collision);
-            // TODO: Add UI alerts, sound effects, telemetry updates
-        };
+        // Expose for navigation controller
+        window.redOrbitPhysics = redOrbitPhysics;
         
-        // Make it globally accessible
-        window.hybridOrbitalSystem = hybridOrbitalSystem;
-        
-        console.log('Red Orbit hybrid physics initialized with', hybridOrbitalSystem.getStats().satelliteCount, 'satellites');
+        console.log('RED ORBIT: Pure physics initialized with', redOrbitPhysics.bodies.size, 'satellites!');
+        console.log('RED ORBIT: Ready to collide some shit!');
         
     } catch (error) {
-        console.error('Failed to initialize hybrid physics:', error);
-        // Continue without physics - normal TLE propagation will work
+        console.error('RED ORBIT: Failed to initialize pure physics:', error);
+        // No fallback - we're all in on physics now!
     }
 }
 

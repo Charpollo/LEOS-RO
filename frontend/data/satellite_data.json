@@ -1,32 +1,43 @@
 {
   "satellites": {
-    "CRTS1": {
-      "name": "CRTS1",
-      "semi_major_axis_km": 7171.0,
-      "eccentricity": 0.001,
-      "inclination_deg": 97.4,
-      "raan_deg": 0.0,
-      "argument_of_perigee_deg": 0.0,
-      "mean_anomaly_deg": 0.0,
-      "epoch": "2025-01-01T00:00:00Z",
-      "model_file": "crts_satellite.glb",
-      "color": "#00CCFF"
+    "STARLINK-1234": {
+      "tle1": "1 44235U 19029A   24001.50000000  .00000100  00000-0  10000-4 0  9999",
+      "tle2": "2 44235  53.0000 100.0000 0001000  90.0000 270.0000 15.00000000100000",
+      "mass": 260,
+      "radius": 1.5,
+      "type": "Communication"
     },
-    "Bulldog": {
-      "name": "Bulldog",
-      "semi_major_axis_km": 7171.0,
-      "eccentricity": 0.002,
-      "inclination_deg": 98.2,
-      "raan_deg": 45.0,
-      "argument_of_perigee_deg": 90.0,
-      "mean_anomaly_deg": 180.0,
-      "epoch": "2025-01-01T00:00:00Z",
-      "model_file": "bulldog_sat_mobile.glb",
-      "color": "#FF6600"
+    "COSMOS-2542": {
+      "tle1": "1 44920U 19087A   24001.50000000  .00000200  00000-0  20000-4 0  9999",
+      "tle2": "2 44920  97.5000 200.0000 0002000  85.0000 275.0000 14.80000000200000",
+      "mass": 750,
+      "radius": 2.0,
+      "type": "Military"
+    },
+    "DEBRIS-1": {
+      "tle1": "1 99901U 24001A   24001.50000000  .00000300  00000-0  30000-4 0  9999",
+      "tle2": "2 99901  53.0100 100.1000 0001500  90.5000 269.5000 15.00100000000100",
+      "mass": 50,
+      "radius": 0.5,
+      "type": "Debris"
+    },
+    "IRIDIUM-33": {
+      "tle1": "1 24946U 97051C   24001.50000000  .00000150  00000-0  15000-4 0  9999",
+      "tle2": "2 24946  86.4000 150.0000 0002000  95.0000 265.0000 14.34000000300000",
+      "mass": 689,
+      "radius": 1.8,
+      "type": "Communication"
+    },
+    "FENGYUN-1C-DEB": {
+      "tle1": "1 29831U 07003A   24001.50000000  .00000250  00000-0  25000-4 0  9999",
+      "tle2": "2 29831  98.8000 250.0000 0003000  80.0000 280.0000 14.60000000400000",
+      "mass": 100,
+      "radius": 0.8,
+      "type": "Debris"
     }
   },
   "metadata": {
     "simulation_start": "2025-01-01T00:00:00Z",
-    "description": "Static orbital elements for LEOS frontend-only visualization"
+    "description": "Red Orbit test satellites for collision simulation"
   }
 }

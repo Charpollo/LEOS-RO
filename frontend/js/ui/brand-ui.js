@@ -1,13 +1,13 @@
-// Space facts for loading screen
+// Disaster and debris facts for loading screen
 const spaceFacts = [
-    "Did you know? There are over 34,000 objects larger than 10cm currently orbiting Earth.",
-    "The International Space Station travels at approximately 28,000 km/h around Earth.",
-    "Low Earth Orbit extends from about 160km to 2,000km above Earth's surface.",
-    "Satellites in geostationary orbit complete one revolution in exactly 24 hours.",
-    "The first artificial satellite, Sputnik 1, was launched on October 4, 1957.",
-    "Space debris is tracked by global surveillance networks to prevent collisions.",
-    "The Kessler Syndrome describes a cascade effect of space debris collisions.",
-    "CubeSats are standardized miniature satellites used for space research."
+    "Warning: Over 130 million pieces of debris smaller than 1cm are orbiting Earth at lethal speeds.",
+    "A 1cm paint fleck traveling at orbital velocity has the kinetic energy of a hand grenade.",
+    "The 2009 Iridium-Cosmos collision created over 2,000 trackable debris fragments.",
+    "Kessler Syndrome could make space inaccessible for generations if triggered.",
+    "China's 2007 anti-satellite test created 3,500+ pieces of trackable debris.",
+    "Even a 1mm aluminum sphere can penetrate ISS crew modules at orbital velocity.",
+    "The ESA estimates a 1 in 10,000 chance of catastrophic collision for active satellites.",
+    "At 17,500 mph, even tiny debris becomes a hypervelocity projectile."
 ];
 
 // Initialize brand UI components
@@ -20,14 +20,11 @@ export function initBrandUI() {
     }
     // Initialize loading wave animation
     initLoadingWave();
-    initWelcomeModal();
-    initLearningModal();
-    initSupportModal();
+    // Modals removed - functionality in SDA
     // initTimeDisplay();    // Disabled in favor of simulation-driven clock
     initTelemetryDashboard();
     initSdaButton();
-    initCapcomKellyButton();
-    initModalManager();
+    initRedOrbitSDA(); // Red Orbit integrated into SDA
 }
 
 /**
@@ -64,28 +61,32 @@ function initWelcomeModal() {
 }
 
 // Learning modal functionality
-function initLearningModal() {
-    const learningModal = document.getElementById('learning-modal');
-    const closeBtn = document.getElementById('learning-modal-close');
-    const okBtn = document.getElementById('learning-modal-ok');
+function initRedOrbitModal() {
+    const redOrbitModal = document.getElementById('red-orbit-modal');
+    const closeBtn = document.getElementById('red-orbit-modal-close');
+    const activateBtn = document.getElementById('activate-scenario');
     
-    if (learningModal) {
+    if (redOrbitModal) {
         if (closeBtn) {
             closeBtn.addEventListener('click', () => {
-                learningModal.style.display = 'none';
+                redOrbitModal.style.display = 'none';
+                stopCollisionCountdown();
             });
         }
         
-        if (okBtn) {
-            okBtn.addEventListener('click', () => {
-                learningModal.style.display = 'none';
+        if (activateBtn) {
+            activateBtn.addEventListener('click', () => {
+                activateCollisionScenario();
+                activateBtn.textContent = 'SCENARIO ACTIVE';
+                activateBtn.disabled = true;
             });
         }
         
         // Close on outside click
-        learningModal.addEventListener('click', (e) => {
-            if (e.target === learningModal) {
-                learningModal.style.display = 'none';
+        redOrbitModal.addEventListener('click', (e) => {
+            if (e.target === redOrbitModal) {
+                redOrbitModal.style.display = 'none';
+                stopCollisionCountdown();
             }
         });
     }
@@ -484,19 +485,130 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 
+// Initialize Red Orbit SDA integration
+function initRedOrbitSDA() {
+    // Handle both trigger buttons (one in SDA tab, one in Kessler tab)
+    const triggerBtns = [
+        document.getElementById('trigger-kessler'),
+        document.getElementById('trigger-kessler-tab')
+    ];
+    
+    triggerBtns.forEach(btn => {
+        if (btn) {
+            btn.addEventListener('click', () => {
+                if (window.redOrbitPhysics) {
+                    // Trigger collision event
+                    const event = new CustomEvent('redOrbitCollision');
+                    window.dispatchEvent(event);
+                    
+                    // Update both buttons
+                    triggerBtns.forEach(b => {
+                        if (b) {
+                            b.textContent = 'ACTIVE';
+                            b.style.background = '#ff0000';
+                            b.disabled = true;
+                        }
+                    });
+                    
+                    // Update debris counts in both tabs
+                    const debrisCountEls = [
+                        document.getElementById('active-debris-count'),
+                        document.getElementById('kessler-debris-count')
+                    ];
+                    debrisCountEls.forEach(el => {
+                        if (el) el.textContent = '0';
+                    });
+                    
+                    // Re-enable after 5 seconds
+                    setTimeout(() => {
+                        triggerBtns.forEach(b => {
+                            if (b) {
+                                b.textContent = 'Trigger Event';
+                                b.style.background = 'linear-gradient(135deg, #ff6600 0%, #ff3300 100%)';
+                                b.disabled = false;
+                            }
+                        });
+                    }, 5000);
+                }
+            });
+        }
+    });
+    
+    // Initialize tab switching
+    const tabs = document.querySelectorAll('.sda-tab');
+    const panels = document.querySelectorAll('.sda-tab-panel');
+    
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const targetTab = tab.dataset.tab;
+            
+            // Update tab styles
+            tabs.forEach(t => {
+                t.classList.remove('active');
+                t.style.background = 'rgba(0, 0, 0, 0.3)';
+                t.style.color = '#999';
+                t.style.borderTop = '2px solid transparent';
+            });
+            
+            tab.classList.add('active');
+            tab.style.background = 'rgba(255, 0, 0, 0.2)';
+            tab.style.color = '#ff6666';
+            tab.style.borderTop = '2px solid #ff0000';
+            
+            // Show/hide panels
+            panels.forEach(panel => {
+                if (panel.id === `${targetTab}-tab`) {
+                    panel.style.display = 'block';
+                } else {
+                    panel.style.display = 'none';
+                }
+            });
+        });
+    });
+    
+    // Update debris count periodically
+    setInterval(() => {
+        const debrisCount = document.getElementById('active-debris-count');
+        const riskLevel = document.getElementById('collision-risk');
+        const objectsTracked = document.getElementById('objects-tracked-count');
+        
+        if (window.redOrbitPhysics && window.redOrbitPhysics.getStats) {
+            const stats = window.redOrbitPhysics.getStats();
+            
+            // Update debris count
+            if (debrisCount) {
+                debrisCount.textContent = stats.debrisCount;
+            }
+            
+            // Update total objects tracked
+            if (objectsTracked) {
+                objectsTracked.textContent = stats.totalObjects;
+            }
+            
+            // Update risk level based on stats
+            if (riskLevel) {
+                riskLevel.textContent = stats.highestRisk || 'LOW';
+                if (stats.highestRisk === 'CRITICAL') {
+                    riskLevel.style.color = '#ff0000';
+                } else if (stats.highestRisk === 'HIGH') {
+                    riskLevel.style.color = '#ff4400';
+                } else if (stats.highestRisk === 'MEDIUM') {
+                    riskLevel.style.color = '#ff8800';
+                } else {
+                    riskLevel.style.color = '#00ff00';
+                }
+            }
+        }
+    }, 500);
+}
+
 // Show control buttons after scene loads
 export function showHelpButton() {
-    // Show the control dock first
+    // Most UI elements removed - only SDA remains
     const controlDock = document.getElementById('control-dock');
     if (controlDock) {
         controlDock.style.display = 'flex';
         controlDock.classList.add('dock-enter');
-    }
-    
-    // Show CAPCOM Kelly button after scene loads
-    const kellyBtn = document.getElementById('capcom-kelly-btn');
-    if (kellyBtn) {
-        kellyBtn.style.display = 'flex';
     }
     
     // IMMEDIATELY fix time display visibility
@@ -519,13 +631,15 @@ export function showHelpButton() {
         });
     }
     
-    // Set up learning button to show learning modal
-    const learningBtn = document.getElementById('learning-btn');
-    if (learningBtn) {
-        learningBtn.addEventListener('click', () => {
-            const learningModal = document.getElementById('learning-modal');
-            if (learningModal) {
-                learningModal.style.display = 'flex';
+    // Set up Red Orbit button to show Red Orbit modal
+    const redOrbitBtn = document.getElementById('red-orbit-btn');
+    if (redOrbitBtn) {
+        redOrbitBtn.addEventListener('click', () => {
+            const redOrbitModal = document.getElementById('red-orbit-modal');
+            if (redOrbitModal) {
+                redOrbitModal.style.display = 'flex';
+                // Start countdown when modal opens
+                startCollisionCountdown();
             }
         });
     }
@@ -726,3 +840,82 @@ function initModalManager() {
     //     });
     // }
 }
+
+// Red Orbit collision countdown
+let countdownInterval = null;
+let countdownTime = 30; // 30 seconds
+
+function startCollisionCountdown() {
+    countdownTime = 30;
+    const timerElement = document.getElementById('countdown-timer');
+    
+    if (countdownInterval) {
+        clearInterval(countdownInterval);
+    }
+    
+    countdownInterval = setInterval(() => {
+        countdownTime--;
+        
+        if (timerElement) {
+            const minutes = Math.floor(countdownTime / 60);
+            const seconds = countdownTime % 60;
+            timerElement.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            
+            // Change color as time runs out
+            if (countdownTime <= 10) {
+                timerElement.style.color = '#ff0000';
+                timerElement.style.animation = 'pulse 0.5s infinite';
+            }
+        }
+        
+        if (countdownTime <= 0) {
+            clearInterval(countdownInterval);
+            // Auto-trigger collision
+            triggerCollisionFromModal();
+        }
+    }, 1000);
+}
+
+function stopCollisionCountdown() {
+    if (countdownInterval) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+    }
+}
+
+function activateCollisionScenario() {
+    // Move satellites into collision course
+    console.log('Activating Red Orbit collision scenario...');
+    
+    // Get satellites
+    const satellites = window.satelliteMeshes;
+    if (satellites && satellites.CRTS1 && satellites.Bulldog) {
+        // Start moving them together
+        console.log('Setting satellites on collision course');
+    }
+}
+
+function triggerCollisionFromModal() {
+    // Trigger the actual collision
+    if (window.redOrbitPhysics) {
+        // Use the collision controls trigger
+        const event = new CustomEvent('redOrbitCollision');
+        window.dispatchEvent(event);
+    }
+    
+    // Update modal
+    const activateBtn = document.getElementById('activate-scenario');
+    if (activateBtn) {
+        activateBtn.textContent = '💥 IMPACT!';
+        activateBtn.style.background = '#ff0000';
+    }
+}
+
+// Update debris count periodically
+setInterval(() => {
+    const modalDebrisCount = document.getElementById('modal-debris-count');
+    if (modalDebrisCount && window.redOrbitPhysics) {
+        const stats = window.redOrbitPhysics.getStats ? window.redOrbitPhysics.getStats() : { debrisCount: window.redOrbitPhysics.debris.size };
+        modalDebrisCount.textContent = stats.debrisCount;
+    }
+}, 1000);

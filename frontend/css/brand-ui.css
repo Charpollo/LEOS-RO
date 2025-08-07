@@ -9,14 +9,14 @@
 /* IMPORTS AND VARIABLES                       */
 /* =========================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Segoe+UI:wght@300;400;500;600&display=swap');
+/* Fonts use system defaults for offline compatibility - no external dependencies */
 
 :root {
-    /* Brand Colors */
-    --neon-blue: #00cfff;
-    --neon-blue-dark: #0099cc;
-    --neon-blue-light: #66d9ff;
-    --neon-blue-glow: rgba(0, 207, 255, 0.3);
+    /* Brand Colors - Red Orbit Theme */
+    --neon-blue: #ff0000;
+    --neon-blue-dark: #cc0000;
+    --neon-blue-light: #ff3333;
+    --neon-blue-glow: rgba(255, 0, 0, 0.3);
     
     /* Core Palette */
     --background-black: #000000;
@@ -551,7 +551,7 @@ body.hide-time #time-display {
     background: rgba(0,18,32,0.98);
     border-radius: 7px;
     padding: 0.45em 1.1em;
-    box-shadow: 0 0 16px 2px #00eaff, 0 2px 10px #00cfff22; /* neon glow only on edges */
+    box-shadow: 0 0 16px 2px #ff6600, 0 2px 10px #ff660022; /* red glow only on edges */
     display: inline-block;
     cursor: pointer;
     border: none;
@@ -562,8 +562,8 @@ body.hide-time #time-display {
 }
 
 #current-time:hover {
-    box-shadow: 0 0 24px 4px #00eaff, 0 4px 18px #00cfff44;
-    background: rgba(0,23,40,1);
+    box-shadow: 0 0 24px 4px #ff6600, 0 4px 18px #ff660044;
+    background: rgba(40,10,0,1);
 }
 
 #time-display {

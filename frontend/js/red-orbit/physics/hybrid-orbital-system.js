@@ -9,6 +9,7 @@
 import { OrbitalPhysics } from './orbital-physics.js';
 import { calculateSatellitePosition, toBabylonPosition } from '../../orbital-mechanics.js';
 import * as satellite from 'satellite.js';
+import * as BABYLON from '@babylonjs/core';
 
 export class HybridOrbitalSystem {
     constructor(scene) {
@@ -264,7 +265,19 @@ export class HybridOrbitalSystem {
         // Number of debris pieces based on impact energy
         const debrisCount = Math.min(50, Math.floor(relativeVelocity * 5));
         
-        console.log(`Generating ${debrisCount} debris pieces`);
+        console.log(`Generating ${debrisCount} debris pieces at position:`, position);
+        
+        // Calculate orbital velocity at this altitude
+        const altitude = Math.sqrt(position.x * position.x + position.y * position.y + position.z * position.z);
+        const orbitalSpeed = Math.sqrt(this.orbitalPhysics.EARTH_MU / altitude); // km/s
+        
+        // Get orbital velocity direction (perpendicular to position vector)
+        const posNorm = Math.sqrt(position.x * position.x + position.y * position.y + position.z * position.z);
+        const orbitalDir = {
+            x: -position.y / posNorm,
+            y: position.x / posNorm,
+            z: 0
+        };
         
         for (let i = 0; i < debrisCount; i++) {
             const debrisId = `debris_${Date.now()}_${i}`;
@@ -273,15 +286,16 @@ export class HybridOrbitalSystem {
             const mass = Math.random() * 10 + 1; // 1-11 kg
             const radius = Math.random() * 0.5 + 0.1; // 0.1-0.6 m
             
-            // Debris velocity inherits orbital velocity plus explosion
-            const explosionSpeed = relativeVelocity * 0.2;
+            // Explosion delta-V in random direction
+            const explosionSpeed = relativeVelocity * 0.1; // 10% of collision velocity
             const theta = Math.random() * Math.PI * 2;
             const phi = Math.random() * Math.PI;
             
+            // Base orbital velocity plus explosion delta
             const velocity = {
-                x: position.x / 100 + explosionSpeed * Math.sin(phi) * Math.cos(theta),
-                y: position.y / 100 + explosionSpeed * Math.sin(phi) * Math.sin(theta),
-                z: position.z / 100 + explosionSpeed * Math.cos(phi)
+                x: orbitalDir.x * orbitalSpeed + explosionSpeed * Math.sin(phi) * Math.cos(theta),
+                y: orbitalDir.y * orbitalSpeed + explosionSpeed * Math.sin(phi) * Math.sin(theta),
+                z: orbitalDir.z * orbitalSpeed + explosionSpeed * Math.cos(phi)
             };
             
             // Create physics body for debris
@@ -293,17 +307,18 @@ export class HybridOrbitalSystem {
                 velocity: velocity
             });
             
-            // Create visual mesh
+            // Create visual mesh - make it larger so it's visible
+            const visualScale = 0.01; // Scale up for visibility (10m visual size)
             const debrisMesh = BABYLON.MeshBuilder.CreateSphere(debrisId, {
-                diameter: radius * 2 / 1000,
-                segments: 4
+                diameter: visualScale,
+                segments: 8
             }, this.scene);
             
-            // Red-orange glowing material
+            // Bright red-orange glowing material
             const material = new BABYLON.StandardMaterial(`${debrisId}_mat`, this.scene);
-            material.diffuseColor = new BABYLON.Color3(1, 0.5, 0);
-            material.emissiveColor = new BABYLON.Color3(1, 0.3, 0);
-            material.specularColor = new BABYLON.Color3(0, 0, 0);
+            material.diffuseColor = new BABYLON.Color3(1, 0.3, 0);
+            material.emissiveColor = new BABYLON.Color3(1, 0.2, 0);
+            material.specularColor = new BABYLON.Color3(1, 1, 1);
             debrisMesh.material = material;
             
             // Store debris data
@@ -373,6 +388,114 @@ export class HybridOrbitalSystem {
         this.orbitalPhysics.setTimeMultiplier(multiplier);
     }
 
+    /**
+     * Trigger Kessler Syndrome cascade event
+     */
+    triggerKesslerSyndrome(velocity = 7.5, debrisCount = 50) {
+        console.log(`Triggering Kessler Syndrome! Velocity: ${velocity} km/s, Debris: ${debrisCount}`);
+        
+        // Find two satellites to collide
+        const satellites = Array.from(this.satellites.entries());
+        if (satellites.length < 2) {
+            console.warn('Not enough satellites for collision');
+            // Create some test satellites if none exist
+            this.createTestSatellites();
+            return;
+        }
+        
+        // Pick two different satellites
+        const satIndex1 = Math.floor(Math.random() * satellites.length);
+        let satIndex2 = Math.floor(Math.random() * satellites.length);
+        while (satIndex2 === satIndex1 && satellites.length > 1) {
+            satIndex2 = Math.floor(Math.random() * satellites.length);
+        }
+        
+        const [satId1, satData1] = satellites[satIndex1];
+        const [satId2, satData2] = satellites[satIndex2];
+        
+        console.log(`Colliding ${satId1} with ${satId2}`);
+        
+        // Get current positions
+        const pos1 = satData1.mesh.position.clone();
+        const pos2 = satData2.mesh.position.clone();
+        
+        // Move satellites closer to force collision
+        const midPoint = BABYLON.Vector3.Lerp(pos1, pos2, 0.5);
+        
+        // Convert to physics coordinates
+        const physicsPos = {
+            x: midPoint.x * 6371, // Convert from Babylon to km
+            y: midPoint.y * 6371,
+            z: midPoint.z * 6371
+        };
+        
+        // Force physics bodies to collide by moving them to same position
+        const proxyId1 = `proxy_${satId1}`;
+        const proxyId2 = `proxy_${satId2}`;
+        
+        // Move physics proxies to collision point
+        if (this.orbitalPhysics.bodies.has(proxyId1) && this.orbitalPhysics.bodies.has(proxyId2)) {
+            const body1 = this.orbitalPhysics.bodies.get(proxyId1).body;
+            const body2 = this.orbitalPhysics.bodies.get(proxyId2).body;
+            
+            // Set collision velocities
+            const collisionVel = velocity * 1000; // km/s to m/s
+            body1.setLinearVelocity(new this.orbitalPhysics.Ammo.btVector3(
+                collisionVel, 0, 0
+            ));
+            body2.setLinearVelocity(new this.orbitalPhysics.Ammo.btVector3(
+                -collisionVel, 0, 0
+            ));
+            
+            // Move bodies to collision point
+            const transform1 = body1.getWorldTransform();
+            const transform2 = body2.getWorldTransform();
+            
+            transform1.setOrigin(new this.orbitalPhysics.Ammo.btVector3(
+                physicsPos.x / 100,
+                physicsPos.y / 100,
+                physicsPos.z / 100
+            ));
+            
+            transform2.setOrigin(new this.orbitalPhysics.Ammo.btVector3(
+                (physicsPos.x + 0.01) / 100, // Slight offset to ensure collision
+                physicsPos.y / 100,
+                physicsPos.z / 100
+            ));
+            
+            body1.setWorldTransform(transform1);
+            body2.setWorldTransform(transform2);
+            
+            // Activate bodies
+            body1.activate(true);
+            body2.activate(true);
+        }
+        
+        // Create collision event
+        const collision = {
+            object0: { id: satId1 },
+            object1: { id: satId2 },
+            position: physicsPos,
+            relativeVelocity: velocity * 1000
+        };
+        
+        // Handle the collision
+        this.handleCollision(collision);
+        
+        // Notify UI
+        if (window.showNotification) {
+            window.showNotification('KESSLER SYNDROME INITIATED', 'error');
+        }
+    }
+    
+    /**
+     * Create test satellites if none exist
+     */
+    createTestSatellites() {
+        console.log('Creating test satellites for collision demo...');
+        // This would need to be implemented to create satellites dynamically
+    }
+    
     /**
      * Get statistics
      */

@@ -93,16 +93,16 @@ class SDAVisualization {
       this.orbitalMotionEnabled = false;
       console.log('SDA Orbital Motion: DISABLED');
       
-      // Show performance improvement message
-      this.showMotionToggleMessage('Orbital motion disabled - Performance optimized', '#00ff64');
+      // Don't show notification - just log to console
+      console.log('Orbital motion disabled - Performance optimized');
     } else {
       // Enable orbital motion
       toggleElement.classList.add('active');
       this.orbitalMotionEnabled = true;
       console.log('SDA Orbital Motion: ENABLED');
       
-      // Show performance warning
-      this.showMotionToggleMessage('Orbital motion enabled - May impact performance on lower-end systems', '#ffc800');
+      // Don't show warning notification - just log to console
+      console.log('Orbital motion enabled - May impact performance on lower-end systems');
     }
   }
   
@@ -1821,15 +1821,16 @@ class SDAVisualization {
     const lastUpdatedElement = document.getElementById('last-updated');
 
     if (modeBadge) {
-      modeBadge.textContent = mode.toUpperCase();
-      modeBadge.className = `mode-badge ${mode.toLowerCase()}`;
+      // Always show READY for Red Orbit
+      modeBadge.textContent = 'READY';
+      modeBadge.className = `mode-badge ready`;
     }
 
     if (modeText) {
       const modeMessages = {
-        'real': `BETA: ${totalCount.toLocaleString()} real satellites from Celestrak (1 week old data). Not real-time.`,
-        'hybrid': `BETA: ${realCount.toLocaleString()} real Celestrak + ${staticCount.toLocaleString()} simulated objects. Demonstration only.`,
-        'static': `BETA: ${totalCount.toLocaleString()} simulated objects for visualization demo. Not real satellite data.`
+        'real': `${totalCount.toLocaleString()} tracked objects`,
+        'hybrid': `${totalCount.toLocaleString()} tracked objects`,
+        'static': `${totalCount.toLocaleString()} simulated objects`
       };
       modeText.textContent = modeMessages[mode] || 'Loading satellite data...';
     }

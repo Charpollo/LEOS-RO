@@ -37,12 +37,12 @@ Red Orbit serves a distinct market segment focused on:
 
 ### Separate Product Implementation
 
-Red Orbit operates as an independent product (LEOS-RS) within the LEOS ecosystem:
+Red Orbit operates as an independent product (LEOS-RO) within the LEOS ecosystem:
 ```
 LEOS Ecosystem:
 ├── First Orbit (LEOS-FO) - Free education platform
 ├── Mission Ready (LEOS-MR) - Professional operations
-└── Red Orbit (LEOS-RS) - Disaster simulation platform
+└── Red Orbit (LEOS-RO) - Disaster simulation platform
 ```
 
 ### Key Architectural Principles

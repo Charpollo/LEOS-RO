@@ -34,9 +34,9 @@ export async function loadAmmo() {
             }
         }
         
-        // Create script element to load Ammo.js from CDN
+        // Create script element to load Ammo.js locally for offline support
         const script = document.createElement('script');
-        script.src = 'https://cdn.babylonjs.com/ammo.js';
+        script.src = 'assets/ammo.js';  // Local copy for offline functionality
         script.type = 'text/javascript';
         
         script.onload = () => {

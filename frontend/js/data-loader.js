@@ -143,7 +143,7 @@ export class DataLoader {
             // Convert to radians
             const M = meanAnomaly * Math.PI / 180;
             const e = orbitalElements.eccentricity;
-            const i = orbitalElements.inclination_deg * Math.PI / 180;
+            const inc = orbitalElements.inclination_deg * Math.PI / 180;
             const omega = orbitalElements.argument_of_perigee_deg * Math.PI / 180;
             const Omega = orbitalElements.raan_deg * Math.PI / 180;
             
@@ -168,13 +168,13 @@ export class DataLoader {
             const z_orbital = 0;
             
             // Rotate to Earth-centered inertial frame
-            const x_eci = x_orbital * (Math.cos(omega) * Math.cos(Omega) - Math.sin(omega) * Math.sin(Omega) * Math.cos(i)) -
-                          y_orbital * (Math.sin(omega) * Math.cos(Omega) + Math.cos(omega) * Math.sin(Omega) * Math.cos(i));
+            const x_eci = x_orbital * (Math.cos(omega) * Math.cos(Omega) - Math.sin(omega) * Math.sin(Omega) * Math.cos(inc)) -
+                          y_orbital * (Math.sin(omega) * Math.cos(Omega) + Math.cos(omega) * Math.sin(Omega) * Math.cos(inc));
             
-            const y_eci = x_orbital * (Math.cos(omega) * Math.sin(Omega) + Math.sin(omega) * Math.cos(Omega) * Math.cos(i)) +
-                          y_orbital * (Math.cos(omega) * Math.cos(Omega) * Math.cos(i) - Math.sin(omega) * Math.sin(Omega));
+            const y_eci = x_orbital * (Math.cos(omega) * Math.sin(Omega) + Math.sin(omega) * Math.cos(Omega) * Math.cos(inc)) +
+                          y_orbital * (Math.cos(omega) * Math.cos(Omega) * Math.cos(inc) - Math.sin(omega) * Math.sin(Omega));
             
-            const z_eci = x_orbital * Math.sin(omega) * Math.sin(i) + y_orbital * Math.cos(omega) * Math.sin(i);
+            const z_eci = x_orbital * Math.sin(omega) * Math.sin(inc) + y_orbital * Math.cos(omega) * Math.sin(inc);
             
             // Convert to lat/lon (simplified)
             const altitude_km = Math.sqrt(x_eci * x_eci + y_eci * y_eci + z_eci * z_eci) - 6371.0;

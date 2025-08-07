@@ -97,11 +97,11 @@ function initAuroraBackgroundDelayed() {
                 
                 float tailNoise = fbm(v + vec2(iTime * 0.5, (i + 1.0))) * 0.3 * (1.0 - ((i + 1.0) / 20.0)); 
                 
-                // LEOS brand colors: neon blue (#00cfff) and complementary space tones
+                // Red Orbit colors: red (#ff0000) and yellow (#ffff00) disaster tones
                 vec4 auroraColors = vec4(
-                    0.0 + 0.2 * sin((i + 1.0) * 0.2 + iTime * 0.4),  // Red component (very low for blue tones)
-                    0.4 + 0.4 * cos((i + 1.0) * 0.3 + iTime * 0.5),  // Green component (moderate for cyan)
-                    0.8 + 0.2 * sin((i + 1.0) * 0.4 + iTime * 0.3),  // Blue component (dominant - neon blue)
+                    0.9 + 0.1 * sin((i + 1.0) * 0.2 + iTime * 0.4),  // Red component (dominant)
+                    0.3 + 0.5 * cos((i + 1.0) * 0.3 + iTime * 0.5),  // Green component (for yellow mix)
+                    0.0 + 0.1 * sin((i + 1.0) * 0.4 + iTime * 0.3),  // Blue component (minimal)
                     1.0
                 );
                 

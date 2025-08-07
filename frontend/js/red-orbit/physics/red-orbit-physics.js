@@ -1,0 +1,853 @@
+/**
+ * RED ORBIT PHYSICS ENGINE
+ * Pure physics simulation - no hybrid bullshit
+ * Real gravity, real orbits, real collisions
+ */
+
+import * as BABYLON from '@babylonjs/core';
+import { loadAmmo } from './ammo-loader.js';
+
+export class RedOrbitPhysics {
+    constructor(scene) {
+        this.scene = scene;
+        this.Ammo = null;
+        this.world = null;
+        this.bodies = new Map();
+        this.debris = new Map();
+        this.debrisMeshPool = []; // Mesh pooling for performance
+        this.maxDebris = 10000; // Support thousands of debris
+        this.telemetryData = new Map(); // Track telemetry for all objects
+        
+        // Real Earth parameters
+        this.EARTH_RADIUS = 6371; // km
+        this.EARTH_MU = 398600.4418; // km³/s² - Earth's gravitational parameter
+        this.SCALE = 1/1000; // Physics scale (1 unit = 1000 km)
+        
+        // Conversion factors
+        this.KM_TO_PHYSICS = 1/1000;
+        this.PHYSICS_TO_KM = 1000;
+        this.KM_TO_BABYLON = 1/6371; // Earth radius = 1 Babylon unit
+        
+        // Debug logging
+        console.log('RED ORBIT: Earth radius in Babylon units:', this.EARTH_RADIUS * this.KM_TO_BABYLON);
+        console.log('RED ORBIT: 400km altitude in Babylon units:', (this.EARTH_RADIUS + 400) * this.KM_TO_BABYLON);
+        
+        // Performance optimization
+        this.updateCounter = 0;
+        this.meshUpdateFrequency = 1; // Update meshes every physics step for smooth motion
+        this.physicsTimeMultiplier = 1000; // Physics runs at 1000x speed for visible orbital motion
+        
+        this.initialized = false;
+    }
+
+    async initialize() {
+        console.log('RED ORBIT: Initializing pure physics engine...');
+        console.log('RED ORBIT: Physics info:');
+        console.log('  - Earth gravity applied every frame (μ = 398,600 km³/s²)');
+        console.log('  - Objects orbit at real speeds (LEO ~7.8 km/s)');
+        console.log('  - Collisions enabled but rare in nominal orbits');
+        console.log('  - Different altitudes prevent most collisions');
+        
+        // Load Ammo.js
+        this.Ammo = await loadAmmo();
+        
+        // Create physics world
+        const collisionConfig = new this.Ammo.btDefaultCollisionConfiguration();
+        const dispatcher = new this.Ammo.btCollisionDispatcher(collisionConfig);
+        const broadphase = new this.Ammo.btDbvtBroadphase();
+        const solver = new this.Ammo.btSequentialImpulseConstraintSolver();
+        
+        this.world = new this.Ammo.btDiscreteDynamicsWorld(
+            dispatcher,
+            broadphase,
+            solver,
+            collisionConfig
+        );
+        
+        // No default gravity - we calculate it ourselves
+        this.world.setGravity(new this.Ammo.btVector3(0, 0, 0));
+        
+        this.initialized = true;
+        console.log('RED ORBIT: Physics engine ready!');
+        
+        // Populate space with initial objects
+        this.populateInitialOrbits();
+    }
+    
+    /**
+     * Populate space with hundreds of realistic orbiting objects
+     */
+    populateInitialOrbits() {
+        console.log('RED ORBIT: Populating space with orbital objects...');
+        
+        // LEO satellites (200-2000 km)
+        for (let i = 0; i < 200; i++) {
+            this.createRandomSatellite('LEO', i);
+        }
+        
+        // MEO satellites (2000-20000 km) - reduced range for visibility
+        for (let i = 0; i < 50; i++) {
+            this.createRandomSatellite('MEO', i);
+        }
+        
+        // High orbit satellites (10000-15000 km) - instead of GEO
+        for (let i = 0; i < 30; i++) {
+            this.createRandomSatellite('HIGH', i);
+        }
+        
+        // Space debris in various orbits
+        for (let i = 0; i < 100; i++) {
+            this.createRandomDebris(i);
+        }
+        
+        console.log(`RED ORBIT: Created ${this.bodies.size} orbital objects!`);
+        console.log('RED ORBIT: Objects in stable orbits - collisions unlikely unless triggered');
+        console.log('RED ORBIT: Physics time multiplier:', this.physicsTimeMultiplier, 'x');
+        
+        // Debug: Log first few objects to verify they exist
+        let count = 0;
+        this.bodies.forEach((data, id) => {
+            if (count++ < 3) {
+                const transform = data.body.getWorldTransform();
+                const origin = transform.getOrigin();
+                const velocity = data.body.getLinearVelocity();
+                console.log(`  - ${id}: pos=(${origin.x().toFixed(2)}, ${origin.y().toFixed(2)}, ${origin.z().toFixed(2)}), vel=(${velocity.x().toFixed(2)}, ${velocity.y().toFixed(2)}, ${velocity.z().toFixed(2)})`);
+            }
+        });
+    }
+    
+    /**
+     * Create a random satellite in specified orbit type
+     */
+    createRandomSatellite(orbitType, index) {
+        let altitude, inclination;
+        
+        switch(orbitType) {
+            case 'LEO':
+                altitude = 200 + Math.random() * 1800; // 200-2000 km
+                inclination = Math.random() * 180; // Various inclinations
+                break;
+            case 'MEO':
+                altitude = 2000 + Math.random() * 18000; // 2000-20000 km
+                inclination = Math.random() * 90; // Lower inclinations
+                break;
+            case 'HIGH':
+                altitude = 10000 + Math.random() * 5000; // 10000-15000 km
+                inclination = Math.random() * 30; // Lower inclinations
+                break;
+        }
+        
+        // Create visual mesh - GLOWING ORB STYLE
+        const satId = `${orbitType}_SAT_${index}`;
+        // Slightly bigger orbs for better visibility
+        const diameter = orbitType === 'HIGH' ? 0.012 : (orbitType === 'MEO' ? 0.01 : 0.008);
+        const mesh = BABYLON.MeshBuilder.CreateSphere(
+            satId,
+            { diameter: diameter, segments: 8 },
+            this.scene
+        );
+        
+        // SDA-style glowing orb materials
+        const material = new BABYLON.StandardMaterial(`mat_${satId}`, this.scene);
+        material.disableLighting = true; // Make it glow
+        
+        if (orbitType === 'LEO') {
+            // Bright Cyan/Blue for LEO
+            material.emissiveColor = new BABYLON.Color3(0, 1, 1);
+            material.diffuseColor = new BABYLON.Color3(0, 1, 1);
+        } else if (orbitType === 'MEO') {
+            // Bright Green for MEO
+            material.emissiveColor = new BABYLON.Color3(0, 1, 0);
+            material.diffuseColor = new BABYLON.Color3(0, 1, 0);
+        } else if (orbitType === 'HIGH') {
+            // Bright Yellow/Gold for HIGH orbit
+            material.emissiveColor = new BABYLON.Color3(1, 1, 0);
+            material.diffuseColor = new BABYLON.Color3(1, 1, 0);
+        } else {
+            // Default bright white
+            material.emissiveColor = new BABYLON.Color3(1, 1, 1);
+            material.diffuseColor = new BABYLON.Color3(1, 1, 1);
+        }
+        
+        material.specularColor = new BABYLON.Color3(1, 1, 1);
+        material.alpha = 1.0; // Full opacity for visibility
+        mesh.material = material;
+        
+        // Set rendering group 0 to respect depth (not render on top)
+        mesh.renderingGroupId = 0;
+        mesh.isPickable = true;
+        mesh.visibility = 1.0;
+        
+        // Create satellite with physics
+        this.createSatellite({
+            id: satId,
+            altitude: altitude,
+            inclination: inclination,
+            mass: 100 + Math.random() * 1000, // 100-1100 kg
+            radius: 1 + Math.random() * 3, // 1-4 m
+            mesh: mesh
+        });
+    }
+    
+    /**
+     * Create random space debris
+     */
+    createRandomDebris(index) {
+        const debrisId = `DEBRIS_${index}`;
+        const altitude = 200 + Math.random() * 2000; // Mostly in LEO
+        
+        // Create visual mesh - GLOWING DEBRIS ORB
+        const mesh = BABYLON.MeshBuilder.CreateSphere(
+            debrisId,
+            { diameter: 0.006, segments: 6 }, // Slightly bigger debris orb
+            this.scene
+        );
+        
+        // Bright Red/Orange glowing orb for debris - DANGER!
+        const material = new BABYLON.StandardMaterial(`mat_${debrisId}`, this.scene);
+        material.disableLighting = true; // Make it glow
+        material.emissiveColor = new BABYLON.Color3(1, 0.5, 0); // Bright red-orange
+        material.diffuseColor = new BABYLON.Color3(1, 0.5, 0);
+        material.specularColor = new BABYLON.Color3(1, 1, 1);
+        material.alpha = 1.0; // Full opacity for visibility
+        mesh.material = material;
+        
+        // Set rendering group 0 to respect depth (not render on top)
+        mesh.renderingGroupId = 0;
+        mesh.isPickable = true;
+        mesh.visibility = 1.0;
+        
+        // Create debris object
+        this.createSatellite({
+            id: debrisId,
+            altitude: altitude,
+            inclination: Math.random() * 180,
+            mass: 1 + Math.random() * 100, // 1-100 kg
+            radius: 0.1 + Math.random() * 1, // 0.1-1.1 m
+            mesh: mesh
+        });
+    }
+
+    /**
+     * Create a satellite in orbit
+     * @param {Object} params
+     * @param {number} params.altitude - Altitude above Earth surface (km)
+     * @param {number} params.inclination - Orbital inclination (degrees)
+     * @param {number} params.mass - Mass (kg)
+     * @param {number} params.radius - Collision radius (m)
+     * @param {string} params.id - Unique ID
+     * @param {BABYLON.Mesh} params.mesh - Babylon mesh
+     */
+    createSatellite(params) {
+        const { altitude, inclination, mass = 500, radius = 2, id, mesh } = params;
+        
+        // Calculate orbital radius
+        const orbitalRadius = this.EARTH_RADIUS + altitude;
+        
+        // Calculate orbital velocity for circular orbit
+        const orbitalSpeed = Math.sqrt(this.EARTH_MU / orbitalRadius);
+        
+        // Random position on orbit
+        const angle = Math.random() * Math.PI * 2;
+        const incRad = (inclination || 0) * Math.PI / 180;
+        
+        // Position in orbit
+        const position = {
+            x: orbitalRadius * Math.cos(angle) * Math.cos(incRad),
+            y: orbitalRadius * Math.sin(angle),
+            z: orbitalRadius * Math.cos(angle) * Math.sin(incRad)
+        };
+        
+        // Velocity perpendicular to position (circular orbit)
+        // For circular orbit, v = sqrt(μ/r) in tangential direction
+        // Cross product of z-axis with position gives tangent direction
+        const tangent = {
+            x: -position.y,
+            y: position.x,
+            z: 0
+        };
+        const tangentMag = Math.sqrt(tangent.x * tangent.x + tangent.y * tangent.y + tangent.z * tangent.z);
+        const velocity = {
+            x: (tangent.x / tangentMag) * orbitalSpeed,
+            y: (tangent.y / tangentMag) * orbitalSpeed,
+            z: (tangent.z / tangentMag) * orbitalSpeed
+        };
+        
+        // Log only first few satellites to avoid spam
+        if (this.bodies.size < 5) {
+            const orbitalPeriod = 2 * Math.PI * Math.sqrt(Math.pow(orbitalRadius, 3) / this.EARTH_MU) / 60; // minutes
+            console.log(`RED ORBIT: ${id} at ${altitude.toFixed(0)}km, speed: ${orbitalSpeed.toFixed(2)} km/s, period: ${orbitalPeriod.toFixed(0)} min`);
+        }
+        
+        // Create physics body
+        this.createPhysicsBody({
+            id,
+            mass,
+            radius: radius / 1000, // Convert m to km
+            position,
+            velocity,
+            mesh,
+            isSatellite: true
+        });
+    }
+
+    /**
+     * Create a physics body
+     */
+    createPhysicsBody(params) {
+        const { id, mass, radius, position, velocity, mesh, isSatellite = false } = params;
+        
+        // Create collision shape
+        const shape = new this.Ammo.btSphereShape(radius * this.KM_TO_PHYSICS);
+        
+        // Create transform
+        const transform = new this.Ammo.btTransform();
+        transform.setIdentity();
+        transform.setOrigin(new this.Ammo.btVector3(
+            position.x * this.KM_TO_PHYSICS,
+            position.y * this.KM_TO_PHYSICS,
+            position.z * this.KM_TO_PHYSICS
+        ));
+        
+        // Calculate inertia
+        const localInertia = new this.Ammo.btVector3(0, 0, 0);
+        shape.calculateLocalInertia(mass, localInertia);
+        
+        // Create rigid body
+        const motionState = new this.Ammo.btDefaultMotionState(transform);
+        const rbInfo = new this.Ammo.btRigidBodyConstructionInfo(
+            mass,
+            motionState,
+            shape,
+            localInertia
+        );
+        
+        // Set collision properties
+        rbInfo.set_m_restitution(0.8); // Mostly elastic collisions in space
+        rbInfo.set_m_friction(0.1);
+        
+        const body = new this.Ammo.btRigidBody(rbInfo);
+        
+        // Set initial velocity
+        body.setLinearVelocity(new this.Ammo.btVector3(
+            velocity.x * this.KM_TO_PHYSICS,
+            velocity.y * this.KM_TO_PHYSICS,
+            velocity.z * this.KM_TO_PHYSICS
+        ));
+        
+        // No damping in space - setDamping(linear, angular)
+        body.setDamping(0, 0);
+        
+        // Add to physics world
+        this.world.addRigidBody(body);
+        
+        // Store reference
+        this.bodies.set(id, {
+            body,
+            mesh,
+            mass,
+            radius,
+            isSatellite
+        });
+        
+        return body;
+    }
+
+    /**
+     * Apply Earth's gravity to all bodies
+     */
+    applyGravity() {
+        this.bodies.forEach((data, id) => {
+            const body = data.body;
+            
+            // Get position
+            const transform = body.getWorldTransform();
+            const origin = transform.getOrigin();
+            
+            // Position in km
+            const pos = {
+                x: origin.x() * this.PHYSICS_TO_KM,
+                y: origin.y() * this.PHYSICS_TO_KM,
+                z: origin.z() * this.PHYSICS_TO_KM
+            };
+            
+            // Distance from Earth center
+            const r = Math.sqrt(pos.x * pos.x + pos.y * pos.y + pos.z * pos.z);
+            
+            // Check if crashed into Earth
+            if (r < this.EARTH_RADIUS) {
+                console.log(`RED ORBIT: ${id} crashed into Earth!`);
+                this.destroyBody(id);
+                return;
+            }
+            
+            // Gravitational acceleration magnitude
+            const accel = -this.EARTH_MU / (r * r);
+            
+            // Direction (toward Earth center)
+            const forceVector = {
+                x: (pos.x / r) * accel * data.mass,
+                y: (pos.y / r) * accel * data.mass,
+                z: (pos.z / r) * accel * data.mass
+            };
+            
+            // Apply force
+            body.applyCentralForce(new this.Ammo.btVector3(
+                forceVector.x * this.KM_TO_PHYSICS,
+                forceVector.y * this.KM_TO_PHYSICS,
+                forceVector.z * this.KM_TO_PHYSICS
+            ));
+        });
+    }
+
+    /**
+     * Check for collisions
+     * NOTE: Collisions are rare in nominal orbits because:
+     * 1. Objects are spread across different altitudes
+     * 2. Different inclinations create separation
+     * 3. Random initial positions distribute objects
+     * 4. Space is HUGE - even 380 objects are sparse
+     */
+    checkCollisions() {
+        const dispatcher = this.world.getDispatcher();
+        const numManifolds = dispatcher.getNumManifolds();
+        
+        for (let i = 0; i < numManifolds; i++) {
+            const manifold = dispatcher.getManifoldByIndexInternal(i);
+            const numContacts = manifold.getNumContacts();
+            
+            if (numContacts > 0) {
+                const body0 = manifold.getBody0();
+                const body1 = manifold.getBody1();
+                
+                // Find IDs
+                let id0, id1;
+                this.bodies.forEach((data, id) => {
+                    if (data.body === body0) id0 = id;
+                    if (data.body === body1) id1 = id;
+                });
+                
+                if (id0 && id1) {
+                    this.handleCollision(id0, id1);
+                }
+            }
+        }
+    }
+
+    /**
+     * Handle collision between two objects
+     */
+    handleCollision(id0, id1) {
+        console.log(`RED ORBIT: COLLISION! ${id0} smashed into ${id1}`);
+        
+        const data0 = this.bodies.get(id0);
+        const data1 = this.bodies.get(id1);
+        
+        if (!data0 || !data1) return;
+        
+        // Get collision point
+        const transform0 = data0.body.getWorldTransform();
+        const transform1 = data1.body.getWorldTransform();
+        const pos0 = transform0.getOrigin();
+        const pos1 = transform1.getOrigin();
+        
+        const collisionPoint = {
+            x: (pos0.x() + pos1.x()) * 0.5 * this.PHYSICS_TO_KM,
+            y: (pos0.y() + pos1.y()) * 0.5 * this.PHYSICS_TO_KM,
+            z: (pos0.z() + pos1.z()) * 0.5 * this.PHYSICS_TO_KM
+        };
+        
+        // Get velocities
+        const vel0 = data0.body.getLinearVelocity();
+        const vel1 = data1.body.getLinearVelocity();
+        
+        const relativeVelocity = Math.sqrt(
+            Math.pow(vel0.x() - vel1.x(), 2) +
+            Math.pow(vel0.y() - vel1.y(), 2) +
+            Math.pow(vel0.z() - vel1.z(), 2)
+        ) * this.PHYSICS_TO_KM;
+        
+        console.log(`Impact velocity: ${relativeVelocity.toFixed(2)} km/s`);
+        
+        // Generate debris
+        this.generateDebris(collisionPoint, relativeVelocity, data0.mass + data1.mass);
+        
+        // Destroy original objects if they're satellites
+        if (data0.isSatellite) this.destroyBody(id0);
+        if (data1.isSatellite) this.destroyBody(id1);
+    }
+
+    /**
+     * Generate debris from collision using NASA Standard Breakup Model
+     */
+    generateDebris(position, impactVelocity, totalMass) {
+        // NASA breakup model: more fragments for higher velocity impacts
+        const baseFragments = Math.floor(impactVelocity * 10);
+        const numFragments = Math.min(this.maxDebris - this.debris.size, baseFragments);
+        
+        if (numFragments <= 0) {
+            console.warn('RED ORBIT: Debris limit reached!');
+            return;
+        }
+        
+        console.log(`RED ORBIT: Generating ${numFragments} debris fragments (velocity: ${impactVelocity.toFixed(2)} km/s)`);
+        
+        // Get orbital velocity at collision point
+        const r = Math.sqrt(position.x * position.x + position.y * position.y + position.z * position.z);
+        const orbitalSpeed = Math.sqrt(this.EARTH_MU / r);
+        
+        // Perpendicular orbital velocity vector
+        const orbitalVel = {
+            x: -position.y / r * orbitalSpeed,
+            y: position.x / r * orbitalSpeed,
+            z: 0
+        };
+        
+        // Instance mesh for performance
+        const masterDebrisMesh = this.getDebrisMesh();
+        
+        for (let i = 0; i < numFragments; i++) {
+            const debrisId = `debris_${Date.now()}_${i}`;
+            
+            // NASA breakup model velocity distribution
+            const deltaV = this.getBreakupVelocity(impactVelocity, i / numFragments);
+            
+            // Random direction for explosion
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos(2 * Math.random() - 1);
+            
+            // Add explosion velocity to orbital velocity
+            const velocity = {
+                x: orbitalVel.x + deltaV * Math.sin(phi) * Math.cos(theta),
+                y: orbitalVel.y + deltaV * Math.sin(phi) * Math.sin(theta),
+                z: orbitalVel.z + deltaV * Math.cos(phi)
+            };
+            
+            // Create instance mesh for visual
+            const debrisMesh = masterDebrisMesh.createInstance(debrisId);
+            
+            // Mass distribution (power law)
+            const massFraction = Math.pow(Math.random(), 2); // More small pieces
+            const debrisMass = (totalMass / numFragments) * massFraction;
+            
+            // Size based on mass
+            const radius = Math.cbrt(debrisMass / 1000) * 0.001; // Realistic sizing
+            
+            // Create physics body
+            this.createPhysicsBody({
+                id: debrisId,
+                mass: debrisMass,
+                radius: radius,
+                position,
+                velocity,
+                mesh: debrisMesh,
+                isSatellite: false
+            });
+            
+            // Track telemetry
+            this.telemetryData.set(debrisId, {
+                altitude: r - this.EARTH_RADIUS,
+                velocity: Math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y + velocity.z * velocity.z),
+                mass: debrisMass,
+                created: Date.now()
+            });
+            
+            this.debris.set(debrisId, true);
+        }
+    }
+    
+    /**
+     * Get breakup velocity using NASA model
+     */
+    getBreakupVelocity(impactVel, fraction) {
+        // NASA Standard Breakup Model velocity distribution
+        const chi = Math.log10(impactVel);
+        const A = 0.2 * chi + 1.85;
+        const mu = 0.9 * chi + 2.9;
+        
+        // Log-normal distribution
+        const sigma = 0.4;
+        const logV = mu + sigma * this.gaussianRandom() * A;
+        
+        return Math.pow(10, logV) / 1000; // Convert m/s to km/s
+    }
+    
+    /**
+     * Generate Gaussian random number
+     */
+    gaussianRandom() {
+        let u = 0, v = 0;
+        while(u === 0) u = Math.random();
+        while(v === 0) v = Math.random();
+        return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+    }
+    
+    /**
+     * Get or create debris mesh from pool
+     */
+    getDebrisMesh() {
+        if (this.debrisMeshPool.length === 0) {
+            // Create master mesh - GLOWING ORB STYLE
+            const masterMesh = BABYLON.MeshBuilder.CreateSphere(
+                'debris_master',
+                { diameter: 0.004, segments: 4 }, // Small collision debris
+                this.scene
+            );
+            
+            // Bright red glowing orb for collision debris
+            const material = new BABYLON.StandardMaterial('debris_mat', this.scene);
+            material.disableLighting = true; // Make it glow
+            material.emissiveColor = new BABYLON.Color3(1, 0, 0); // Pure red for danger!
+            material.diffuseColor = new BABYLON.Color3(1, 0, 0);
+            material.specularColor = new BABYLON.Color3(1, 1, 1);
+            material.alpha = 1.0; // Full opacity
+            material.freeze(); // Optimize material
+            
+            masterMesh.material = material;
+            masterMesh.renderingGroupId = 0; // Respect depth
+            masterMesh.isVisible = false; // Hide master
+            
+            this.debrisMeshPool.push(masterMesh);
+            return masterMesh;
+        }
+        
+        return this.debrisMeshPool[0];
+    }
+
+    /**
+     * Destroy a body
+     */
+    destroyBody(id) {
+        const data = this.bodies.get(id);
+        if (!data) return;
+        
+        // Remove from physics world
+        this.world.removeRigidBody(data.body);
+        
+        // Dispose or return mesh to pool
+        if (data.mesh) {
+            if (data.mesh.name.includes('debris_')) {
+                data.mesh.isVisible = false; // Hide instance instead of disposing
+            } else {
+                data.mesh.dispose();
+            }
+        }
+        
+        // Remove from tracking
+        this.bodies.delete(id);
+        this.debris.delete(id);
+        this.telemetryData.delete(id);
+    }
+
+    /**
+     * Step the simulation with optimizations
+     */
+    step(deltaTime) {
+        if (!this.initialized) return;
+        
+        // Use internal physics multiplier for orbital motion
+        // This is separate from Earth rotation speed
+        const adjustedDeltaTime = deltaTime * this.physicsTimeMultiplier;
+        
+        // Apply gravity
+        this.applyGravity();
+        
+        // Step physics with time acceleration
+        this.world.stepSimulation(adjustedDeltaTime, 10, 1/60);
+        
+        // Check collisions
+        this.checkCollisions();
+        
+        // Update mesh positions every frame for smooth motion
+        this.updateCounter++;
+        if (this.updateCounter >= this.meshUpdateFrequency) {
+            this.updateMeshes();
+            this.updateCounter = 0;
+            
+            // Log physics status occasionally
+            if (this.bodies.size > 0 && Math.random() < 0.001) { // Very rare logging
+                const stats = this.getStats();
+                console.log(`RED ORBIT Status: ${stats.satellites} satellites, ${stats.debrisCount} debris, Risk: ${stats.highestRisk}`);
+            }
+        }
+        
+        // Clean up old debris periodically
+        if (this.debris.size > this.maxDebris * 0.9) {
+            this.cleanupOldDebris();
+        }
+    }
+
+    /**
+     * Update mesh positions from physics with batching
+     */
+    updateMeshes() {
+        let debugLogged = false;
+        
+        // Update position for each body
+        this.bodies.forEach((data, id) => {
+            if (!data.mesh) return;
+            
+            const transform = data.body.getWorldTransform();
+            const origin = transform.getOrigin();
+            
+            // Convert from physics to km, then to Babylon units
+            const position = {
+                x: origin.x() * this.PHYSICS_TO_KM * this.KM_TO_BABYLON,
+                y: origin.y() * this.PHYSICS_TO_KM * this.KM_TO_BABYLON,
+                z: origin.z() * this.PHYSICS_TO_KM * this.KM_TO_BABYLON
+            };
+            
+            // Debug log first satellite position occasionally
+            if (!debugLogged && data.isSatellite && Math.random() < 0.005) {
+                const r = Math.sqrt(position.x * position.x + position.y * position.y + position.z * position.z);
+                const altitudeKm = (r / this.KM_TO_BABYLON) - this.EARTH_RADIUS;
+                const velocity = data.body.getLinearVelocity();
+                const speed = Math.sqrt(velocity.x() * velocity.x() + velocity.y() * velocity.y() + velocity.z() * velocity.z()) * this.PHYSICS_TO_KM;
+                console.log(`RED ORBIT: ${id} moving - alt=${altitudeKm.toFixed(0)}km, speed=${speed.toFixed(2)}km/s, pos=(${position.x.toFixed(3)}, ${position.y.toFixed(3)}, ${position.z.toFixed(3)})`);
+                debugLogged = true;
+            }
+            
+            data.mesh.position.set(position.x, position.y, position.z);
+        });
+    }
+    
+    /**
+     * Clean up old debris to maintain performance
+     */
+    cleanupOldDebris() {
+        const now = Date.now();
+        const maxAge = 5 * 60 * 1000; // 5 minutes
+        let removed = 0;
+        
+        this.debris.forEach((_, id) => {
+            const telemetry = this.telemetryData.get(id);
+            if (telemetry && (now - telemetry.created) > maxAge) {
+                this.destroyBody(id);
+                removed++;
+            }
+        });
+        
+        if (removed > 0) {
+            console.log(`RED ORBIT: Cleaned up ${removed} old debris objects`);
+        }
+    }
+
+    /**
+     * Trigger Kessler Syndrome
+     */
+    triggerKessler(velocity = 10) {
+        console.log('RED ORBIT: TRIGGERING KESSLER SYNDROME!');
+        
+        // Get two random satellites
+        const satellites = Array.from(this.bodies.entries()).filter(([id, data]) => data.isSatellite);
+        
+        if (satellites.length < 2) {
+            console.warn('Need at least 2 satellites for collision');
+            return;
+        }
+        
+        const [id0, data0] = satellites[0];
+        const [id1, data1] = satellites[1];
+        
+        // Slam them together
+        const body0 = data0.body;
+        const body1 = data1.body;
+        
+        body0.setLinearVelocity(new this.Ammo.btVector3(velocity, 0, 0));
+        body1.setLinearVelocity(new this.Ammo.btVector3(-velocity, 0, 0));
+        
+        // Move them close
+        const transform0 = body0.getWorldTransform();
+        const transform1 = body1.getWorldTransform();
+        const origin0 = transform0.getOrigin();
+        
+        transform1.setOrigin(new this.Ammo.btVector3(
+            origin0.x() + 0.01,
+            origin0.y(),
+            origin0.z()
+        ));
+        
+        body1.setWorldTransform(transform1);
+        
+        console.log(`Colliding ${id0} with ${id1} at ${velocity} km/s`);
+    }
+    
+    /**
+     * Get system statistics
+     */
+    getStats() {
+        const stats = {
+            satellites: 0,
+            debrisCount: this.debris.size,
+            totalObjects: this.bodies.size,
+            averageAltitude: 0,
+            highestRisk: 'LOW'
+        };
+        
+        let altitudeSum = 0;
+        let count = 0;
+        
+        this.bodies.forEach((data, id) => {
+            if (data.isSatellite) stats.satellites++;
+            
+            const transform = data.body.getWorldTransform();
+            const origin = transform.getOrigin();
+            const r = Math.sqrt(
+                origin.x() * origin.x() + 
+                origin.y() * origin.y() + 
+                origin.z() * origin.z()
+            ) * this.PHYSICS_TO_KM;
+            
+            const altitude = r - this.EARTH_RADIUS;
+            altitudeSum += altitude;
+            count++;
+        });
+        
+        stats.averageAltitude = count > 0 ? Math.round(altitudeSum / count) : 0;
+        
+        // Calculate collision risk based on debris density
+        if (stats.debrisCount > 1000) stats.highestRisk = 'CRITICAL';
+        else if (stats.debrisCount > 500) stats.highestRisk = 'HIGH';
+        else if (stats.debrisCount > 100) stats.highestRisk = 'MEDIUM';
+        else stats.highestRisk = 'LOW';
+        
+        return stats;
+    }
+    
+    /**
+     * Get telemetry for specific object
+     */
+    getObjectTelemetry(id) {
+        const data = this.bodies.get(id);
+        if (!data) return null;
+        
+        const transform = data.body.getWorldTransform();
+        const origin = transform.getOrigin();
+        const velocity = data.body.getLinearVelocity();
+        
+        const pos = {
+            x: origin.x() * this.PHYSICS_TO_KM,
+            y: origin.y() * this.PHYSICS_TO_KM,
+            z: origin.z() * this.PHYSICS_TO_KM
+        };
+        
+        const vel = {
+            x: velocity.x() * this.PHYSICS_TO_KM,
+            y: velocity.y() * this.PHYSICS_TO_KM,
+            z: velocity.z() * this.PHYSICS_TO_KM
+        };
+        
+        const r = Math.sqrt(pos.x * pos.x + pos.y * pos.y + pos.z * pos.z);
+        const v = Math.sqrt(vel.x * vel.x + vel.y * vel.y + vel.z * vel.z);
+        
+        return {
+            id: id,
+            altitude: r - this.EARTH_RADIUS,
+            velocity: v,
+            position: pos,
+            mass: data.mass,
+            radius: data.radius,
+            type: data.isSatellite ? 'satellite' : 'debris'
+        };
+    }
+}
