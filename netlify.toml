@@ -1,9 +1,10 @@
 [build]
-  # Production build command (obfuscation currently disabled)
-  # Uses webpack.config.prod.js with minification and optimization
-  # Install with --production=false to get devDependencies (webpack, etc.)
+  # RED ORBIT Build Configuration
+  # Install all dependencies including devDependencies for webpack
+  # Use regular build command (build:prod if you have production webpack config)
   command = "npm install --production=false && npm run build:prod"
   publish = "frontend/dist"
+  base = "/"
   
 [build.environment]
   NODE_VERSION = "18"
@@ -38,6 +39,29 @@
     </assets/earth_diffuse.png>; rel=preload; as=image; crossorigin=anonymous,
     </assets/stars.png>; rel=preload; as=image; crossorigin=anonymous
     '''
+
+# Handle WebAssembly files for Ammo.js physics engine
+[[headers]]
+  for = "*.wasm"
+  [headers.values]
+    Content-Type = "application/wasm"
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# CORS headers for data files and assets
+[[headers]]
+  for = "/data/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Cache-Control = "public, max-age=3600"
+
+# Security headers
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    X-XSS-Protection = "1; mode=block"
+    Referrer-Policy = "strict-origin-when-cross-origin"
 
 # SPA redirect - but don't redirect files that exist
 [[redirects]]
