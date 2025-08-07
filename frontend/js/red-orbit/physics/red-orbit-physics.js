@@ -21,11 +21,11 @@ export class RedOrbitPhysics {
         // Real Earth parameters
         this.EARTH_RADIUS = 6371; // km
         this.EARTH_MU = 398600.4418; // km³/s² - Earth's gravitational parameter
-        this.SCALE = 1/1000; // Physics scale (1 unit = 1000 km)
         
-        // Conversion factors
-        this.KM_TO_PHYSICS = 1/1000;
-        this.PHYSICS_TO_KM = 1000;
+        // Physics scaling: Use km directly as physics units
+        // This makes the math simpler and more stable
+        this.KM_TO_PHYSICS = 1.0; // 1 physics unit = 1 km
+        this.PHYSICS_TO_KM = 1.0;
         this.KM_TO_BABYLON = 1/6371; // Earth radius = 1 Babylon unit
         
         // Debug logging
@@ -35,7 +35,7 @@ export class RedOrbitPhysics {
         // Performance optimization
         this.updateCounter = 0;
         this.meshUpdateFrequency = 1; // Update meshes every physics step for smooth motion
-        this.physicsTimeMultiplier = 3600; // Match Earth rotation (1 hour = 1 second)
+        this.physicsTimeMultiplier = 100; // Start with lower multiplier for stability
         
         this.initialized = false;
     }
@@ -284,28 +284,64 @@ export class RedOrbitPhysics {
         // Normalize position vector
         const r = Math.sqrt(position.x * position.x + position.y * position.y + position.z * position.z);
         
-        // Define orbit normal (for inclination)
+        // Simple approach: velocity is perpendicular to radius in orbital plane
+        // For circular orbit, cross product of orbit normal with position gives velocity direction
+        
+        // Orbit normal vector (determines plane of orbit)
         const orbitNormal = {
-            x: Math.sin(incRad) * Math.sin(angle),
+            x: Math.sin(incRad),
             y: 0,
             z: Math.cos(incRad)
         };
         
-        // Cross product: velocity = normal × position (for prograde orbit)
-        // For retrograde (sun-sync), reverse the velocity
+        // Velocity = orbit_normal × position_unit * speed
+        // This gives us tangential velocity in the orbital plane
+        const unitPos = {
+            x: position.x / r,
+            y: position.y / r,
+            z: position.z / r
+        };
+        
+        // For retrograde orbits (sun-sync), reverse direction
         const isRetrograde = inclination > 90 && inclination < 180;
         const direction = isRetrograde ? -1 : 1;
         
-        const velocity = {
-            x: direction * (orbitNormal.y * position.z - orbitNormal.z * position.y) / r * orbitalSpeed,
-            y: direction * (orbitNormal.z * position.x - orbitNormal.x * position.z) / r * orbitalSpeed,
-            z: direction * (orbitNormal.x * position.y - orbitNormal.y * position.x) / r * orbitalSpeed
+        // For a circular orbit, velocity is perpendicular to radius vector
+        // In the simplest case (equatorial orbit), v_x = -y * speed/r, v_y = x * speed/r
+        // For inclined orbits, we need to rotate this velocity vector
+        
+        // Start with velocity perpendicular to position in xy plane
+        let velocity = {
+            x: -position.y * orbitalSpeed / r,
+            y: position.x * orbitalSpeed / r,
+            z: 0
         };
+        
+        // Apply inclination rotation if needed
+        if (Math.abs(incRad) > 0.01) {
+            // Rotate velocity vector around x-axis by inclination angle
+            const cosInc = Math.cos(incRad);
+            const sinInc = Math.sin(incRad);
+            const rotatedY = velocity.y * cosInc - velocity.z * sinInc;
+            const rotatedZ = velocity.y * sinInc + velocity.z * cosInc;
+            velocity.y = rotatedY;
+            velocity.z = rotatedZ;
+        }
+        
+        // Reverse for retrograde orbits
+        if (isRetrograde) {
+            velocity.x *= -1;
+            velocity.y *= -1;
+            velocity.z *= -1;
+        }
         
         // Log only first few satellites to avoid spam
         if (this.bodies.size < 5) {
             const orbitalPeriod = 2 * Math.PI * Math.sqrt(Math.pow(orbitalRadius, 3) / this.EARTH_MU) / 60; // minutes
-            console.log(`RED ORBIT: ${id} at ${altitude.toFixed(0)}km, speed: ${orbitalSpeed.toFixed(2)} km/s, period: ${orbitalPeriod.toFixed(0)} min`);
+            const vMag = Math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y + velocity.z * velocity.z);
+            console.log(`RED ORBIT: ${id} at ${altitude.toFixed(0)}km, orbital speed: ${orbitalSpeed.toFixed(2)} km/s, actual velocity: ${vMag.toFixed(2)} km/s, period: ${orbitalPeriod.toFixed(0)} min`);
+            console.log(`  Position: (${position.x.toFixed(1)}, ${position.y.toFixed(1)}, ${position.z.toFixed(1)}) km`);
+            console.log(`  Velocity: (${velocity.x.toFixed(2)}, ${velocity.y.toFixed(2)}, ${velocity.z.toFixed(2)}) km/s`);
         }
         
         // Create physics body
@@ -357,12 +393,24 @@ export class RedOrbitPhysics {
         
         const body = new this.Ammo.btRigidBody(rbInfo);
         
-        // Set initial velocity
-        body.setLinearVelocity(new this.Ammo.btVector3(
+        // Set initial velocity - velocity is in km/s
+        const btVelocity = new this.Ammo.btVector3(
             velocity.x * this.KM_TO_PHYSICS,
             velocity.y * this.KM_TO_PHYSICS,
             velocity.z * this.KM_TO_PHYSICS
-        ));
+        );
+        body.setLinearVelocity(btVelocity);
+        
+        // Verify velocity was set
+        const checkVel = body.getLinearVelocity();
+        const checkSpeed = Math.sqrt(checkVel.x() * checkVel.x() + checkVel.y() * checkVel.y() + checkVel.z() * checkVel.z()) * this.PHYSICS_TO_KM;
+        if (this.bodies.size < 3) {
+            console.log(`RED ORBIT: Body ${id} velocity set - expected: ${Math.sqrt(velocity.x*velocity.x + velocity.y*velocity.y + velocity.z*velocity.z).toFixed(2)} km/s, actual: ${checkSpeed.toFixed(2)} km/s`);
+            console.log(`  Physics velocity components: (${checkVel.x().toFixed(4)}, ${checkVel.y().toFixed(4)}, ${checkVel.z().toFixed(4)})`);
+        }
+        
+        // Activate the body to ensure it's not sleeping
+        body.activate(true);
         
         // No damping in space - setDamping(linear, angular)
         body.setDamping(0, 0);
@@ -420,7 +468,8 @@ export class RedOrbitPhysics {
                 z: (pos.z / r) * accel * data.mass
             };
             
-            // Apply force
+            // Apply force - convert to physics units
+            // Force = mass * acceleration, where acceleration is in km/s²
             body.applyCentralForce(new this.Ammo.btVector3(
                 forceVector.x * this.KM_TO_PHYSICS,
                 forceVector.y * this.KM_TO_PHYSICS,
@@ -674,15 +723,40 @@ export class RedOrbitPhysics {
     step(deltaTime) {
         if (!this.initialized) return;
         
+        // Log first call to verify stepping
+        if (!this.firstStepLogged) {
+            console.log(`RED ORBIT: Physics stepping started! Delta time: ${deltaTime.toFixed(4)}s`);
+            this.firstStepLogged = true;
+        }
+        
         // Use internal physics multiplier for orbital motion
         // This is separate from Earth rotation speed
-        const adjustedDeltaTime = deltaTime * this.physicsTimeMultiplier;
+        // Keep time step small for stability
+        const adjustedDeltaTime = Math.min(deltaTime * this.physicsTimeMultiplier, 10.0);
         
         // Apply gravity
         this.applyGravity();
         
+        // Debug: Check if velocities are being maintained
+        if (Math.random() < 0.001) {
+            let totalSpeed = 0;
+            let count = 0;
+            this.bodies.forEach((data, id) => {
+                if (data.isSatellite && count < 3) {
+                    const vel = data.body.getLinearVelocity();
+                    const speed = Math.sqrt(vel.x() * vel.x() + vel.y() * vel.y() + vel.z() * vel.z()) * this.PHYSICS_TO_KM;
+                    totalSpeed += speed;
+                    count++;
+                }
+            });
+            if (count > 0) {
+                console.log(`RED ORBIT: Average satellite speed: ${(totalSpeed/count).toFixed(2)} km/s`);
+            }
+        }
+        
         // Step physics with time acceleration
-        this.world.stepSimulation(adjustedDeltaTime, 10, 1/60);
+        // Use smaller fixed timestep for better stability
+        this.world.stepSimulation(adjustedDeltaTime, 10, adjustedDeltaTime/10);
         
         // Check collisions
         this.checkCollisions();
@@ -727,12 +801,25 @@ export class RedOrbitPhysics {
             };
             
             // Debug log first satellite position occasionally
-            if (!debugLogged && data.isSatellite && Math.random() < 0.005) {
+            if (!debugLogged && data.isSatellite && Math.random() < 0.01) {
                 const r = Math.sqrt(position.x * position.x + position.y * position.y + position.z * position.z);
                 const altitudeKm = (r / this.KM_TO_BABYLON) - this.EARTH_RADIUS;
                 const velocity = data.body.getLinearVelocity();
                 const speed = Math.sqrt(velocity.x() * velocity.x() + velocity.y() * velocity.y() + velocity.z() * velocity.z()) * this.PHYSICS_TO_KM;
-                console.log(`RED ORBIT: ${id} moving - alt=${altitudeKm.toFixed(0)}km, speed=${speed.toFixed(2)}km/s, pos=(${position.x.toFixed(3)}, ${position.y.toFixed(3)}, ${position.z.toFixed(3)})`);
+                
+                // Also get physics position to compare
+                const physicsPos = {
+                    x: origin.x() * this.PHYSICS_TO_KM,
+                    y: origin.y() * this.PHYSICS_TO_KM,
+                    z: origin.z() * this.PHYSICS_TO_KM
+                };
+                const physicsR = Math.sqrt(physicsPos.x * physicsPos.x + physicsPos.y * physicsPos.y + physicsPos.z * physicsPos.z);
+                
+                console.log(`RED ORBIT UPDATE: ${id}`);
+                console.log(`  Physics pos: (${physicsPos.x.toFixed(1)}, ${physicsPos.y.toFixed(1)}, ${physicsPos.z.toFixed(1)}) km, r=${physicsR.toFixed(1)} km`);
+                console.log(`  Babylon pos: (${position.x.toFixed(3)}, ${position.y.toFixed(3)}, ${position.z.toFixed(3)})`);
+                console.log(`  Velocity: ${speed.toFixed(2)} km/s, altitude: ${altitudeKm.toFixed(0)} km`);
+                console.log(`  Time multiplier: ${this.physicsTimeMultiplier}x`);
                 debugLogged = true;
             }
             

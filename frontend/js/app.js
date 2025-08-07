@@ -2703,6 +2703,12 @@ async function loadSatelliteData() {
       const currentSimTime = getCurrentSimTime();
       if (!currentSimTime) return; // Safety check
       
+      // Step the RED ORBIT physics system if it exists
+      if (window.redOrbitPhysics && window.redOrbitPhysics.initialized) {
+          const deltaTime = engine.getDeltaTime() / 1000; // Convert to seconds
+          window.redOrbitPhysics.step(deltaTime);
+      }
+      
       const meshes = getSatelliteMeshes();
       const telemetryObj = getTelemetryData();
       
