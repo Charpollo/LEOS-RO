@@ -32,7 +32,7 @@ export class RedOrbitPhysics {
         // Performance optimization
         this.updateCounter = 0;
         this.meshUpdateFrequency = 1; // Update meshes every physics step for smooth motion
-        this.physicsTimeMultiplier = 100; // Start with lower multiplier for stability
+        this.physicsTimeMultiplier = 60; // 60x speed for realistic orbital visualization
         
         this.initialized = false;
     }
@@ -70,25 +70,25 @@ export class RedOrbitPhysics {
      * Populate space with hundreds of realistic orbiting objects
      */
     populateInitialOrbits() {
-        // Scale to 2500 objects for impressive visualization
+        // Scale to 750 objects for better performance and visibility
         
         // LEO satellites (200-2000 km) - most populated region
-        for (let i = 0; i < 1500; i++) {
+        for (let i = 0; i < 450; i++) {
             this.createRandomSatellite('LEO', i);
         }
         
         // MEO satellites (2000-20000 km) - navigation layer
-        for (let i = 0; i < 500; i++) {
+        for (let i = 0; i < 150; i++) {
             this.createRandomSatellite('MEO', i);
         }
         
         // High orbit satellites (10000-15000 km)
-        for (let i = 0; i < 250; i++) {
+        for (let i = 0; i < 75; i++) {
             this.createRandomSatellite('HIGH', i);
         }
         
         // Space debris in various orbits
-        for (let i = 0; i < 250; i++) {
+        for (let i = 0; i < 75; i++) {
             this.createRandomDebris(i);
         }
         
@@ -631,10 +631,10 @@ export class RedOrbitPhysics {
      * Create visual flash effect for collisions
      */
     createCollisionFlash(position, intensity = 1) {
-        // Create a bright flash sphere that quickly fades
+        // Create a bright flash sphere that quickly fades - smaller size
         const flashMesh = BABYLON.MeshBuilder.CreateSphere(
             'flash_' + Date.now(),
-            { diameter: 0.05 * intensity, segments: 8 },
+            { diameter: 0.02 * intensity, segments: 8 },  // Reduced from 0.05 to 0.02
             this.scene
         );
         
