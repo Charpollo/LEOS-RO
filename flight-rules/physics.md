@@ -3,9 +3,9 @@
 
 ### Executive Summary
 
-RED ORBIT implements a groundbreaking approach to space object tracking by using **pure Newtonian physics simulation** instead of traditional analytical propagators. While systems like SGP4/SDP4 use simplified mathematical models that approximate orbital motion, RED ORBIT calculates gravitational forces on every object at every timestep, creating emergent orbital behavior from fundamental physics laws.
+RED ORBIT implements a groundbreaking approach to space object tracking by using **pure Newtonian physics simulation** instead of traditional analytical propagators. While systems like SGP4/SDP4 use simplified mathematical models that approximate orbital motion and are great for approximates, RED ORBIT calculates gravitational forces on every object at every timestep, creating emergent orbital behavior from fundamental physics laws.
 
-This difference is profound: **we don't tell objects how to orbit - they orbit because gravity exists.**
+This difference is profound: **we don't tell objects how to orbit, they orbit because gravity exists.**
 
 ---
 
@@ -52,7 +52,7 @@ v = √(GM/r) = √(μ/r)
 - GPS (20,200km altitude): v = √(398,600/(6,371+20,200)) = **3.87 km/s**
 - GEO (35,786km altitude): v = √(398,600/(6,371+35,786)) = **3.07 km/s**
 
-These aren't lookup tables - they emerge from the physics.
+These aren't lookup tables, they emerge from the physics.
 
 ---
 

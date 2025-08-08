@@ -28,9 +28,6 @@ export class RedOrbitPhysics {
         this.PHYSICS_TO_KM = 1.0;
         this.KM_TO_BABYLON = 1/6371; // Earth radius = 1 Babylon unit
         
-        // Debug logging
-        console.log('RED ORBIT: Earth radius in Babylon units:', this.EARTH_RADIUS * this.KM_TO_BABYLON);
-        console.log('RED ORBIT: 400km altitude in Babylon units:', (this.EARTH_RADIUS + 400) * this.KM_TO_BABYLON);
         
         // Performance optimization
         this.updateCounter = 0;
@@ -41,12 +38,7 @@ export class RedOrbitPhysics {
     }
 
     async initialize() {
-        console.log('RED ORBIT: Initializing pure physics engine...');
-        console.log('RED ORBIT: Physics info:');
-        console.log('  - Earth gravity applied every frame (μ = 398,600 km³/s²)');
-        console.log('  - Objects orbit at real speeds (LEO ~7.8 km/s)');
-        console.log('  - Collisions enabled but rare in nominal orbits');
-        console.log('  - Different altitudes prevent most collisions');
+        console.log('RED ORBIT: Initializing physics engine...');
         
         // Load Ammo.js
         this.Ammo = await loadAmmo();
@@ -78,43 +70,29 @@ export class RedOrbitPhysics {
      * Populate space with hundreds of realistic orbiting objects
      */
     populateInitialOrbits() {
-        console.log('RED ORBIT: Populating space with orbital objects...');
+        // Scale to 2500 objects for impressive visualization
         
-        // LEO satellites (200-2000 km) - reduced for performance
-        for (let i = 0; i < 50; i++) {
+        // LEO satellites (200-2000 km) - most populated region
+        for (let i = 0; i < 1500; i++) {
             this.createRandomSatellite('LEO', i);
         }
         
-        // MEO satellites (2000-20000 km) - reduced range for visibility
-        for (let i = 0; i < 20; i++) {
+        // MEO satellites (2000-20000 km) - navigation layer
+        for (let i = 0; i < 500; i++) {
             this.createRandomSatellite('MEO', i);
         }
         
-        // High orbit satellites (10000-15000 km) - instead of GEO
-        for (let i = 0; i < 10; i++) {
+        // High orbit satellites (10000-15000 km)
+        for (let i = 0; i < 250; i++) {
             this.createRandomSatellite('HIGH', i);
         }
         
         // Space debris in various orbits
-        for (let i = 0; i < 20; i++) {
+        for (let i = 0; i < 250; i++) {
             this.createRandomDebris(i);
         }
         
-        console.log(`RED ORBIT: Created ${this.bodies.size} orbital objects!`);
-        console.log('RED ORBIT: Objects in stable orbits - collisions unlikely unless triggered');
-        console.log('RED ORBIT: Physics time multiplier:', this.physicsTimeMultiplier, 'x (1 hour = 1 second)');
-        console.log('RED ORBIT: Orbit types include: polar, sun-synchronous, equatorial, Molniya, and various inclinations');
-        
-        // Debug: Log first few objects to verify they exist
-        let count = 0;
-        this.bodies.forEach((data, id) => {
-            if (count++ < 3) {
-                const transform = data.body.getWorldTransform();
-                const origin = transform.getOrigin();
-                const velocity = data.body.getLinearVelocity();
-                console.log(`  - ${id}: pos=(${origin.x().toFixed(2)}, ${origin.y().toFixed(2)}, ${origin.z().toFixed(2)}), vel=(${velocity.x().toFixed(2)}, ${velocity.y().toFixed(2)}, ${velocity.z().toFixed(2)})`);
-            }
-        });
+        console.log(`RED ORBIT: ${this.bodies.size} objects in orbit`);
     }
     
     /**
@@ -265,7 +243,12 @@ export class RedOrbitPhysics {
         // Calculate orbital radius
         const orbitalRadius = this.EARTH_RADIUS + altitude;
         
-        // Calculate orbital velocity for circular orbit
+        // REAL ORBITAL VELOCITY from physics: v = √(μ/r)
+        // This gives ACTUAL speeds:
+        // - ISS (400km): ~7.67 km/s
+        // - LEO (1000km): ~7.35 km/s  
+        // - MEO (20000km): ~3.87 km/s
+        // - GEO (35786km): ~3.07 km/s
         const orbitalSpeed = Math.sqrt(this.EARTH_MU / orbitalRadius);
         
         // Random position on orbit
@@ -335,14 +318,6 @@ export class RedOrbitPhysics {
             velocity.z *= -1;
         }
         
-        // Log only first few satellites to avoid spam
-        if (this.bodies.size < 5) {
-            const orbitalPeriod = 2 * Math.PI * Math.sqrt(Math.pow(orbitalRadius, 3) / this.EARTH_MU) / 60; // minutes
-            const vMag = Math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y + velocity.z * velocity.z);
-            console.log(`RED ORBIT: ${id} at ${altitude.toFixed(0)}km, orbital speed: ${orbitalSpeed.toFixed(2)} km/s, actual velocity: ${vMag.toFixed(2)} km/s, period: ${orbitalPeriod.toFixed(0)} min`);
-            console.log(`  Position: (${position.x.toFixed(1)}, ${position.y.toFixed(1)}, ${position.z.toFixed(1)}) km`);
-            console.log(`  Velocity: (${velocity.x.toFixed(2)}, ${velocity.y.toFixed(2)}, ${velocity.z.toFixed(2)}) km/s`);
-        }
         
         // Create physics body
         this.createPhysicsBody({
@@ -401,13 +376,6 @@ export class RedOrbitPhysics {
         );
         body.setLinearVelocity(btVelocity);
         
-        // Verify velocity was set
-        const checkVel = body.getLinearVelocity();
-        const checkSpeed = Math.sqrt(checkVel.x() * checkVel.x() + checkVel.y() * checkVel.y() + checkVel.z() * checkVel.z()) * this.PHYSICS_TO_KM;
-        if (this.bodies.size < 3) {
-            console.log(`RED ORBIT: Body ${id} velocity set - expected: ${Math.sqrt(velocity.x*velocity.x + velocity.y*velocity.y + velocity.z*velocity.z).toFixed(2)} km/s, actual: ${checkSpeed.toFixed(2)} km/s`);
-            console.log(`  Physics velocity components: (${checkVel.x().toFixed(4)}, ${checkVel.y().toFixed(4)}, ${checkVel.z().toFixed(4)})`);
-        }
         
         // Activate the body to ensure it's not sleeping
         body.activate(true);
@@ -453,7 +421,8 @@ export class RedOrbitPhysics {
             
             // Check if crashed into Earth
             if (r < this.EARTH_RADIUS) {
-                console.log(`RED ORBIT: ${id} crashed into Earth!`);
+                // Create flash effect at crash point
+                this.createCollisionFlash(pos);
                 this.destroyBody(id);
                 return;
             }
@@ -516,7 +485,7 @@ export class RedOrbitPhysics {
      * Handle collision between two objects
      */
     handleCollision(id0, id1) {
-        console.log(`RED ORBIT: COLLISION! ${id0} smashed into ${id1}`);
+        // Silent collision handling with visual feedback
         
         const data0 = this.bodies.get(id0);
         const data1 = this.bodies.get(id1);
@@ -545,7 +514,8 @@ export class RedOrbitPhysics {
             Math.pow(vel0.z() - vel1.z(), 2)
         ) * this.PHYSICS_TO_KM;
         
-        console.log(`Impact velocity: ${relativeVelocity.toFixed(2)} km/s`);
+        // Create collision flash at impact point
+        this.createCollisionFlash(collisionPoint, relativeVelocity);
         
         // Generate debris
         this.generateDebris(collisionPoint, relativeVelocity, data0.mass + data1.mass);
@@ -564,11 +534,8 @@ export class RedOrbitPhysics {
         const numFragments = Math.min(this.maxDebris - this.debris.size, baseFragments);
         
         if (numFragments <= 0) {
-            console.warn('RED ORBIT: Debris limit reached!');
             return;
         }
-        
-        console.log(`RED ORBIT: Generating ${numFragments} debris fragments (velocity: ${impactVelocity.toFixed(2)} km/s)`);
         
         // Get orbital velocity at collision point
         const r = Math.sqrt(position.x * position.x + position.y * position.y + position.z * position.z);
@@ -661,6 +628,49 @@ export class RedOrbitPhysics {
     }
     
     /**
+     * Create visual flash effect for collisions
+     */
+    createCollisionFlash(position, intensity = 1) {
+        // Create a bright flash sphere that quickly fades
+        const flashMesh = BABYLON.MeshBuilder.CreateSphere(
+            'flash_' + Date.now(),
+            { diameter: 0.05 * intensity, segments: 8 },
+            this.scene
+        );
+        
+        // Position in Babylon coordinates
+        flashMesh.position.set(
+            position.x * this.KM_TO_BABYLON,
+            position.y * this.KM_TO_BABYLON,
+            position.z * this.KM_TO_BABYLON
+        );
+        
+        // Bright white/orange flash material
+        const flashMat = new BABYLON.StandardMaterial('flash_mat', this.scene);
+        flashMat.disableLighting = true;
+        flashMat.emissiveColor = new BABYLON.Color3(1, 0.8, 0); // Bright orange-white
+        flashMat.alpha = 1;
+        flashMesh.material = flashMat;
+        
+        // Animate the flash
+        let scale = 1;
+        let alpha = 1;
+        
+        const flashAnimation = this.scene.registerBeforeRender(() => {
+            scale += 0.3; // Expand quickly
+            alpha -= 0.05; // Fade out
+            
+            flashMesh.scaling.set(scale, scale, scale);
+            flashMat.alpha = alpha;
+            
+            if (alpha <= 0) {
+                this.scene.unregisterBeforeRender(flashAnimation);
+                flashMesh.dispose();
+            }
+        });
+    }
+    
+    /**
      * Get or create debris mesh from pool
      */
     getDebrisMesh() {
@@ -723,11 +733,6 @@ export class RedOrbitPhysics {
     step(deltaTime) {
         if (!this.initialized) return;
         
-        // Log first call to verify stepping
-        if (!this.firstStepLogged) {
-            console.log(`RED ORBIT: Physics stepping started! Delta time: ${deltaTime.toFixed(4)}s`);
-            this.firstStepLogged = true;
-        }
         
         // Use internal physics multiplier for orbital motion
         // This is separate from Earth rotation speed
@@ -737,22 +742,6 @@ export class RedOrbitPhysics {
         // Apply gravity
         this.applyGravity();
         
-        // Debug: Check if velocities are being maintained
-        if (Math.random() < 0.001) {
-            let totalSpeed = 0;
-            let count = 0;
-            this.bodies.forEach((data, id) => {
-                if (data.isSatellite && count < 3) {
-                    const vel = data.body.getLinearVelocity();
-                    const speed = Math.sqrt(vel.x() * vel.x() + vel.y() * vel.y() + vel.z() * vel.z()) * this.PHYSICS_TO_KM;
-                    totalSpeed += speed;
-                    count++;
-                }
-            });
-            if (count > 0) {
-                console.log(`RED ORBIT: Average satellite speed: ${(totalSpeed/count).toFixed(2)} km/s`);
-            }
-        }
         
         // Step physics with time acceleration
         // Use smaller fixed timestep for better stability
@@ -767,11 +756,6 @@ export class RedOrbitPhysics {
             this.updateMeshes();
             this.updateCounter = 0;
             
-            // Log physics status occasionally
-            if (this.bodies.size > 0 && Math.random() < 0.001) { // Very rare logging
-                const stats = this.getStats();
-                console.log(`RED ORBIT Status: ${stats.satellites} satellites, ${stats.debrisCount} debris, Risk: ${stats.highestRisk}`);
-            }
         }
         
         // Clean up old debris periodically
@@ -800,28 +784,6 @@ export class RedOrbitPhysics {
                 z: origin.z() * this.PHYSICS_TO_KM * this.KM_TO_BABYLON
             };
             
-            // Debug log first satellite position occasionally
-            if (!debugLogged && data.isSatellite && Math.random() < 0.01) {
-                const r = Math.sqrt(position.x * position.x + position.y * position.y + position.z * position.z);
-                const altitudeKm = (r / this.KM_TO_BABYLON) - this.EARTH_RADIUS;
-                const velocity = data.body.getLinearVelocity();
-                const speed = Math.sqrt(velocity.x() * velocity.x() + velocity.y() * velocity.y() + velocity.z() * velocity.z()) * this.PHYSICS_TO_KM;
-                
-                // Also get physics position to compare
-                const physicsPos = {
-                    x: origin.x() * this.PHYSICS_TO_KM,
-                    y: origin.y() * this.PHYSICS_TO_KM,
-                    z: origin.z() * this.PHYSICS_TO_KM
-                };
-                const physicsR = Math.sqrt(physicsPos.x * physicsPos.x + physicsPos.y * physicsPos.y + physicsPos.z * physicsPos.z);
-                
-                console.log(`RED ORBIT UPDATE: ${id}`);
-                console.log(`  Physics pos: (${physicsPos.x.toFixed(1)}, ${physicsPos.y.toFixed(1)}, ${physicsPos.z.toFixed(1)}) km, r=${physicsR.toFixed(1)} km`);
-                console.log(`  Babylon pos: (${position.x.toFixed(3)}, ${position.y.toFixed(3)}, ${position.z.toFixed(3)})`);
-                console.log(`  Velocity: ${speed.toFixed(2)} km/s, altitude: ${altitudeKm.toFixed(0)} km`);
-                console.log(`  Time multiplier: ${this.physicsTimeMultiplier}x`);
-                debugLogged = true;
-            }
             
             data.mesh.position.set(position.x, position.y, position.z);
         });
@@ -843,22 +805,16 @@ export class RedOrbitPhysics {
             }
         });
         
-        if (removed > 0) {
-            console.log(`RED ORBIT: Cleaned up ${removed} old debris objects`);
-        }
     }
 
     /**
      * Trigger Kessler Syndrome
      */
     triggerKessler(velocity = 10) {
-        console.log('RED ORBIT: TRIGGERING KESSLER SYNDROME!');
-        
         // Get two random satellites
         const satellites = Array.from(this.bodies.entries()).filter(([id, data]) => data.isSatellite);
         
         if (satellites.length < 2) {
-            console.warn('Need at least 2 satellites for collision');
             return;
         }
         
@@ -884,8 +840,6 @@ export class RedOrbitPhysics {
         ));
         
         body1.setWorldTransform(transform1);
-        
-        console.log(`Colliding ${id0} with ${id1} at ${velocity} km/s`);
     }
     
     /**
