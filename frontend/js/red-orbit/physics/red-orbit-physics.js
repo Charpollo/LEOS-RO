@@ -107,15 +107,16 @@ export class RedOrbitPhysics {
      * Create a random satellite in specified orbit type
      */
     createRandomSatellite(orbitType, index) {
-        let altitude, inclination;
+        let altitude, inclination, eccentricity;
         
         // Create realistic orbit types
         const orbitStyles = [
-            'polar',      // 90° inclination
-            'sun-sync',   // ~98° inclination (retrograde)
-            'equatorial', // 0° inclination
-            'molniya',    // High inclination, eccentric
-            'inclined'    // Various inclinations
+            'polar',      // 90° inclination, circular
+            'sun-sync',   // ~98° inclination (retrograde), circular
+            'equatorial', // 0° inclination, circular
+            'molniya',    // High inclination, VERY eccentric
+            'inclined',   // Various inclinations, slightly elliptical
+            'gto'         // Geostationary transfer orbit, highly elliptical
         ];
         
         const style = orbitStyles[Math.floor(Math.random() * orbitStyles.length)];
@@ -123,24 +124,52 @@ export class RedOrbitPhysics {
         switch(orbitType) {
             case 'LEO':
                 altitude = 200 + Math.random() * 1800; // 200-2000 km
-                // Set inclination based on orbit style
-                if (style === 'polar') inclination = 85 + Math.random() * 10; // 85-95°
-                else if (style === 'sun-sync') inclination = 96 + Math.random() * 8; // 96-104° (retrograde)
-                else if (style === 'equatorial') inclination = Math.random() * 10; // 0-10°
-                else if (style === 'molniya') inclination = 63.4 + Math.random() * 5; // ~63.4° (critical inclination)
-                else inclination = 20 + Math.random() * 60; // 20-80° general
+                // Set inclination and eccentricity based on orbit style
+                if (style === 'polar') {
+                    inclination = 85 + Math.random() * 10; // 85-95°
+                    eccentricity = Math.random() * 0.02; // Nearly circular
+                } else if (style === 'sun-sync') {
+                    inclination = 96 + Math.random() * 8; // 96-104° (retrograde)
+                    eccentricity = Math.random() * 0.02; // Nearly circular
+                } else if (style === 'equatorial') {
+                    inclination = Math.random() * 10; // 0-10°
+                    eccentricity = Math.random() * 0.05; // Slightly elliptical
+                } else if (style === 'molniya') {
+                    inclination = 63.4 + Math.random() * 5; // ~63.4° (critical inclination)
+                    eccentricity = 0.6 + Math.random() * 0.15; // Highly elliptical! (0.6-0.75)
+                    altitude = 600 + Math.random() * 400; // Lower perigee for Molniya
+                } else if (style === 'gto') {
+                    inclination = 20 + Math.random() * 10; // 20-30°
+                    eccentricity = 0.3 + Math.random() * 0.2; // Elliptical (0.3-0.5)
+                } else {
+                    inclination = 20 + Math.random() * 60; // 20-80° general
+                    eccentricity = Math.random() * 0.1; // Slightly elliptical (0-0.1)
+                }
                 break;
             case 'MEO':
                 altitude = 2000 + Math.random() * 18000; // 2000-20000 km
                 // MEO often used for navigation (GPS, GLONASS)
-                if (Math.random() < 0.5) inclination = 55 + Math.random() * 10; // GPS-like
-                else inclination = 64.8 + Math.random() * 5; // GLONASS-like
+                if (Math.random() < 0.5) {
+                    inclination = 55 + Math.random() * 10; // GPS-like
+                    eccentricity = Math.random() * 0.01; // Very circular
+                } else {
+                    inclination = 64.8 + Math.random() * 5; // GLONASS-like
+                    eccentricity = Math.random() * 0.02; // Nearly circular
+                }
                 break;
             case 'HIGH':
                 altitude = 10000 + Math.random() * 5000; // 10000-15000 km
                 // Mix of GEO-transfer and Molniya-type orbits
-                if (Math.random() < 0.3) inclination = Math.random() * 5; // Near-equatorial
-                else inclination = 40 + Math.random() * 40; // Various high inclinations
+                if (style === 'molniya') {
+                    inclination = 63.4; // Critical inclination
+                    eccentricity = 0.7 + Math.random() * 0.05; // Very eccentric
+                } else if (style === 'gto') {
+                    inclination = Math.random() * 30; // 0-30°
+                    eccentricity = 0.4 + Math.random() * 0.3; // Highly elliptical (0.4-0.7)
+                } else {
+                    inclination = Math.random() * 40; // Various
+                    eccentricity = Math.random() * 0.15; // Mildly elliptical
+                }
                 break;
         }
         
@@ -190,9 +219,11 @@ export class RedOrbitPhysics {
             id: satId,
             altitude: altitude,
             inclination: inclination,
+            eccentricity: eccentricity || 0,
             mass: 100 + Math.random() * 1000, // 100-1100 kg
             radius: 1 + Math.random() * 3, // 1-4 m
-            mesh: mesh
+            mesh: mesh,
+            orbitStyle: style // Track orbit style for debugging
         });
     }
     
@@ -247,23 +278,49 @@ export class RedOrbitPhysics {
      * @param {BABYLON.Mesh} params.mesh - Babylon mesh
      */
     createSatellite(params) {
-        const { altitude, inclination, eccentricity = 0, mass = 500, radius = 2, id, mesh } = params;
+        const { altitude, inclination, eccentricity = 0, mass = 500, radius = 2, id, mesh, orbitStyle } = params;
         
-        // Calculate orbital parameters
-        const orbitalRadius = this.EARTH_RADIUS + altitude;
+        // For elliptical orbits, 'altitude' is the periapsis altitude
+        const periapsis = this.EARTH_RADIUS + altitude;
         
-        // For circular orbits (e=0), semi-major axis equals orbital radius
-        // For elliptical orbits, if we're placing at average radius, a ≈ r
-        // This is a simplification but prevents unrealistic velocities
-        const semiMajorAxis = eccentricity > 0.01 ? orbitalRadius * (1 + eccentricity * 0.5) : orbitalRadius;
+        // Calculate semi-major axis from periapsis and eccentricity
+        // a = rp / (1 - e)
+        const semiMajorAxis = periapsis / (1 - eccentricity);
+        
+        // Calculate apoapsis
+        const apoapsis = semiMajorAxis * (1 + eccentricity);
+        
+        // Random true anomaly (position in orbit)
+        // For elliptical orbits, this determines where we place the satellite
+        const trueAnomaly = Math.random() * Math.PI * 2;
+        
+        // Calculate radius at this true anomaly
+        // r = a(1 - e²) / (1 + e·cos(θ))
+        const orbitalRadius = semiMajorAxis * (1 - eccentricity * eccentricity) / 
+                             (1 + eccentricity * Math.cos(trueAnomaly));
         
         // Use vis-viva equation for velocity: v² = μ(2/r - 1/a)
-        // For circular orbit (a = r): v = √(μ/r)
         const orbitalSpeed = Math.sqrt(this.EARTH_MU * (2/orbitalRadius - 1/semiMajorAxis));
         
-        // Debug: Log first few satellites to verify velocities
+        // Debug: Log first few satellites to verify velocities and periods
         if (this.bodies.size < 5) {
-            console.log(`Satellite ${id}: alt=${altitude.toFixed(0)}km, r=${orbitalRadius.toFixed(0)}km, v=${orbitalSpeed.toFixed(2)}km/s, e=${eccentricity.toFixed(2)}`);
+            const currentAlt = orbitalRadius - this.EARTH_RADIUS;
+            const periAlt = periapsis - this.EARTH_RADIUS;
+            const apoAlt = apoapsis - this.EARTH_RADIUS;
+            
+            // Calculate orbital period using Kepler's 3rd law: T = 2π√(a³/μ)
+            const orbitalPeriodSeconds = 2 * Math.PI * Math.sqrt(Math.pow(semiMajorAxis, 3) / this.EARTH_MU);
+            const orbitalPeriodMinutes = orbitalPeriodSeconds / 60;
+            const orbitalPeriodHours = orbitalPeriodMinutes / 60;
+            
+            // At 60x speed, how long to see one orbit
+            const visiblePeriodAt60x = orbitalPeriodMinutes / 60; // minutes to watch at 60x
+            
+            console.log(`${id} (${orbitStyle || 'unknown'}):`);
+            console.log(`  Alt: ${currentAlt.toFixed(0)}km (peri=${periAlt.toFixed(0)}, apo=${apoAlt.toFixed(0)})`);
+            console.log(`  Speed: ${orbitalSpeed.toFixed(2)}km/s, e=${eccentricity.toFixed(2)}`);
+            console.log(`  Period: ${orbitalPeriodMinutes.toFixed(1)} min (${orbitalPeriodHours.toFixed(2)} hrs)`);
+            console.log(`  At 60x: ${visiblePeriodAt60x.toFixed(1)} min to watch one orbit`);
         }
         
         // Random position on orbit

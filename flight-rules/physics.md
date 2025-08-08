@@ -1,5 +1,5 @@
 # RED ORBIT PHYSICS DOCUMENTATION
-*Last Updated: August 2025*
+*Last Updated: December 2024*
 
 ## Core Physics Engine
 
@@ -36,27 +36,52 @@ Where:
 
 ### Orbital Types Implemented
 
-1. **Circular Orbits** (e ≈ 0)
-   - LEO: 500-2000 km altitude
-   - MEO: 2000-20,000 km altitude
-   - Velocity: v = √(μ/r)
+1. **Circular Orbits** (e ≈ 0-0.02)
+   - GPS/GLONASS: MEO, e < 0.01
+   - Sun-synchronous: LEO, polar, e < 0.02
+   - Polar satellites: e < 0.02
 
-2. **Elliptical Orbits** (e > 0)
-   - Molniya: e = 0.5-0.7, i = 63.4°
-   - GTO: e = 0.3-0.7
-   - Various: e = 0.1-0.4
+2. **Slightly Elliptical** (e = 0.05-0.15)
+   - General LEO satellites
+   - Some MEO satellites
+   - Equatorial orbits
 
-3. **Inclination Types**
-   - Equatorial: 0-10°
-   - Polar: 85-95°
-   - Sun-synchronous: 96-104° (retrograde)
-   - Various: 20-80°
+3. **Moderately Elliptical** (e = 0.3-0.5)
+   - GTO (Geostationary Transfer Orbit)
+   - Communication satellites
+   - Transfer orbits
+
+4. **Highly Elliptical** (e = 0.6-0.75)
+   - **Molniya orbits**: e = 0.6-0.75, i = 63.4° (critical inclination)
+   - Special reconnaissance orbits
+   - High apogee communication satellites
+
+### Inclination Types
+- **Equatorial**: 0-10°
+- **Inclined**: 20-80°
+- **Critical (Molniya)**: 63.4° (no apsidal precession)
+- **Polar**: 85-95°
+- **Sun-synchronous**: 96-104° (retrograde)
 
 ### Realistic Orbital Periods
-At 60x time acceleration:
-- **LEO (500-2000 km)**: 90-120 minutes real → 1.5-2 minutes displayed
-- **MEO (2000-20,000 km)**: 2-12 hours real → 2-12 minutes displayed
-- **HIGH (10,000-15,000 km)**: 6-10 hours real → 6-10 minutes displayed
+
+#### Expected Times (Real World)
+- **ISS (400 km)**: ~90 minutes
+- **LEO (200-2000 km)**: 88-127 minutes
+- **MEO (2000-20,000 km)**: 2-12 hours
+- **GPS (20,200 km)**: ~12 hours
+- **Molniya (600-40,000 km)**: ~12 hours
+- **GEO (35,786 km)**: 24 hours
+- **Moon**: 27.3 days
+
+#### At 60x Time Acceleration
+- **ISS**: 1.5 minutes to watch one orbit
+- **LEO**: 1.5-2.1 minutes to watch
+- **MEO**: 2-12 minutes to watch
+- **GPS**: 12 minutes to watch
+- **Molniya**: 12 minutes to watch (fast at perigee, slow at apogee)
+- **Earth rotation**: 24 minutes to watch one day
+- **Moon orbit**: 655 minutes (10.9 hours) to watch
 
 ## Atmospheric Model
 
@@ -146,10 +171,12 @@ Cascade Messages:
 
 ### `createSatellite(params)`
 Creates a satellite with proper orbital mechanics:
-- Supports circular and elliptical orbits
-- Proper 3D rotation for inclination
-- Vis-viva equation for velocity
-- Flight path angle for elliptical orbits
+- Supports circular and elliptical orbits (e = 0 to 0.75)
+- Calculates semi-major axis from periapsis and eccentricity
+- Places satellites at random true anomaly positions
+- Uses vis-viva equation for correct velocity at any orbital position
+- Proper velocity vectors using cross products for inclined orbits
+- Handles retrograde orbits (inclination > 90°)
 
 ### `applyGravity()`
 Applies gravitational force to all bodies:
@@ -188,6 +215,20 @@ const moonOrbitAngle = (totalSeconds / moonOrbitalPeriod) * 2 * Math.PI;
 moonMesh.rotation.y = -moonOrbitAngle;
 ```
 
+## Physics Stability Improvements
+
+### Time Step Configuration
+- **Fixed timestep**: 1/240 second (240 Hz physics)
+- **Max deltaTime**: 1/30 second (prevents large jumps)
+- **Substeps**: Calculated dynamically based on time acceleration
+- **Result**: Stable orbits even at 60x speed
+
+### Velocity Vector Calculation
+- Uses proper cross products for perpendicular velocity
+- Handles edge cases (polar orbits)
+- Ensures velocity magnitude matches orbital speed exactly
+- Supports all inclinations (0-180°)
+
 ## Validation
 
 ### Real Orbital Velocities
@@ -196,6 +237,11 @@ moonMesh.rotation.y = -moonOrbitAngle;
 - GPS (20,200 km): 3.87 km/s ✓
 - GEO (35,786 km): 3.07 km/s ✓
 - Moon (384,400 km): 1.02 km/s ✓
+
+### Elliptical Orbit Velocities
+- Periapsis: Faster than circular at same altitude ✓
+- Apoapsis: Slower than circular at same altitude ✓
+- Follows Kepler's 2nd law (equal areas in equal times) ✓
 
 ### Orbital Period Ratios
 For every Earth rotation:
