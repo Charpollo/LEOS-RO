@@ -15,7 +15,7 @@ export const MIN_LEO_ALTITUDE_KM = 160; // Minimum altitude above Earth surface 
 export const MOON_DISTANCE = 384400 * EARTH_SCALE;
 export const MOON_SCALE = 0.27;
 
-export const TIME_ACCELERATION = 60; // 60:1 time acceleration (1 minute of real time = 1 second in simulation)
+export const TIME_ACCELERATION = 1; // Base time acceleration (controlled by timeMultiplier in app.js)
 
 // LOS (Line of Sight) constants - CENTRALIZED CONFIGURATION
 export const LOS_DEFAULT_KM = 37.8; // Default/fallback LOS distance in km

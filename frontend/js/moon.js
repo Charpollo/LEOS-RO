@@ -50,13 +50,25 @@ export async function createMoon(scene, getTimeMultiplier) {
     
     // Register Moon orbit animation
     scene.registerBeforeRender(() => {
-        // Moon orbits approximately once every 27.3 days, slowed down for visualization
-        const timeMultiplier = getTimeMultiplier();
-        const orbitSpeed = (0.03 * Math.PI / 180) * timeMultiplier * (scene.getAnimationRatio() || 1);
-        moonPivot.rotation.y += orbitSpeed;
+        // Moon orbits Earth once every 27.3 days (655.2 hours)
+        // At 60x speed, that's 655.2 minutes to complete orbit
+        // Get current simulation time for accurate orbital position
+        const currentSimTime = window.getCurrentSimTime ? window.getCurrentSimTime() : new Date();
         
-        // Add slow Moon rotation around its axis (tidally locked to Earth)
-        moonMesh.rotation.y += orbitSpeed * 0.01;
+        // Calculate Moon's position based on time
+        // Moon orbital period: 27.3 days = 2,358,720 seconds
+        const moonOrbitalPeriod = 27.3 * 24 * 60 * 60; // seconds
+        const totalSeconds = currentSimTime.getTime() / 1000; // Convert to seconds
+        
+        // Calculate orbital angle (radians)
+        const moonOrbitAngle = (totalSeconds / moonOrbitalPeriod) * 2 * Math.PI;
+        
+        // Set Moon's orbital position
+        moonPivot.rotation.y = moonOrbitAngle;
+        
+        // Moon is tidally locked - same face always points to Earth
+        // So it rotates once per orbit
+        moonMesh.rotation.y = -moonOrbitAngle;
     });
     
     return moonMesh;

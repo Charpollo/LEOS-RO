@@ -35,6 +35,8 @@ import { calculateSatellitePosition, toBabylonPosition, generateRealTimeTelemetr
 
 // Import Red Orbit physics - PURE PHYSICS ENGINE
 import { RedOrbitPhysics } from './red-orbit/physics/red-orbit-physics.js';
+import { AdvancedKesslerSystem } from './red-orbit/kessler-advanced.js';
+import { KesslerUI } from './red-orbit/kessler-ui.js';
 
 // Globals
 let engine;
@@ -53,9 +55,12 @@ let redOrbitPhysics = null; // Red Orbit PURE physics system
 
 // Use a shared state object for timeMultiplier
 const simState = {
-    timeMultiplier: 1.0, // Keep Earth rotation at normal speed
-    lastTimeMultiplier: 1.0
+    timeMultiplier: 60.0, // Default to 60x speed for better visualization
+    lastTimeMultiplier: 60.0
 };
+
+// Expose globally for UI controls
+window.simState = simState;
 
 // Expose time multiplier globally for physics engine
 window.getTimeMultiplier = () => simState.timeMultiplier;
@@ -2886,8 +2891,16 @@ async function initializeHybridPhysics() {
         redOrbitPhysics = new RedOrbitPhysics(scene);
         await redOrbitPhysics.initialize();
         
+        // Initialize Advanced Kessler System
+        const advancedKessler = new AdvancedKesslerSystem(scene, redOrbitPhysics);
+        
+        // Initialize Kessler UI
+        const kesslerUI = new KesslerUI();
+        
         // Expose globally for UI access
         window.redOrbitPhysics = redOrbitPhysics;
+        window.advancedKessler = advancedKessler;
+        window.kesslerUI = kesslerUI;
         
         // Create satellites with REAL orbital parameters
         const meshes = getSatelliteMeshes();
