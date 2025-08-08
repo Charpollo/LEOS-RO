@@ -55,8 +55,8 @@ let redOrbitPhysics = null; // Red Orbit PURE physics system
 
 // Use a shared state object for timeMultiplier
 const simState = {
-    timeMultiplier: 60.0, // Default to 60x speed for better visualization
-    lastTimeMultiplier: 60.0
+    timeMultiplier: 1.0, // Start at real-time for stability
+    lastTimeMultiplier: 1.0
 };
 
 // Expose globally for UI controls
@@ -453,8 +453,8 @@ export async function initApp() {
         lastFrameTime = now;
         
         // Update Red Orbit physics if running
-        if (window.redOrbitPhysicsEnabled && redOrbitPhysics) {
-            redOrbitPhysics.update(deltaTime);
+        if (redOrbitPhysics && redOrbitPhysics.initialized) {
+            redOrbitPhysics.step(deltaTime);
         }
         
         scene.render();
@@ -767,6 +767,58 @@ function setupTimeControls() {
             controlsVisible = false;
         }
     });
+    
+    // Speed mode toggle buttons (1x vs 60x)
+    const realtimeBtn = document.getElementById('realtime-mode');
+    const fastBtn = document.getElementById('fast-mode');
+    
+    if (realtimeBtn && fastBtn) {
+        realtimeBtn.addEventListener('click', () => {
+            simState.timeMultiplier = 1;
+            simState.lastTimeMultiplier = 1;
+            
+            // Update physics if it exists
+            if (window.redOrbitPhysics) {
+                window.redOrbitPhysics.physicsTimeMultiplier = 1;
+            }
+            
+            // Update button styles
+            realtimeBtn.style.background = 'rgba(255,0,0,0.8)';
+            realtimeBtn.style.color = '#ffffff';
+            fastBtn.style.background = 'rgba(255,0,0,0.2)';
+            fastBtn.style.color = '#ff0000';
+            
+            console.log('Switched to REAL-TIME mode (1x)');
+        });
+        
+        fastBtn.addEventListener('click', () => {
+            simState.timeMultiplier = 60;
+            simState.lastTimeMultiplier = 60;
+            
+            // Update physics if it exists
+            if (window.redOrbitPhysics) {
+                window.redOrbitPhysics.physicsTimeMultiplier = 60;
+            }
+            
+            // Update button styles
+            fastBtn.style.background = 'rgba(255,0,0,0.8)';
+            fastBtn.style.color = '#ffffff';
+            realtimeBtn.style.background = 'rgba(255,0,0,0.2)';
+            realtimeBtn.style.color = '#ff0000';
+            
+            console.log('Switched to FAST mode (60x)');
+        });
+        
+        // Keyboard shortcuts for speed modes
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'r' || e.key === 'R') {
+                realtimeBtn.click();
+            } else if (e.key === 'f' || e.key === 'F') {
+                fastBtn.click();
+            }
+        });
+    }
+    
     // Initial highlight
     updateSpeedBtns();
 }
@@ -2697,7 +2749,7 @@ async function loadSatelliteData() {
         console.log('Simulation initialized successfully with time:', simulationTime);
 
         // Initialize Red Orbit hybrid physics system
-        initializeHybridPhysics();
+        await initializeHybridPhysics();
         
         // Don't create separate collision controls - using modal instead
         // createCollisionControls(scene);
@@ -2708,20 +2760,16 @@ async function loadSatelliteData() {
       const currentSimTime = getCurrentSimTime();
       if (!currentSimTime) return; // Safety check
       
-      // Step the RED ORBIT physics system if it exists
-      if (window.redOrbitPhysics && window.redOrbitPhysics.initialized) {
-          const deltaTime = engine.getDeltaTime() / 1000; // Convert to seconds
-          window.redOrbitPhysics.step(deltaTime);
-      }
+      // RED ORBIT physics is handled in the render loop, not here
+      // This prevents double physics updates
       
       const meshes = getSatelliteMeshes();
       const telemetryObj = getTelemetryData();
       
-      // If RED ORBIT physics is active, let it handle ALL position updates
+      // If RED ORBIT physics is active, skip TLE updates
       if (redOrbitPhysics && redOrbitPhysics.initialized) {
-        // Step physics simulation
-        redOrbitPhysics.step(1/60); // Step at 60 FPS
-        // Don't return here - we still want to update other satellites if they exist
+        // Physics positions are handled by the physics engine in the render loop
+        return;
       }
       
       // Otherwise, use normal TLE-based updates

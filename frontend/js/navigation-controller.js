@@ -10,6 +10,11 @@ export function initNavigationController() {
     const topHeader = document.getElementById('top-header');
     const dashboard = document.getElementById('red-orbit-dashboard');
     
+    // Create and expose navigation controller for other modules
+    window.navigationController = {
+        updateKesslerStatus: updateKesslerStatus
+    };
+    
     // Navigation items configuration with SVG paths
     const navItems = [
         { id: 'mission-control', iconPath: 'assets/earth.svg', label: 'Mission Control', color: '#ff0000' },
@@ -360,6 +365,40 @@ function loadReports() {
 }
 
 let kesslerUpdateInterval = null;
+
+// Function to update Kessler status from physics engine
+function updateKesslerStatus(status) {
+    if (!status) return;
+    
+    // Update status display
+    const statusMessage = document.getElementById('status-message');
+    if (statusMessage) {
+        const messages = [
+            'Initial Impact Detected',
+            'Secondary Collisions Beginning',
+            'Cascade Effect Accelerating',
+            'Critical Mass Approaching',
+            'FULL KESSLER CASCADE ACTIVE'
+        ];
+        const message = messages[Math.min(status.level, messages.length - 1)] || 'Monitoring...';
+        statusMessage.textContent = message;
+        statusMessage.style.color = status.level >= 3 ? '#ff0000' : '#ff6600';
+    }
+    
+    // Update counters
+    const collisionCount = document.getElementById('collision-count');
+    if (collisionCount) collisionCount.textContent = status.collisions || 0;
+    
+    const cascadeLevel = document.getElementById('cascade-level');
+    if (cascadeLevel) cascadeLevel.textContent = status.level || 0;
+    
+    const debrisGenerated = document.getElementById('debris-generated');
+    if (debrisGenerated) debrisGenerated.textContent = status.debris || 0;
+    
+    // Update cascade message
+    const cascadeMessage = document.getElementById('cascade-message');
+    if (cascadeMessage) cascadeMessage.textContent = statusMessage ? statusMessage.textContent : '';
+}
 
 function startKesslerStatusUpdates() {
     // Clear any existing interval
