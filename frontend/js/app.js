@@ -34,7 +34,7 @@ import { initAuroraBackground, cleanupAuroraBackground } from './aurora-backgrou
 import { calculateSatellitePosition, toBabylonPosition, generateRealTimeTelemetry } from './orbital-mechanics.js';
 
 // Import Red Orbit physics - PURE PHYSICS ENGINE
-import { createPhysicsEngine, PHYSICS_CONFIG } from './red-orbit/physics/physics-selector.js';
+import { createPhysicsEngine, PHYSICS_CONFIG } from './red-orbit/physics/physics-launcher.js';
 import { AdvancedKesslerSystem } from './red-orbit/kessler-advanced.js';
 import { KesslerUI } from './red-orbit/kessler-ui.js';
 
@@ -55,7 +55,7 @@ let redOrbitPhysics = null; // Red Orbit PURE physics system
 
 // Use a shared state object for timeMultiplier
 const simState = {
-    timeMultiplier: 1.0, // Start at 1x speed to debug ghost positions
+    timeMultiplier: 1.0, // Start at 1x real-time (NO CHEATING!)
     lastTimeMultiplier: 1.0
 };
 
@@ -2936,9 +2936,9 @@ async function initializeHybridPhysics() {
     try {
         console.log('RED ORBIT: Initializing PURE physics engine - no more hybrid bullshit!');
         
-        // Use Havok for 10,000 objects!
+        // Use GPU physics for massive scale!
         // createPhysicsEngine already calls initialize() internally
-        redOrbitPhysics = await createPhysicsEngine(scene, PHYSICS_CONFIG.USE_HAVOK);
+        redOrbitPhysics = await createPhysicsEngine(scene); // GPU ONLY!
         
         // Set initial 1x speed for physics engine (debugging ghost positions)
         redOrbitPhysics.physicsTimeMultiplier = 1;
@@ -2954,30 +2954,17 @@ async function initializeHybridPhysics() {
         window.advancedKessler = advancedKessler;
         window.kesslerUI = kesslerUI;
         
-        // Create satellites with REAL orbital parameters
+        // Hide the original satellite meshes - physics engine creates its own
         const meshes = getSatelliteMeshes();
-        let satIndex = 0;
-        
-        // Various realistic LEO altitudes and inclinations
-        const altitudes = [400, 550, 700, 850, 1000, 1200]; // km
-        const inclinations = [0, 51.6, 53, 90, 98.7, 97.4]; // degrees
-        
         Object.entries(meshes).forEach(([satName, mesh]) => {
-            // Get satellite data if available
-            const satData = satelliteData[satName] || {};
-            
-            // Create satellite with real orbital mechanics
-            redOrbitPhysics.createSatellite({
-                id: satName,
-                altitude: altitudes[satIndex % altitudes.length],
-                inclination: inclinations[satIndex % inclinations.length],
-                mass: satData.mass || 500,
-                radius: satData.radius || 2,
-                mesh: mesh
-            });
-            
-            satIndex++;
+            if (mesh) {
+                mesh.isVisible = false; // Hide original meshes
+                mesh.position = new BABYLON.Vector3(1000, 1000, 1000); // Move far away
+            }
         });
+        
+        // Physics engine already populated space with satellites in populateSpace()
+        // No need to create more - that was causing duplicates!
         
         // Expose for navigation controller
         window.redOrbitPhysics = redOrbitPhysics;

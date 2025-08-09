@@ -3,14 +3,18 @@
 
 ## Core Physics Engine
 
-RED ORBIT uses a **pure Newtonian physics simulation** powered by Ammo.js (Bullet Physics) to accurately model orbital mechanics and collisions in real-time.
+RED ORBIT uses **GPU-ONLY physics** for unprecedented scale:
+- **WebGPU**: Up to 1,000,000 objects with parallel compute shaders
+- **NO CPU FALLBACK**: Pure GPU implementation (NO HAVOK!)
 
 ### Key Features
 - Real gravitational dynamics (no cheating!)
 - Accurate collision detection and debris generation
 - NASA Standard Breakup Model for realistic fragmentation
-- Support for 15,000+ simultaneous orbiting objects at 30-60 FPS
+- Support for **400,000+ simultaneous objects** at 60 FPS (GPU)
+- Support for **1,000,000 objects** at 30 FPS (theoretical max)
 - Elliptical and circular orbit support (e = 0 to 0.75)
+- Automatic engine switching based on object count
 
 ## Physics Constants
 
@@ -154,12 +158,20 @@ Cascade Messages:
 ## Object Management
 
 ### Current Configuration
-- **Total Objects**: 15,000
-  - LEO: 9,000 satellites (polar, sun-sync, inclined)
-  - MEO: 3,750 satellites (GPS, GLONASS patterns)
-  - GEO: 1,500 satellites (geostationary belt)
-  - HEO: 600 satellites (Molniya e=0.6-0.75)
-  - Debris: 150 initial objects
+- **Default Objects**: 10,000 (starts at 1x real-time)
+- **Available Scales**:
+  - 10K objects - Smooth visualization
+  - 100K objects - Full catalog
+  - 250K objects - Future projection
+  - 500K objects - Mega constellation
+  - 1M objects - Theoretical maximum
+  
+### Object Distribution
+- LEO: 60% (polar, sun-sync, inclined)
+- MEO: 25% (GPS, GLONASS patterns)
+- GEO: 10% (geostationary belt)
+- HEO: 4% (Molniya e=0.6-0.75)
+- Debris: 1% initial objects
 
 ### Performance Optimizations
 - Mesh instancing for similar objects

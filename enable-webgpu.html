@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Enable WebGPU for RED ORBIT</title>
+    <style>
+        body {
+            background: #000;
+            color: #0f0;
+            font-family: monospace;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 { color: #ff0000; }
+        .status { 
+            padding: 20px;
+            border: 2px solid #0f0;
+            border-radius: 10px;
+            margin: 20px 0;
+            background: rgba(0,255,0,0.1);
+        }
+        .warning {
+            border-color: #ff0000;
+            background: rgba(255,0,0,0.1);
+        }
+        .success {
+            border-color: #00ff00;
+            background: rgba(0,255,0,0.2);
+        }
+        code {
+            background: #222;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+        a {
+            color: #00ffff;
+        }
+        button {
+            background: #ff0000;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        button:hover {
+            background: #ff6600;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚀 RED ORBIT WebGPU Setup</h1>
+    
+    <div id="status" class="status">
+        Checking WebGPU support...
+    </div>
+    
+    <h2>How to Enable WebGPU:</h2>
+    
+    <h3>Chrome (Recommended):</h3>
+    <ol>
+        <li>Copy this URL: <code>chrome://flags/#enable-unsafe-webgpu</code></li>
+        <li>Paste it in your Chrome address bar and press Enter</li>
+        <li>Find "Unsafe WebGPU" and set it to <strong>Enabled</strong></li>
+        <li>Click the blue "Relaunch" button at the bottom</li>
+        <li>Come back to this page to verify</li>
+    </ol>
+    
+    <h3>Chrome Canary (Best Support):</h3>
+    <ol>
+        <li>Download <a href="https://www.google.com/chrome/canary/" target="_blank">Chrome Canary</a></li>
+        <li>WebGPU is enabled by default in Canary</li>
+        <li>Use Canary for the best GPU physics experience</li>
+    </ol>
+    
+    <h3>Safari (Mac):</h3>
+    <ol>
+        <li>Open Safari Preferences → Advanced</li>
+        <li>Check "Show Develop menu in menu bar"</li>
+        <li>Go to Develop → Experimental Features</li>
+        <li>Enable "WebGPU"</li>
+        <li>Refresh this page</li>
+    </ol>
+    
+    <h3>Edge:</h3>
+    <ol>
+        <li>Go to: <code>edge://flags/#enable-unsafe-webgpu</code></li>
+        <li>Enable "Unsafe WebGPU"</li>
+        <li>Restart Edge</li>
+    </ol>
+    
+    <div style="margin-top: 30px;">
+        <button onclick="checkWebGPU()">Check WebGPU Again</button>
+        <button onclick="testGPU()">Test GPU Physics</button>
+    </div>
+    
+    <div id="gpu-info" style="margin-top: 20px;"></div>
+    
+    <script>
+        async function checkWebGPU() {
+            const statusDiv = document.getElementById('status');
+            const infoDiv = document.getElementById('gpu-info');
+            
+            if (!navigator.gpu) {
+                statusDiv.className = 'status warning';
+                statusDiv.innerHTML = `
+                    <h2>❌ WebGPU Not Available</h2>
+                    <p>Please follow the instructions above to enable WebGPU in your browser.</p>
+                    <p>Current browser: ${navigator.userAgent.includes('Chrome') ? 'Chrome' : 
+                                       navigator.userAgent.includes('Safari') ? 'Safari' : 
+                                       navigator.userAgent.includes('Edge') ? 'Edge' : 'Unknown'}</p>
+                `;
+                return false;
+            }
+            
+            try {
+                const adapter = await navigator.gpu.requestAdapter();
+                if (!adapter) {
+                    statusDiv.className = 'status warning';
+                    statusDiv.innerHTML = `
+                        <h2>⚠️ WebGPU Available but No Adapter</h2>
+                        <p>Your browser supports WebGPU but couldn't find a GPU adapter.</p>
+                        <p>Try updating your graphics drivers.</p>
+                    `;
+                    return false;
+                }
+                
+                const device = await adapter.requestDevice();
+                
+                statusDiv.className = 'status success';
+                statusDiv.innerHTML = `
+                    <h2>✅ WebGPU Ready!</h2>
+                    <p>Your browser is configured correctly for GPU physics!</p>
+                    <p>You can now run up to <strong>1,000,000 objects</strong> in RED ORBIT!</p>
+                `;
+                
+                // Get GPU info
+                const info = adapter.requestAdapterInfo ? await adapter.requestAdapterInfo() : {};
+                infoDiv.innerHTML = `
+                    <h3>GPU Information:</h3>
+                    <ul>
+                        <li>Vendor: ${info.vendor || 'Unknown'}</li>
+                        <li>Architecture: ${info.architecture || 'Unknown'}</li>
+                        <li>Device: ${info.device || 'Unknown'}</li>
+                        <li>Description: ${info.description || 'Unknown'}</li>
+                    </ul>
+                    <h3>Capabilities:</h3>
+                    <ul>
+                        <li>Max Buffer Size: ${(device.limits.maxStorageBufferBindingSize / 1024 / 1024).toFixed(0)} MB</li>
+                        <li>Max Compute Workgroup: ${device.limits.maxComputeWorkgroupSizeX}</li>
+                        <li>Max Workgroups: ${device.limits.maxComputeWorkgroupsPerDimension}</li>
+                    </ul>
+                `;
+                
+                return true;
+            } catch (error) {
+                statusDiv.className = 'status warning';
+                statusDiv.innerHTML = `
+                    <h2>⚠️ WebGPU Error</h2>
+                    <p>Error initializing WebGPU: ${error.message}</p>
+                    <p>Try enabling the flags mentioned above.</p>
+                `;
+                return false;
+            }
+        }
+        
+        function testGPU() {
+            const ready = navigator.gpu !== undefined;
+            if (ready) {
+                window.location.href = '/test-gpu.html';
+            } else {
+                alert('Please enable WebGPU first using the instructions above!');
+            }
+        }
+        
+        // Check on load
+        checkWebGPU();
+    </script>
+</body>
+</html>

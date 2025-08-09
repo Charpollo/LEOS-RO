@@ -493,9 +493,17 @@ export async function createSatellites(scene, satelliteData, orbitalElements, ac
             // Do NOT set child.material.emissiveColor here; let the model use its own appearance
             // This preserves the original model materials and textures
             
+            // Hide and move the satellite mesh away from origin
+            // Physics engine will create its own instances
+            satelliteMesh.position = new BABYLON.Vector3(1000, 1000, 1000);
+            satelliteMesh.isVisible = false;
+            
             satelliteMeshes[satName] = satelliteMesh;
             
-            addSatelliteLabel(satName, satelliteMesh, advancedTexture, activeSatellite, meshColor);
+            // Don't add labels when physics is active
+            if (!window.redOrbitPhysics || !window.redOrbitPhysics.initialized) {
+                addSatelliteLabel(satName, satelliteMesh, advancedTexture, activeSatellite, meshColor);
+            }
             
             // Draw static full orbit path as a closed loop using orbitalElements
             const elements = orbitalElements[satName];

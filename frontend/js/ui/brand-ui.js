@@ -431,10 +431,7 @@ export function hideLoadingScreen() {
                 if (welcomeModal) {
                     // Show the combined welcome modal
                     welcomeModal.style.display = 'flex';
-                    
                     console.log('[LEOS] Welcome modal shown automatically');
-                } else {
-                    console.error('[LEOS] Welcome modal not found!');
                 }
             }, 1000); // 1 second delay after loading screen disappears
          }, 500);
