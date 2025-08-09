@@ -69,8 +69,8 @@ export class HavokPhysics10K {
             // Populate space with 10,000 objects
             await this.populateSpace();
             
-            // Force initial position update to prevent ghost satellites
-            this.updatePositions(0);
+            // Force scene to refresh all instance buffers
+            this.scene.render();
             
         } catch (error) {
             console.error('RED ORBIT 10K: Failed to initialize:', error);
@@ -83,44 +83,35 @@ export class HavokPhysics10K {
      */
     async populateSpace() {
         const distribution = {
-            LEO: 6000,   // Low Earth Orbit (most populated)
-            MEO: 2500,   // Medium Earth Orbit (navigation)
-            GEO: 1000,   // Geostationary
-            HEO: 300,    // Highly Elliptical
-            DEBRIS: 200  // Space debris
+            LEO: 3000,   // Reduced for debugging
+            MEO: 1250,   // Reduced for debugging
+            GEO: 500,    // Reduced for debugging
+            HEO: 150,    // Reduced for debugging
+            DEBRIS: 100  // Reduced for debugging
         };
         
         let totalCreated = 0;
         
+        // Don't block material updates - this was causing flickering
+        // this.scene.blockMaterialDirtyMechanism = true;
+        
+        // Create ALL satellites WITHOUT yielding to prevent partial renders
         // Create LEO satellites
         for (let i = 0; i < distribution.LEO; i++) {
             this.createSatellite('LEO', i);
             totalCreated++;
-            
-            // Yield periodically to prevent blocking
-            if (i % 500 === 0) {
-                await new Promise(resolve => setTimeout(resolve, 0));
-            }
         }
         
         // Create MEO satellites
         for (let i = 0; i < distribution.MEO; i++) {
             this.createSatellite('MEO', i);
             totalCreated++;
-            
-            if (i % 500 === 0) {
-                await new Promise(resolve => setTimeout(resolve, 0));
-            }
         }
         
         // Create GEO satellites
         for (let i = 0; i < distribution.GEO; i++) {
             this.createSatellite('GEO', i);
             totalCreated++;
-            
-            if (i % 500 === 0) {
-                await new Promise(resolve => setTimeout(resolve, 0));
-            }
         }
         
         // Create HEO satellites (Molniya orbits)
@@ -134,6 +125,26 @@ export class HavokPhysics10K {
             this.createDebris(i);
             totalCreated++;
         }
+        
+        // Material mechanism not blocked
+        // this.scene.blockMaterialDirtyMechanism = false;
+        
+        // NOW make all objects visible after positions are set
+        this.bodies.forEach((body) => {
+            if (body.mesh) {
+                body.mesh.isVisible = true;
+            }
+        });
+        
+        this.debris.forEach((deb) => {
+            if (deb.mesh) {
+                deb.mesh.isVisible = true;
+            }
+        });
+        
+        // Don't freeze/unfreeze - this causes flickering
+        // this.scene.freezeActiveMeshes();
+        // this.scene.unfreezeActiveMeshes();
     }
     
     /**
@@ -153,10 +164,14 @@ export class HavokPhysics10K {
                 segments: 3
             }, this.scene);
             
-            template.isVisible = false; // Hide template
-            // Move template far away to prevent any rendering artifacts
-            template.position.set(10000, 10000, 10000);
-            template.setEnabled(false); // Completely disable the template
+            // CRITICAL: For instanced meshes, we need to ensure template is completely invisible
+            template.isVisible = false;
+            template.setEnabled(false);
+            // Move template completely out of view
+            template.position = new BABYLON.Vector3(100000, 100000, 100000);
+            template.freezeWorldMatrix(); // Prevent any matrix recalculations
+            
+            // Template is now hidden and far away
             
             // Create material
             const mat = new BABYLON.StandardMaterial(`mat_template_${type}`, this.scene);
@@ -239,18 +254,25 @@ export class HavokPhysics10K {
         const template = this.meshTemplates[orbitType];
         const mesh = template.createInstance(id);
         
-        // Set position BEFORE making visible to avoid flash at origin
-        mesh.position = new BABYLON.Vector3(
+        // All satellites created at calculated positions
+        
+        // Start invisible to prevent ghost rendering
+        mesh.isVisible = false;
+        
+        // Set position 
+        const worldPos = new BABYLON.Vector3(
             position.x * this.KM_TO_BABYLON,
             position.y * this.KM_TO_BABYLON,
             position.z * this.KM_TO_BABYLON
         );
         
-        // Force immediate position update
+        mesh.position.copyFrom(worldPos);
+        
+        // Force immediate world matrix update
         mesh.computeWorldMatrix(true);
         
-        // Now make it visible
-        mesh.isVisible = true;
+        // Keep invisible until all satellites are created
+        // mesh.isVisible = true; // DEFERRED
         
         // Store body data (no PhysicsImpostor for now)
         this.bodies.set(id, {
@@ -282,17 +304,23 @@ export class HavokPhysics10K {
         const template = this.meshTemplates['DEBRIS'];
         const mesh = template.createInstance(id);
         
-        // Set position BEFORE making visible
-        mesh.position = new BABYLON.Vector3(
+        // Start invisible to prevent ghost rendering
+        mesh.isVisible = false;
+        
+        // Set position
+        const worldPos = new BABYLON.Vector3(
             position.x * this.KM_TO_BABYLON,
             position.y * this.KM_TO_BABYLON,
             position.z * this.KM_TO_BABYLON
         );
         
-        // Force immediate position update
+        mesh.position.copyFrom(worldPos);
+        
+        // Force immediate world matrix update
         mesh.computeWorldMatrix(true);
         
-        mesh.isVisible = true;
+        // Keep invisible until all debris are created
+        // mesh.isVisible = true; // DEFERRED
         
         this.debris.set(id, {
             mesh: mesh,

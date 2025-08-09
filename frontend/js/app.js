@@ -55,8 +55,8 @@ let redOrbitPhysics = null; // Red Orbit PURE physics system
 
 // Use a shared state object for timeMultiplier
 const simState = {
-    timeMultiplier: 60.0, // Start at 60x speed for better visualization
-    lastTimeMultiplier: 60.0
+    timeMultiplier: 1.0, // Start at 1x speed to debug ghost positions
+    lastTimeMultiplier: 1.0
 };
 
 // Expose globally for UI controls
@@ -2937,11 +2937,11 @@ async function initializeHybridPhysics() {
         console.log('RED ORBIT: Initializing PURE physics engine - no more hybrid bullshit!');
         
         // Use Havok for 10,000 objects!
+        // createPhysicsEngine already calls initialize() internally
         redOrbitPhysics = await createPhysicsEngine(scene, PHYSICS_CONFIG.USE_HAVOK);
-        await redOrbitPhysics.initialize();
         
-        // Set initial 60x speed for physics engine
-        redOrbitPhysics.physicsTimeMultiplier = 60;
+        // Set initial 1x speed for physics engine (debugging ghost positions)
+        redOrbitPhysics.physicsTimeMultiplier = 1;
         
         // Initialize Advanced Kessler System
         const advancedKessler = new AdvancedKesslerSystem(scene, redOrbitPhysics);
