@@ -83,11 +83,11 @@ export class HavokPhysics10K {
      */
     async populateSpace() {
         const distribution = {
-            LEO: 3000,   // Reduced for debugging
-            MEO: 1250,   // Reduced for debugging
-            GEO: 500,    // Reduced for debugging
-            HEO: 150,    // Reduced for debugging
-            DEBRIS: 100  // Reduced for debugging
+            LEO: 9000,   // 60% - Most visible, diverse orbits
+            MEO: 3750,   // 25% - GPS/GLONASS constellations  
+            GEO: 1500,   // 10% - Communication satellites
+            HEO: 600,    // 4% - Molniya orbits (e=0.6-0.75)
+            DEBRIS: 150  // 1% - Initial debris field
         };
         
         let totalCreated = 0;
@@ -600,14 +600,129 @@ export class HavokPhysics10K {
         }, 50);
     }
     
+    /**
+     * Create dramatic collision effect for Kessler cascade
+     */
+    createCollisionEffect(position, impactEnergy) {
+        // Main explosion flash
+        const explosion = BABYLON.MeshBuilder.CreateSphere("explosion", {
+            diameter: 0.05
+        }, this.scene);
+        
+        explosion.position = position.clone();
+        
+        const mat = new BABYLON.StandardMaterial("explosionMat", this.scene);
+        mat.emissiveColor = new BABYLON.Color3(1, 1, 0); // Bright yellow flash
+        mat.disableLighting = true;
+        mat.alpha = 1;
+        explosion.material = mat;
+        
+        // Create debris ring effect
+        const ring = BABYLON.MeshBuilder.CreateTorus("debrisRing", {
+            diameter: 0.1,
+            thickness: 0.01,
+            tessellation: 32
+        }, this.scene);
+        ring.position = position.clone();
+        ring.material = mat;
+        
+        // Animate explosion
+        let scale = 1;
+        const animation = setInterval(() => {
+            scale += 1.5;
+            explosion.scaling.setAll(scale);
+            ring.scaling.setAll(scale * 2);
+            
+            // Color transition: yellow -> orange -> red
+            const colorPhase = Math.min(scale / 10, 1);
+            mat.emissiveColor.g = 1 - colorPhase * 0.5;
+            mat.emissiveColor.b = 0;
+            
+            mat.alpha = Math.max(0, 1 - scale / 15);
+            
+            if (scale > 15) {
+                clearInterval(animation);
+                explosion.dispose();
+                ring.dispose();
+            }
+        }, 30);
+        
+        // Add particle burst for extra drama
+        if (impactEnergy > 50) {
+            console.log('HIGH ENERGY IMPACT! Creating debris cloud...');
+        }
+    }
+    
     // Compatibility methods
     update(deltaTime) {
         this.step(deltaTime);
     }
     
     triggerKesslerSyndrome() {
-        // Kessler syndrome ready but disabled for now
-        return null;
+        console.log('RED ORBIT: INITIATING KESSLER CASCADE WITH 15K OBJECTS!');
+        
+        // Find two LEO satellites for dramatic impact
+        const leoSats = Array.from(this.bodies.entries())
+            .filter(([id, body]) => {
+                const r = Math.sqrt(body.position.x**2 + body.position.y**2 + body.position.z**2);
+                const altitude = r - this.EARTH_RADIUS;
+                return altitude > 400 && altitude < 800; // Mid-LEO for maximum cascade
+            });
+        
+        if (leoSats.length < 2) {
+            console.warn('Not enough LEO satellites for Kessler trigger');
+            return null;
+        }
+        
+        // Pick two satellites
+        const sat1 = leoSats[Math.floor(Math.random() * leoSats.length)];
+        const sat2 = leoSats[Math.floor(Math.random() * leoSats.length)];
+        
+        if (sat1[0] === sat2[0]) return null; // Same satellite
+        
+        // Set collision course - 7.5 km/s impact!
+        const body1 = sat1[1];
+        const body2 = sat2[1];
+        
+        // Calculate collision vector
+        const dx = body2.position.x - body1.position.x;
+        const dy = body2.position.y - body1.position.y;
+        const dz = body2.position.z - body1.position.z;
+        const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+        
+        // Set velocities for head-on collision
+        const collisionSpeed = 7.5; // km/s - hypervelocity impact!
+        body1.velocity.x += (dx/dist) * collisionSpeed;
+        body1.velocity.y += (dy/dist) * collisionSpeed;
+        body1.velocity.z += (dz/dist) * collisionSpeed;
+        
+        body2.velocity.x -= (dx/dist) * collisionSpeed;
+        body2.velocity.y -= (dy/dist) * collisionSpeed;
+        body2.velocity.z -= (dz/dist) * collisionSpeed;
+        
+        // Mark Kessler as active
+        this.kesslerActive = true;
+        this.kesslerCollisionCount = 0;
+        this.kesslerCascadeLevel = 0;
+        
+        console.log('KESSLER INITIATED: Two satellites on collision course at 7.5 km/s!');
+        console.log('Watch for cascade effects across 15,000 objects...');
+        
+        // Focus camera on impact zone
+        if (body1.mesh && this.scene.activeCamera) {
+            const midPoint = new BABYLON.Vector3(
+                (body1.mesh.position.x + body2.mesh.position.x) / 2,
+                (body1.mesh.position.y + body2.mesh.position.y) / 2,
+                (body1.mesh.position.z + body2.mesh.position.z) / 2
+            );
+            this.scene.activeCamera.setTarget(midPoint);
+        }
+        
+        return {
+            satellite1: sat1[0],
+            satellite2: sat2[0],
+            impactVelocity: collisionSpeed * 2
+        };
     }
     
     getKesslerStatus() {

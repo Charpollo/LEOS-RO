@@ -9,8 +9,8 @@ RED ORBIT uses a **pure Newtonian physics simulation** powered by Ammo.js (Bulle
 - Real gravitational dynamics (no cheating!)
 - Accurate collision detection and debris generation
 - NASA Standard Breakup Model for realistic fragmentation
-- Support for 750+ simultaneous orbiting objects at 60 FPS
-- Elliptical and circular orbit support
+- Support for 15,000+ simultaneous orbiting objects at 30-60 FPS
+- Elliptical and circular orbit support (e = 0 to 0.75)
 
 ## Physics Constants
 
@@ -154,11 +154,12 @@ Cascade Messages:
 ## Object Management
 
 ### Current Configuration
-- **Total Objects**: 750
-  - LEO: 450 satellites
-  - MEO: 150 satellites
-  - HIGH: 75 satellites
-  - Debris: 75 objects
+- **Total Objects**: 15,000
+  - LEO: 9,000 satellites (polar, sun-sync, inclined)
+  - MEO: 3,750 satellites (GPS, GLONASS patterns)
+  - GEO: 1,500 satellites (geostationary belt)
+  - HEO: 600 satellites (Molniya e=0.6-0.75)
+  - Debris: 150 initial objects
 
 ### Performance Optimizations
 - Mesh instancing for similar objects
