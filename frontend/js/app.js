@@ -34,7 +34,7 @@ import { initAuroraBackground, cleanupAuroraBackground } from './aurora-backgrou
 import { calculateSatellitePosition, toBabylonPosition, generateRealTimeTelemetry } from './orbital-mechanics.js';
 
 // Import Red Orbit physics - PURE PHYSICS ENGINE
-import { RedOrbitPhysics } from './red-orbit/physics/red-orbit-physics.js';
+import { createPhysicsEngine, PHYSICS_CONFIG } from './red-orbit/physics/physics-selector.js';
 import { AdvancedKesslerSystem } from './red-orbit/kessler-advanced.js';
 import { KesslerUI } from './red-orbit/kessler-ui.js';
 
@@ -2936,7 +2936,8 @@ async function initializeHybridPhysics() {
     try {
         console.log('RED ORBIT: Initializing PURE physics engine - no more hybrid bullshit!');
         
-        redOrbitPhysics = new RedOrbitPhysics(scene);
+        // Use Havok for 10,000 objects!
+        redOrbitPhysics = await createPhysicsEngine(scene, PHYSICS_CONFIG.USE_HAVOK);
         await redOrbitPhysics.initialize();
         
         // Initialize Advanced Kessler System

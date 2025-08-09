@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Havok Physics Test - 10K Objects</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-family: monospace;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="renderCanvas"></canvas>
+    <div id="info">
+        Loading Havok Physics Engine...<br>
+        Target: 10,000 objects
+    </div>
+    <script src="dist/js/bundle.js"></script>
+    <script>
+        // Test Havok with increasing object counts
+        console.log('Starting Havok physics test...');
+        
+        // Monitor performance
+        setInterval(() => {
+            if (window.redOrbitPhysics) {
+                const stats = window.redOrbitPhysics.getStats();
+                document.getElementById('info').innerHTML = `
+                    <strong>HAVOK PHYSICS TEST</strong><br>
+                    Objects: ${stats.totalObjects}<br>
+                    Satellites: ${stats.satellites}<br>
+                    Debris: ${stats.debris}<br>
+                    FPS: ${engine ? engine.getFps().toFixed(1) : 'N/A'}<br>
+                    Target: 10,000 objects
+                `;
+            }
+        }, 1000);
+    </script>
+</body>
+</html>
