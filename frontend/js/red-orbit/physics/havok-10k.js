@@ -69,6 +69,9 @@ export class HavokPhysics10K {
             // Populate space with 10,000 objects
             await this.populateSpace();
             
+            // Force initial position update to prevent ghost satellites
+            this.updatePositions(0);
+            
         } catch (error) {
             console.error('RED ORBIT 10K: Failed to initialize:', error);
             throw error;
@@ -151,6 +154,9 @@ export class HavokPhysics10K {
             }, this.scene);
             
             template.isVisible = false; // Hide template
+            // Move template far away to prevent any rendering artifacts
+            template.position.set(10000, 10000, 10000);
+            template.setEnabled(false); // Completely disable the template
             
             // Create material
             const mat = new BABYLON.StandardMaterial(`mat_template_${type}`, this.scene);
@@ -233,12 +239,17 @@ export class HavokPhysics10K {
         const template = this.meshTemplates[orbitType];
         const mesh = template.createInstance(id);
         
-        // Set position
-        mesh.position.x = position.x * this.KM_TO_BABYLON;
-        mesh.position.y = position.y * this.KM_TO_BABYLON;
-        mesh.position.z = position.z * this.KM_TO_BABYLON;
+        // Set position BEFORE making visible to avoid flash at origin
+        mesh.position = new BABYLON.Vector3(
+            position.x * this.KM_TO_BABYLON,
+            position.y * this.KM_TO_BABYLON,
+            position.z * this.KM_TO_BABYLON
+        );
         
-        // Make it visible
+        // Force immediate position update
+        mesh.computeWorldMatrix(true);
+        
+        // Now make it visible
         mesh.isVisible = true;
         
         // Store body data (no PhysicsImpostor for now)
@@ -271,9 +282,15 @@ export class HavokPhysics10K {
         const template = this.meshTemplates['DEBRIS'];
         const mesh = template.createInstance(id);
         
-        mesh.position.x = position.x * this.KM_TO_BABYLON;
-        mesh.position.y = position.y * this.KM_TO_BABYLON;
-        mesh.position.z = position.z * this.KM_TO_BABYLON;
+        // Set position BEFORE making visible
+        mesh.position = new BABYLON.Vector3(
+            position.x * this.KM_TO_BABYLON,
+            position.y * this.KM_TO_BABYLON,
+            position.z * this.KM_TO_BABYLON
+        );
+        
+        // Force immediate position update
+        mesh.computeWorldMatrix(true);
         
         mesh.isVisible = true;
         
@@ -315,30 +332,38 @@ export class HavokPhysics10K {
         // Calculate velocity using vis-viva equation
         const speed = Math.sqrt(this.EARTH_MU * (2/r - 1/semiMajorAxis));
         
-        // Velocity perpendicular to radius (cross product approach)
-        const temp = {
-            x: position.y * 1 - position.z * 0,
-            y: position.z * 0 - position.x * 1,
-            z: position.x * 0 - position.y * 0
+        // Velocity perpendicular to radius - FIXED cross product
+        // Use a better reference vector that won't cause zero cross products
+        let refVector;
+        if (Math.abs(position.z) < r * 0.9) {
+            // Use Z-axis as reference for most orbits
+            refVector = { x: 0, y: 0, z: 1 };
+        } else {
+            // Use Y-axis for polar orbits
+            refVector = { x: 0, y: 1, z: 0 };
+        }
+        
+        // Cross product: position × reference = tangent direction
+        const tangent = {
+            x: position.y * refVector.z - position.z * refVector.y,
+            y: position.z * refVector.x - position.x * refVector.z,
+            z: position.x * refVector.y - position.y * refVector.x
         };
         
-        const tempMag = Math.sqrt(temp.x**2 + temp.y**2 + temp.z**2);
+        const tangentMag = Math.sqrt(tangent.x**2 + tangent.y**2 + tangent.z**2);
         
-        let velocity;
-        if (tempMag > 0.01) {
-            velocity = {
-                x: temp.x / tempMag * speed,
-                y: temp.y / tempMag * speed,
-                z: temp.z / tempMag * speed
-            };
-        } else {
-            // Handle edge case
-            velocity = {
-                x: -position.y / r * speed,
-                y: position.x / r * speed,
-                z: 0
-            };
-        }
+        // Normalize and scale to orbital speed
+        const velocity = {
+            x: (tangent.x / tangentMag) * speed,
+            y: (tangent.y / tangentMag) * speed,
+            z: (tangent.z / tangentMag) * speed
+        };
+        
+        // Add slight randomization to prevent identical orbits
+        const variation = 0.02; // 2% variation
+        velocity.x *= (1 + (Math.random() - 0.5) * variation);
+        velocity.y *= (1 + (Math.random() - 0.5) * variation);
+        velocity.z *= (1 + (Math.random() - 0.5) * variation);
         
         // Reverse for retrograde orbits
         if (inclination > 90 && inclination < 180) {
@@ -367,8 +392,8 @@ export class HavokPhysics10K {
         // Update positions
         this.updatePositions(dt);
         
-        // Update LOD less frequently since everything is visible
-        if (this.updateCounter % 30 === 0) {
+        // Update LOD only once per second to reduce overhead
+        if (this.updateCounter % 60 === 0) {
             this.updateLOD();
         }
         
@@ -455,34 +480,24 @@ export class HavokPhysics10K {
     
     /**
      * Level of Detail system for 10K objects
-     * NEW: Show ALL objects for massive visual effect!
+     * Fixed: No scaling changes to prevent flickering
      */
     updateLOD() {
         if (!this.scene.activeCamera) return;
         
-        const cameraPos = this.scene.activeCamera.position.scale(1 / this.KM_TO_BABYLON);
-        
         // ALL SATELLITES VISIBLE - for the full 10K effect!
+        // REMOVED scaling changes to prevent flickering
         this.bodies.forEach((body) => {
             if (!body.mesh) return;
             
             // ALWAYS VISIBLE - we want to see the swarm!
             body.mesh.isVisible = true;
             
-            // Optional: Scale based on distance for depth perception
-            const distance = Math.sqrt(
-                (cameraPos.x - body.position.x)**2 +
-                (cameraPos.y - body.position.y)**2 +
-                (cameraPos.z - body.position.z)**2
-            );
-            
-            // Subtle size adjustment for depth
-            if (distance > this.LOD_DISTANCES.FAR) {
-                body.mesh.scaling.setAll(0.8); // Slightly smaller when very far
-            } else if (distance > this.LOD_DISTANCES.MID) {
-                body.mesh.scaling.setAll(0.9); // A bit smaller when far
-            } else {
-                body.mesh.scaling.setAll(1.0); // Full size when near
+            // Keep constant size to prevent flickering
+            // Objects naturally appear smaller when far due to perspective
+            if (!body.sizeSet) {
+                body.mesh.scaling.setAll(1.0);
+                body.sizeSet = true;
             }
         });
         
@@ -493,17 +508,10 @@ export class HavokPhysics10K {
             // Always show debris for full effect
             deb.mesh.isVisible = true;
             
-            // Scale debris too
-            const distance = Math.sqrt(
-                (cameraPos.x - deb.position.x)**2 +
-                (cameraPos.y - deb.position.y)**2 +
-                (cameraPos.z - deb.position.z)**2
-            );
-            
-            if (distance > this.LOD_DISTANCES.MID) {
-                deb.mesh.scaling.setAll(0.7);
-            } else {
+            // Keep constant size to prevent flickering
+            if (!deb.sizeSet) {
                 deb.mesh.scaling.setAll(1.0);
+                deb.sizeSet = true;
             }
         });
     }
