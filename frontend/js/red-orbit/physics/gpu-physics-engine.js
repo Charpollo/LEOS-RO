@@ -301,18 +301,20 @@ export class GPUPhysicsEngine {
                     let obj1 = objects[idx];
                     if (obj1.objType < 0.0) { return; } // Skip destroyed
                     
-                    let hash1 = hashPosition(obj1.position);
+                    let pos1 = vec3<f32>(obj1.px, obj1.py, obj1.pz);
+                    let hash1 = hashPosition(pos1);
                     
                     // Check nearby objects in same grid cell
                     for (var j = idx + 1u; j < min(idx + 100u, params.objectCount); j++) {
                         let obj2 = objects[j];
                         if (obj2.objType < 0.0) { continue; }
                         
-                        let hash2 = hashPosition(obj2.position);
+                        let pos2 = vec3<f32>(obj2.px, obj2.py, obj2.pz);
+                        let hash2 = hashPosition(pos2);
                         if (hash1 != hash2) { continue; } // Different grid cells
                         
                         // Fine collision check - using realistic collision distance
-                        let dist = distance(obj1.position, obj2.position);
+                        let dist = distance(pos1, pos2);
                         if (dist < 0.010) { // 10 meter collision threshold (0.01 km)
                             // Mark collision!
                             atomicAdd(&collisions[0], 1u);
@@ -860,7 +862,11 @@ export class GPUPhysicsEngine {
             
             // Determine orbit type from stored index or object type
             let orbitType;
-            if (i < this.orbitTypeIndices.length) {
+            
+            // Check for special rogue satellites first (type 5)
+            if (objType === 5) {
+                orbitType = 'DEBRIS'; // Use red debris color for rogues
+            } else if (i < this.orbitTypeIndices.length) {
                 const typeIdx = this.orbitTypeIndices[i];
                 orbitType = ['LEO', 'MEO', 'GEO', 'HEO', 'DEBRIS'][typeIdx] || 'LEO';
             } else {
@@ -904,16 +910,102 @@ export class GPUPhysicsEngine {
     }
     
     async triggerKesslerSyndrome() {
-        console.log('GPU KESSLER: Initiating cascade with 400K+ objects!');
+        console.log('GPU KESSLER: Initiating cascade with 1M objects!');
         
-        // This will be implemented as a GPU compute shader
-        // that finds collision candidates and generates debris
+        if (!this.device || this.activeObjects === 0) {
+            console.warn('Cannot trigger Kessler syndrome: no objects or device not ready');
+            return;
+        }
+        
+        // Pick two objects that are close together for quick collision
+        // Search for objects in LEO altitude range (200-2000km)
+        const idx1 = Math.floor(Math.random() * 100); // Pick from first 100 objects  
+        const idx2 = idx1 + 1 + Math.floor(Math.random() * 10); // Pick very close neighbor
+        
+        // Create a command to read current state
+        const commandEncoder = this.device.createCommandEncoder();
+        
+        // Read the two selected objects
+        const readSize = Math.max(idx1, idx2) * 32 + 32; // Ensure we read enough
+        const readBuffer = this.device.createBuffer({
+            size: readSize,
+            usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
+        });
+        
+        commandEncoder.copyBufferToBuffer(this.stateBuffer, 0, readBuffer, 0, readSize);
+        this.device.queue.submit([commandEncoder.finish()]);
+        
+        await readBuffer.mapAsync(GPUMapMode.READ);
+        const data = new Float32Array(readBuffer.getMappedRange());
+        
+        // Get positions of selected objects
+        const obj1 = {
+            x: data[idx1 * 8 + 0], y: data[idx1 * 8 + 1], z: data[idx1 * 8 + 2],
+            vx: data[idx1 * 8 + 3], vy: data[idx1 * 8 + 4], vz: data[idx1 * 8 + 5],
+            mass: data[idx1 * 8 + 6], type: data[idx1 * 8 + 7]
+        };
+        const obj2 = {
+            x: data[idx2 * 8 + 0], y: data[idx2 * 8 + 1], z: data[idx2 * 8 + 2],
+            vx: data[idx2 * 8 + 3], vy: data[idx2 * 8 + 4], vz: data[idx2 * 8 + 5],
+            mass: data[idx2 * 8 + 6], type: data[idx2 * 8 + 7]
+        };
+        
+        readBuffer.unmap();
+        
+        // Calculate collision velocities - aim objects at each other at high speed
+        const dx = obj2.x - obj1.x;
+        const dy = obj2.y - obj1.y;
+        const dz = obj2.z - obj1.z;
+        const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+        
+        const collisionSpeed = 30; // 30 km/s - extreme hypervelocity for quick impact!
+        const vx1 = (dx / dist) * collisionSpeed;
+        const vy1 = (dy / dist) * collisionSpeed;
+        const vz1 = (dz / dist) * collisionSpeed;
+        
+        // Update velocities to cause collision - write to the correct indices
+        const updateData1 = new Float32Array(8);
+        updateData1[0] = obj1.x;
+        updateData1[1] = obj1.y;
+        updateData1[2] = obj1.z;
+        updateData1[3] = vx1; // New collision velocity
+        updateData1[4] = vy1;
+        updateData1[5] = vz1;
+        updateData1[6] = obj1.mass || 5000; // Keep existing mass
+        updateData1[7] = 5; // Mark as special rogue type
+        
+        const updateData2 = new Float32Array(8);
+        updateData2[0] = obj2.x;
+        updateData2[1] = obj2.y;
+        updateData2[2] = obj2.z;
+        updateData2[3] = -vx1 * 0.8; // Opposite direction, slightly slower
+        updateData2[4] = -vy1 * 0.8;
+        updateData2[5] = -vz1 * 0.8;
+        updateData2[6] = obj2.mass || 5000; // Keep existing mass
+        updateData2[7] = 5; // Mark as special rogue type
+        
+        // Write collision course velocities to the correct positions
+        this.device.queue.writeBuffer(this.stateBuffer, idx1 * 32, updateData1);
+        this.device.queue.writeBuffer(this.stateBuffer, idx2 * 32, updateData2);
         
         this.kesslerActive = true;
+        this.collisionCount = 0;
+        
+        console.log(`[KESSLER] Collision course initiated`);
+        console.log(`   Targets: Object #${idx1} and Object #${idx2}`);
+        console.log(`   Position 1: [${obj1.x.toFixed(0)}, ${obj1.y.toFixed(0)}, ${obj1.z.toFixed(0)}] km`);
+        console.log(`   Position 2: [${obj2.x.toFixed(0)}, ${obj2.y.toFixed(0)}, ${obj2.z.toFixed(0)}] km`);
+        console.log(`   Impact velocity: ${collisionSpeed} km/s`);
+        console.log(`   Separation: ${dist.toFixed(0)} km`);
+        console.log(`   Time to impact: ${(dist / collisionSpeed).toFixed(1)} seconds`);
         
         return {
-            message: 'Kessler cascade initiated on GPU!',
-            affectedObjects: this.activeObjects
+            message: 'Kessler cascade initiated!',
+            object1: obj1,
+            object2: obj2,
+            distance: dist,
+            impactVelocity: collisionSpeed,
+            timeToImpact: dist / collisionSpeed
         };
     }
     

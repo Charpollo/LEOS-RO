@@ -41,6 +41,39 @@ export function setupKeyboardControls(camera, setTimeMultiplier, getTimeMultipli
                 const tm = getTimeMultiplier();
                 setTimeMultiplier(tm !== 0 ? 0 : 0.1);
                 break;
+            case 'k':
+            case 'K':
+                // K key: Trigger Kessler Syndrome
+                if (window.redOrbitPhysics && window.redOrbitPhysics.triggerKesslerSyndrome) {
+                    console.log('[KESSLER] Syndrome triggered via hotkey');
+                    window.redOrbitPhysics.triggerKesslerSyndrome();
+                    
+                    // Show notification
+                    const notification = document.createElement('div');
+                    notification.style.cssText = `
+                        position: fixed;
+                        top: 50%;
+                        left: 50%;
+                        transform: translate(-50%, -50%);
+                        background: linear-gradient(135deg, #ff0000, #ff6600);
+                        color: white;
+                        padding: 20px 40px;
+                        border-radius: 10px;
+                        font-size: 18px;
+                        font-weight: bold;
+                        font-family: 'Orbitron', monospace;
+                        z-index: 10000;
+                        box-shadow: 0 0 50px rgba(255,0,0,0.8);
+                        animation: kesslerPulse 0.5s ease-out;
+                        text-transform: uppercase;
+                        letter-spacing: 2px;
+                    `;
+                    notification.textContent = 'KESSLER CASCADE INITIATED';
+                    document.body.appendChild(notification);
+                    
+                    setTimeout(() => notification.remove(), 3000);
+                }
+                break;
             // Add more controls as needed
         }
     });

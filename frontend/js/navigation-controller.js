@@ -173,7 +173,7 @@ function loadMissionControl() {
 
 function loadKesslerScenario() {
     const mainContent = document.getElementById('main-content');
-    mainContent.style.pointerEvents = 'auto';
+    mainContent.style.pointerEvents = 'none'; // Allow camera control
     
     // Get status from advanced Kessler system
     const kesslerStatus = window.advancedKessler?.getStatus() || { 
@@ -188,8 +188,8 @@ function loadKesslerScenario() {
     };
     
     mainContent.innerHTML = `
-        <div style="position: absolute; bottom: 20px; right: 20px; width: 400px; background: rgba(0,0,0,0.95); border: 2px solid #ff0000; border-radius: 10px; padding: 20px; backdrop-filter: blur(10px); box-shadow: 0 0 20px rgba(255,0,0,0.5);">
-            <h3 style="color: #ff0000; font-size: 16px; margin-bottom: 20px; font-family: 'Orbitron', monospace; text-align: center;">🚨 KESSLER CASCADE CONTROL 🚨</h3>
+        <div style="position: absolute; bottom: 20px; right: 20px; width: 400px; background: rgba(0,0,0,0.95); border: 2px solid #ff0000; border-radius: 10px; padding: 20px; backdrop-filter: blur(10px); box-shadow: 0 0 20px rgba(255,0,0,0.5); pointer-events: auto;">
+            <h3 style="color: #ff0000; font-size: 16px; margin-bottom: 20px; font-family: 'Orbitron', monospace; text-align: center; text-transform: uppercase; letter-spacing: 2px;">Kessler Cascade Control</h3>
             
             <div id="kessler-status" style="margin-bottom: 20px; padding: 15px; background: rgba(255,100,0,0.1); border-radius: 6px; border: 1px solid rgba(255,100,0,0.3);">
                 <div style="color: #ff6600; font-size: 12px; margin-bottom: 10px;">STATUS: <span id="status-message" style="color: ${kesslerStatus.active ? '#ff0000' : '#00ff00'}">${kesslerStatus.message || 'System Stable'}</span></div>
@@ -219,7 +219,7 @@ function loadKesslerScenario() {
             </button>
             
             <div style="margin-top: 15px; padding: 10px; background: rgba(255,100,0,0.05); border-radius: 6px;">
-                <div style="color: #ff6600; font-size: 10px; margin-bottom: 5px;">⚠️ WARNING</div>
+                <div style="color: #ff6600; font-size: 10px; margin-bottom: 5px; text-transform: uppercase;">Warning</div>
                 <div style="color: #999; font-size: 9px; line-height: 1.4;">
                     Initiating Kessler Syndrome will trigger a cascading collision event that will progressively destroy satellites and generate debris clouds. This simulates a real space disaster scenario.
                 </div>
@@ -227,9 +227,9 @@ function loadKesslerScenario() {
         </div>
         
         <!-- Cascade visualization overlay -->
-        <div id="cascade-overlay" style="position: absolute; top: 20px; left: 50%; transform: translateX(-50%); display: ${kesslerStatus.active ? 'block' : 'none'}; background: rgba(255,0,0,0.1); border: 2px solid rgba(255,0,0,0.5); border-radius: 8px; padding: 15px; min-width: 300px; text-align: center;">
-            <div style="color: #ff0000; font-size: 16px; font-weight: bold; font-family: 'Orbitron', monospace; animation: pulse 1s infinite;">
-                🚨 KESSLER CASCADE ACTIVE 🚨
+        <div id="cascade-overlay" style="position: absolute; top: 20px; left: 50%; transform: translateX(-50%); display: ${kesslerStatus.active ? 'block' : 'none'}; background: rgba(255,0,0,0.1); border: 2px solid rgba(255,0,0,0.5); border-radius: 8px; padding: 15px; min-width: 300px; text-align: center; pointer-events: none;">
+            <div style="color: #ff0000; font-size: 14px; font-weight: bold; font-family: 'Orbitron', monospace; animation: pulse 1s infinite; text-transform: uppercase; letter-spacing: 2px;">
+                Kessler Cascade Active
             </div>
             <div id="cascade-message" style="color: #ff6600; font-size: 12px; margin-top: 10px;">${kesslerStatus.message || ''}</div>
         </div>
