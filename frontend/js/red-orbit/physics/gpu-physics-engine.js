@@ -172,8 +172,8 @@ export class GPUPhysicsEngine {
                 }
                 
                 struct Object {
-                    position: vec3<f32>,
-                    velocity: vec3<f32>,
+                    px: f32, py: f32, pz: f32,  // position (no padding)
+                    vx: f32, vy: f32, vz: f32,  // velocity (no padding)
                     mass: f32,
                     objType: f32, // 0=sat, 1=debris, 2=special
                 }
@@ -188,8 +188,8 @@ export class GPUPhysicsEngine {
                     if (idx >= params.objectCount) { return; }
                     
                     var obj = objects[idx];
-                    let pos = obj.position;
-                    let vel = obj.velocity;
+                    let pos = vec3<f32>(obj.px, obj.py, obj.pz);
+                    let vel = vec3<f32>(obj.vx, obj.vy, obj.vz);
                     
                     // Calculate radius from Earth center
                     let r = length(pos);
@@ -198,14 +198,16 @@ export class GPUPhysicsEngine {
                     let altitude = r - params.earthRadius;
                     if (altitude < 100.0) { 
                         obj.objType = -1.0; // Mark as destroyed (burned up)
-                        obj.position = vec3<f32>(0.0, 0.0, 0.0); // Move to origin
-                        obj.velocity = vec3<f32>(0.0, 0.0, 0.0); // Stop moving
+                        obj.px = 0.0; obj.py = 0.0; obj.pz = 0.0; // Move to origin
+                        obj.vx = 0.0; obj.vy = 0.0; obj.vz = 0.0; // Stop moving
                         objects[idx] = obj;
                         return;
                     }
                     
-                    // REAL PHYSICS - Vis-viva equation!
-                    // F = -GMm/r² in vector form
+                    // REAL PHYSICS - Newton's law of gravitation
+                    // a = -GM/r² * r_hat = -GM/r³ * r_vector
+                    // This gives acceleration, not force (F=ma, so a=F/m)
+                    // IMPORTANT: earthMu is in km³/s², r is in km, so acceleration is in km/s²
                     let earthGravity = -params.earthMu / (r * r * r) * pos;
                     
                     // Add Moon perturbation (for realism!)
@@ -216,22 +218,31 @@ export class GPUPhysicsEngine {
                     let moonR = length(moonDelta);
                     let moonGravity = -params.moonMu / (moonR * moonR * moonR) * moonDelta;
                     
-                    // Total acceleration
-                    let acceleration = earthGravity + moonGravity * 0.1; // Scale moon effect
+                    // Total acceleration 
+                    var acceleration = earthGravity + moonGravity * 0.1; // Scale moon effect
                     
-                    // Atmospheric drag if altitude < 200km
-                    let altitude = r - params.earthRadius;
+                    // Apply atmospheric drag if altitude < 200km
                     if (altitude < 200.0) {
                         let density = exp(-(altitude - 100.0) / 50.0) * 0.001;
                         let speed = length(vel);
-                        let drag = -normalize(vel) * speed * speed * density * 0.01;
-                        obj.velocity = vel + (acceleration + drag) * params.dt;
-                    } else {
-                        obj.velocity = vel + acceleration * params.dt;
+                        if (speed > 0.001) {
+                            let drag = -normalize(vel) * speed * speed * density * 0.01;
+                            acceleration = acceleration + drag;
+                        }
                     }
                     
-                    // Update position
-                    obj.position = pos + obj.velocity * params.dt;
+                    // Simple Euler integration (same as Havok)
+                    // Update velocity (acceleration is in km/s², dt is in seconds)
+                    let newVel = vel + acceleration * params.dt;
+                    obj.vx = newVel.x;
+                    obj.vy = newVel.y;
+                    obj.vz = newVel.z;
+                    
+                    // Update position (velocity is in km/s, dt is in seconds)
+                    let newPos = pos + newVel * params.dt;
+                    obj.px = newPos.x;
+                    obj.py = newPos.y;
+                    obj.pz = newPos.z;
                     
                     // Write back
                     objects[idx] = obj;
@@ -263,8 +274,8 @@ export class GPUPhysicsEngine {
                 }
                 
                 struct Object {
-                    position: vec3<f32>,
-                    velocity: vec3<f32>,
+                    px: f32, py: f32, pz: f32,  // position (no padding)
+                    vx: f32, vy: f32, vz: f32,  // velocity (no padding)
                     mass: f32,
                     objType: f32,
                 }
@@ -403,6 +414,9 @@ export class GPUPhysicsEngine {
         // Initialize orbit type indices array BEFORE using it
         this.orbitTypeIndices = new Uint8Array(count);
         
+        // Store initial positions for instance creation
+        this.initialPositions = new Float32Array(count * 3);
+        
         // Map buffer for CPU write
         await this.device.queue.onSubmittedWorkDone();
         
@@ -442,9 +456,15 @@ export class GPUPhysicsEngine {
                 orbitType = 2; // GEO
                 if (i < this.orbitTypeIndices.length) this.orbitTypeIndices[i] = 2;
             } else if (rand < 0.99) { // 4% HEO
-                altitude = 1000 + Math.random() * 40000;
+                // For HEO, specify apoapsis altitude instead of periapsis
+                const apoapsisAlt = 35000 + Math.random() * 5000; // 35000-40000 km apoapsis
+                const periapsisAlt = 500 + Math.random() * 1000; // 500-1500 km periapsis
+                altitude = periapsisAlt; // Use periapsis altitude
+                // Calculate eccentricity from periapsis and apoapsis
+                const rp = this.EARTH_RADIUS + periapsisAlt;
+                const ra = this.EARTH_RADIUS + apoapsisAlt;
+                eccentricity = (ra - rp) / (ra + rp); // This gives proper eccentricity
                 inclination = 63.4 * Math.PI / 180; // Molniya orbit inclination
-                eccentricity = 0.6 + Math.random() * 0.1; // High eccentricity
                 orbitType = 3; // HEO
                 if (i < this.orbitTypeIndices.length) this.orbitTypeIndices[i] = 3;
             } else { // 1% Debris
@@ -461,7 +481,21 @@ export class GPUPhysicsEngine {
             const a = periapsis / (1 - eccentricity); // Semi-major axis
             
             // Random true anomaly (position along orbit)
-            const trueAnomaly = Math.random() * 2 * Math.PI;
+            // For highly elliptical orbits, bias towards periapsis where objects spend less time
+            let trueAnomaly;
+            if (eccentricity > 0.5) {
+                // For HEO, place more objects near periapsis (0 or 2π)
+                const u = Math.random();
+                if (u < 0.7) {
+                    // 70% near periapsis
+                    trueAnomaly = (Math.random() - 0.5) * Math.PI * 0.5;
+                } else {
+                    // 30% elsewhere
+                    trueAnomaly = Math.random() * 2 * Math.PI;
+                }
+            } else {
+                trueAnomaly = Math.random() * 2 * Math.PI;
+            }
             
             // Calculate radius at this true anomaly
             const r = a * (1 - eccentricity * eccentricity) / (1 + eccentricity * Math.cos(trueAnomaly));
@@ -491,21 +525,51 @@ export class GPUPhysicsEngine {
             data[baseIdx + 1] = py;
             data[baseIdx + 2] = pz;
             
+            // Store initial positions for rendering
+            this.initialPositions[i * 3 + 0] = px;
+            this.initialPositions[i * 3 + 1] = py;
+            this.initialPositions[i * 3 + 2] = pz;
+            
             // VELOCITY using vis-viva equation: v² = μ(2/r - 1/a)
-            const v = Math.sqrt(this.EARTH_MU * (2/r - 1/a));
+            const orbitalSpeed = Math.sqrt(this.EARTH_MU * (2/r - 1/a));
             
-            // Flight angle (angle between velocity and local horizontal)
-            const flightAngle = Math.atan2(eccentricity * Math.sin(trueAnomaly), 
-                                          1 + eccentricity * Math.cos(trueAnomaly));
+            // Calculate velocity using cross product to ensure perpendicular to radius
+            // This is the EXACT method from working Havok physics
+            const position = { x: px, y: py, z: pz };
+            const zAxis = { x: 0, y: 0, z: 1 };
             
-            // Velocity in orbital plane (perpendicular to radius, adjusted for eccentricity)
-            const vxOrbit = -v * Math.sin(trueAnomaly + flightAngle);
-            const vyOrbit = v * Math.cos(trueAnomaly + flightAngle);
+            // Cross product: temp = position × zAxis
+            let temp = {
+                x: position.y * zAxis.z - position.z * zAxis.y,
+                y: position.z * zAxis.x - position.x * zAxis.z,
+                z: position.x * zAxis.y - position.y * zAxis.x
+            };
             
-            // Transform velocity to inertial frame
-            const vx = (cosR * cosW - sinR * sinW * cosI) * vxOrbit + (-cosR * sinW - sinR * cosW * cosI) * vyOrbit;
-            const vy = (sinR * cosW + cosR * sinW * cosI) * vxOrbit + (-sinR * sinW + cosR * cosW * cosI) * vyOrbit;
-            const vz = (sinW * sinI) * vxOrbit + (cosW * sinI) * vyOrbit;
+            const tempMag = Math.sqrt(temp.x * temp.x + temp.y * temp.y + temp.z * temp.z);
+            
+            let velocity;
+            if (tempMag < 0.01) {
+                // Use x-axis for cross product instead (for polar orbits)
+                const xAxis = { x: 1, y: 0, z: 0 };
+                temp = {
+                    x: position.y * xAxis.z - position.z * xAxis.y,
+                    y: position.z * xAxis.x - position.x * xAxis.z,
+                    z: position.x * xAxis.y - position.y * xAxis.x
+                };
+            }
+            
+            // Normalize temp
+            const tempMagFinal = Math.sqrt(temp.x * temp.x + temp.y * temp.y + temp.z * temp.z);
+            const velDir = {
+                x: temp.x / tempMagFinal,
+                y: temp.y / tempMagFinal,
+                z: temp.z / tempMagFinal
+            };
+            
+            // Apply orbital speed in the perpendicular direction
+            const vx = velDir.x * orbitalSpeed;
+            const vy = velDir.y * orbitalSpeed;
+            const vz = velDir.z * orbitalSpeed;
             
             data[baseIdx + 3] = vx;
             data[baseIdx + 4] = vy;
@@ -514,6 +578,20 @@ export class GPUPhysicsEngine {
             // Mass and type
             data[baseIdx + 6] = 100 + Math.random() * 5000; // 100-5100 kg realistic satellite mass
             data[baseIdx + 7] = orbitType; // Store orbit type for shader
+            
+            // Debug first few objects
+            if (i < 3) {
+                console.log(`Object ${i}:`);
+                console.log(`  Position: (${px.toFixed(2)}, ${py.toFixed(2)}, ${pz.toFixed(2)}) km`);
+                console.log(`  Velocity: (${vx.toFixed(2)}, ${vy.toFixed(2)}, ${vz.toFixed(2)}) km/s`);
+                console.log(`  Radius: ${r.toFixed(2)} km, Altitude: ${(r - this.EARTH_RADIUS).toFixed(2)} km`);
+                console.log(`  Orbital Speed: ${orbitalSpeed.toFixed(2)} km/s`);
+                const actualSpeed = Math.sqrt(vx*vx + vy*vy + vz*vz);
+                console.log(`  Actual Speed: ${actualSpeed.toFixed(2)} km/s`);
+                // Check if velocity is perpendicular to position
+                const dotProduct = px*vx + py*vy + pz*vz;
+                console.log(`  Dot product (should be ~0): ${dotProduct.toFixed(2)}`);
+            }
         }
         
         stagingBuffer.unmap();
@@ -535,12 +613,23 @@ export class GPUPhysicsEngine {
     }
     
     createInstances(count) {
-        // Clean up existing instances first to prevent ghosts
+        // Clean up ALL existing instances properly to prevent ghosts
         if (this.instancesByType) {
             for (const mesh of Object.values(this.instancesByType)) {
-                if (mesh && mesh.thinInstanceCount > 0) {
-                    mesh.thinInstanceSetBuffer('matrix', null, 16, true);
+                if (mesh) {
+                    mesh.thinInstanceSetBuffer('matrix', null);
+                    mesh.thinInstanceCount = 0;
+                    mesh.isVisible = false;
                 }
+            }
+        }
+        
+        // Also clean up mesh templates
+        for (const mesh of Object.values(this.meshTemplates)) {
+            if (mesh) {
+                mesh.thinInstanceSetBuffer('matrix', null);
+                mesh.thinInstanceCount = 0;
+                mesh.isVisible = false;
             }
         }
         
@@ -561,29 +650,48 @@ export class GPUPhysicsEngine {
         this.matricesByType = {};
         let totalCreated = 0;
         
+        // Track how many of each type we've created
+        const typeCounts = { LEO: 0, MEO: 0, GEO: 0, HEO: 0, DEBRIS: 0 };
+        
         for (const [orbitType, typeCount] of Object.entries(distribution)) {
             if (typeCount > 0) {
                 const matrices = new Float32Array(16 * typeCount);
+                let typeIdx = 0;
                 
-                for (let i = 0; i < typeCount; i++) {
-                    const offset = i * 16;
-                    // Full identity matrix (4x4)
-                    matrices[offset + 0] = 1;  // m11
-                    matrices[offset + 1] = 0;  // m12
-                    matrices[offset + 2] = 0;  // m13
-                    matrices[offset + 3] = 0;  // m14
-                    matrices[offset + 4] = 0;  // m21
-                    matrices[offset + 5] = 1;  // m22
-                    matrices[offset + 6] = 0;  // m23
-                    matrices[offset + 7] = 0;  // m24
-                    matrices[offset + 8] = 0;  // m31
-                    matrices[offset + 9] = 0;  // m32
-                    matrices[offset + 10] = 1; // m33
-                    matrices[offset + 11] = 0; // m34
-                    matrices[offset + 12] = 0; // m41 (x translation)
-                    matrices[offset + 13] = 0; // m42 (y translation)
-                    matrices[offset + 14] = 0; // m43 (z translation)
-                    matrices[offset + 15] = 1; // m44
+                // Fill matrices with initial positions based on orbit type
+                for (let i = 0; i < count && typeIdx < typeCount; i++) {
+                    // Check if this object matches the current orbit type
+                    const objectType = this.orbitTypeIndices[i];
+                    const typeNames = ['LEO', 'MEO', 'GEO', 'HEO', 'DEBRIS'];
+                    
+                    if (typeNames[objectType] === orbitType) {
+                        const offset = typeIdx * 16;
+                        
+                        // Get initial position
+                        const x = this.initialPositions[i * 3 + 0] * this.KM_TO_BABYLON;
+                        const y = this.initialPositions[i * 3 + 1] * this.KM_TO_BABYLON;
+                        const z = this.initialPositions[i * 3 + 2] * this.KM_TO_BABYLON;
+                        
+                        // Full identity matrix with position
+                        matrices[offset + 0] = 1;  // m11
+                        matrices[offset + 1] = 0;  // m12
+                        matrices[offset + 2] = 0;  // m13
+                        matrices[offset + 3] = 0;  // m14
+                        matrices[offset + 4] = 0;  // m21
+                        matrices[offset + 5] = 1;  // m22
+                        matrices[offset + 6] = 0;  // m23
+                        matrices[offset + 7] = 0;  // m24
+                        matrices[offset + 8] = 0;  // m31
+                        matrices[offset + 9] = 0;  // m32
+                        matrices[offset + 10] = 1; // m33
+                        matrices[offset + 11] = 0; // m34
+                        matrices[offset + 12] = x; // m41 (x translation)
+                        matrices[offset + 13] = y; // m42 (y translation)
+                        matrices[offset + 14] = z; // m43 (z translation)
+                        matrices[offset + 15] = 1; // m44
+                        
+                        typeIdx++;
+                    }
                 }
                 
                 // Set buffer and create instances for this type
@@ -606,15 +714,36 @@ export class GPUPhysicsEngine {
     async step(deltaTime) {
         if (!this.initialized || this.activeObjects === 0) return;
         
+        // CRITICAL FIX: Clamp deltaTime to prevent huge jumps on first frame
+        // Maximum 0.1 seconds (100ms) to prevent orbital breakage
+        const clampedDeltaTime = Math.min(deltaTime, 0.1);
+        
         // Use global time multiplier from simulation state
         const timeMultiplier = window.getTimeMultiplier ? window.getTimeMultiplier() : this.physicsTimeMultiplier;
-        const dt = deltaTime * timeMultiplier;
+        const dt = clampedDeltaTime * timeMultiplier;
+        
+        // Debug first few frames
+        if (this.frameCount < 5) {
+            console.log(`Frame ${this.frameCount}: deltaTime=${deltaTime.toFixed(4)} (clamped=${clampedDeltaTime.toFixed(4)}), timeMultiplier=${timeMultiplier}, dt=${dt.toFixed(4)}`);
+            if (deltaTime > 0.1) {
+                console.warn(`⚠️ Large deltaTime ${deltaTime.toFixed(4)} clamped to ${clampedDeltaTime.toFixed(4)}`);
+            }
+            
+            // Calculate expected gravity for a LEO satellite at ~7000km
+            const testR = 7000; // km
+            const expectedAccel = this.EARTH_MU / (testR * testR); // km/s²
+            console.log(`Expected acceleration at ${testR}km: ${expectedAccel.toFixed(4)} km/s²`);
+            console.log(`Expected velocity change per frame: ${(expectedAccel * dt).toFixed(6)} km/s`);
+        }
         
         // Performance logging only for large counts
         if (this.activeObjects >= 100000 && this.frameCount % 300 === 0) { // Log every 5 seconds instead of every second
             const fps = 1 / deltaTime;
             console.log(`GPU: ${this.activeObjects.toLocaleString()} objects @ ${fps.toFixed(1)} FPS`);
         }
+        
+        // Increment frame count
+        this.frameCount++;
         
         // Update uniform buffer
         const uniformData = new Float32Array([
@@ -689,6 +818,37 @@ export class GPUPhysicsEngine {
             HEO: 0,
             DEBRIS: 0
         };
+        
+        // Debug first object position changes
+        if (this.frameCount < 5 && this.renderCount > 0) {
+            // Object layout: [px, py, pz, vx, vy, vz, mass, type] - no padding!
+            const x0 = data[0];
+            const y0 = data[1];
+            const z0 = data[2];
+            const vx0 = data[3];
+            const vy0 = data[4];
+            const vz0 = data[5];
+            
+            const r = Math.sqrt(x0*x0 + y0*y0 + z0*z0);
+            const v = Math.sqrt(vx0*vx0 + vy0*vy0 + vz0*vz0);
+            
+            // Calculate position change from last frame
+            if (this.lastDebugPos) {
+                const dx = x0 - this.lastDebugPos.x;
+                const dy = y0 - this.lastDebugPos.y;
+                const dz = z0 - this.lastDebugPos.z;
+                const dr = r - this.lastDebugPos.r;
+                console.log(`  Δpos: (${dx.toFixed(3)}, ${dy.toFixed(3)}, ${dz.toFixed(3)}) km`);
+                console.log(`  Δr: ${dr.toFixed(3)} km (${dr > 0 ? 'moving away' : 'moving closer'})`);
+            }
+            
+            console.log(`Frame ${this.frameCount} - Object 0:`);
+            console.log(`  r=${r.toFixed(1)}km (alt=${(r-this.EARTH_RADIUS).toFixed(1)}km), v=${v.toFixed(3)}km/s`);
+            console.log(`  pos=(${x0.toFixed(2)}, ${y0.toFixed(2)}, ${z0.toFixed(2)})`);
+            console.log(`  vel=(${vx0.toFixed(2)}, ${vy0.toFixed(2)}, ${vz0.toFixed(2)})`);
+            
+            this.lastDebugPos = {x: x0, y: y0, z: z0, r: r};
+        }
         
         // Update instance matrices by orbit type for proper coloring
         for (let i = 0; i < this.renderCount; i++) {
