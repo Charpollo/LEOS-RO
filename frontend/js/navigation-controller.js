@@ -189,6 +189,45 @@ function loadMissionControl() {
             </div>
         </div>
         
+        <!-- Orbital Legend (Toggle with L key) -->
+        <div id="orbital-legend" style="position: absolute; bottom: 180px; left: 20px; width: 250px; background: rgba(0,0,0,0.95); border: 2px solid #666; border-radius: 10px; padding: 15px; backdrop-filter: blur(10px); pointer-events: auto; display: none;">
+            <div style="color: #999; font-size: 11px; margin-bottom: 10px; text-transform: uppercase;">Orbital Zones (Press L to toggle)</div>
+            <div style="font-size: 10px; line-height: 1.8;">
+                <div style="display: flex; align-items: center; margin-bottom: 5px;">
+                    <div style="width: 12px; height: 12px; background: #00ff00; border-radius: 2px; margin-right: 8px;"></div>
+                    <span style="color: #ccc;">LEO (200-2000 km) - Satellites</span>
+                </div>
+                <div style="display: flex; align-items: center; margin-bottom: 5px;">
+                    <div style="width: 12px; height: 12px; background: rgba(255,100,0,0.2); border: 1px solid #ff6600; border-radius: 2px; margin-right: 8px;"></div>
+                    <span style="color: #ff6600;">Inner Van Allen Belt (1,000-6,000 km)</span>
+                </div>
+                <div style="display: flex; align-items: center; margin-bottom: 5px;">
+                    <div style="width: 12px; height: 12px; background: rgba(0,255,0,0.1); border: 1px solid #00ff00; border-radius: 2px; margin-right: 8px;"></div>
+                    <span style="color: #00ff00;">Slot Region (6,000-13,000 km) - Safe Zone</span>
+                </div>
+                <div style="display: flex; align-items: center; margin-bottom: 5px;">
+                    <div style="width: 12px; height: 12px; background: #ffff00; border-radius: 2px; margin-right: 8px;"></div>
+                    <span style="color: #ccc;">MEO (20,000 km) - GPS/GLONASS</span>
+                </div>
+                <div style="display: flex; align-items: center; margin-bottom: 5px;">
+                    <div style="width: 12px; height: 12px; background: rgba(255,0,255,0.2); border: 1px solid #ff00ff; border-radius: 2px; margin-right: 8px;"></div>
+                    <span style="color: #ff00ff;">Outer Van Allen Belt (13,000-60,000 km)</span>
+                </div>
+                <div style="display: flex; align-items: center; margin-bottom: 5px;">
+                    <div style="width: 12px; height: 12px; background: #00ccff; border-radius: 2px; margin-right: 8px;"></div>
+                    <span style="color: #ccc;">GEO (35,786 km) - Clarke Belt</span>
+                </div>
+                <div style="display: flex; align-items: center; margin-bottom: 5px;">
+                    <div style="width: 12px; height: 12px; background: #ff00ff; border-radius: 2px; margin-right: 8px;"></div>
+                    <span style="color: #ccc;">HEO - Molniya/Tundra orbits</span>
+                </div>
+                <div style="display: flex; align-items: center;">
+                    <div style="width: 12px; height: 12px; background: #ff6600; border-radius: 2px; margin-right: 8px;"></div>
+                    <span style="color: #ccc;">Debris - Space junk</span>
+                </div>
+            </div>
+        </div>
+        
         <!-- Statistics Panel -->
         <div id="nominal-stats" style="position: absolute; bottom: 20px; left: 20px; width: 250px; background: rgba(0,0,0,0.95); border: 2px solid #666; border-radius: 10px; padding: 15px; backdrop-filter: blur(10px); pointer-events: auto;">
             <div style="color: #999; font-size: 11px; margin-bottom: 10px; text-transform: uppercase;">Nominal State Metrics</div>
@@ -897,6 +936,17 @@ function startConjunctionMonitoring() {
     // Re-analyze every 30 seconds
     setInterval(analyzeConjunctions, 30000);
 }
+
+// Set up keyboard shortcuts
+document.addEventListener('keydown', (event) => {
+    // Toggle legend with L key
+    if (event.key === 'l' || event.key === 'L') {
+        const legend = document.getElementById('orbital-legend');
+        if (legend) {
+            legend.style.display = legend.style.display === 'none' ? 'block' : 'none';
+        }
+    }
+});
 
 // Auto-initialize when DOM is ready
 if (document.readyState === 'loading') {

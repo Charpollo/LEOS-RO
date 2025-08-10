@@ -851,6 +851,9 @@ async function createScene() {
     window.scene = scene;
     window.engine = engine;
     
+    // Create orbital zones visualization (Van Allen belts, orbital regions)
+    createOrbitalZones(scene);
+    
     // Create camera with optimized settings first (before any rendering pipelines)
     camera = new BABYLON.ArcRotateCamera('camera', -Math.PI / 2, Math.PI / 2, 20, BABYLON.Vector3.Zero(), scene);
     camera.attachControl(canvas, true);
@@ -3179,6 +3182,59 @@ function setupRoguePlacementSystem(scene, camera, physics) {
         
         setTimeout(() => notification.remove(), 2000);
     };
+}
+
+/**
+ * Create orbital zone visualizations (Van Allen belts, orbital regions)
+ */
+function createOrbitalZones(scene) {
+    const zones = [];
+    
+    // Inner Van Allen Belt (1000-6000 km altitude)
+    // Center at 3500 km altitude, spans 5000 km
+    const innerBelt = BABYLON.MeshBuilder.CreateTorus('innerVanAllen', {
+        diameter: 3.1, // (6371 + 3500) / 6371 * 2 = 3.1 Babylon units
+        thickness: 0.78, // (6000 - 1000) / 6371 = 0.78 Babylon units
+        tessellation: 64
+    }, scene);
+    innerBelt.position = BABYLON.Vector3.Zero();
+    const innerBeltMat = new BABYLON.StandardMaterial('innerBeltMat', scene);
+    innerBeltMat.diffuseColor = new BABYLON.Color3(1, 0.4, 0);
+    innerBeltMat.emissiveColor = new BABYLON.Color3(0.5, 0.2, 0);
+    innerBeltMat.alpha = 0.05;
+    innerBeltMat.backFaceCulling = false;
+    innerBelt.material = innerBeltMat;
+    innerBelt.isVisible = false;
+    zones.push(innerBelt);
+    
+    // Outer Van Allen Belt (13000-60000 km altitude)
+    // Center at 36500 km altitude, spans 47000 km - ENCOMPASSES GEO!
+    const outerBelt = BABYLON.MeshBuilder.CreateTorus('outerVanAllen', {
+        diameter: 13.45, // (6371 + 36500) / 6371 * 2 = 13.45 Babylon units
+        thickness: 7.37, // (60000 - 13000) / 6371 = 7.37 Babylon units
+        tessellation: 64
+    }, scene);
+    outerBelt.position = BABYLON.Vector3.Zero();
+    const outerBeltMat = new BABYLON.StandardMaterial('outerBeltMat', scene);
+    outerBeltMat.diffuseColor = new BABYLON.Color3(1, 0, 1);
+    outerBeltMat.emissiveColor = new BABYLON.Color3(0.5, 0, 0.5);
+    outerBeltMat.alpha = 0.03;
+    outerBeltMat.backFaceCulling = false;
+    outerBelt.material = outerBeltMat;
+    outerBelt.isVisible = false;
+    zones.push(outerBelt);
+    
+    // Store zones globally for toggle
+    window.orbitalZones = zones;
+    
+    // Toggle visibility with L key (handled in navigation-controller.js)
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'l' || event.key === 'L') {
+            zones.forEach(zone => {
+                zone.isVisible = !zone.isVisible;
+            });
+        }
+    });
 }
 
 window.addEventListener('DOMContentLoaded', () => {

@@ -85,6 +85,7 @@ export async function createPhysicsEngine(scene) {
     
     // Store references globally for debugging
     window.gpuPhysicsEngine = gpuEngine;
+    window.redOrbitPhysics = gpuEngine; // Also expose as redOrbitPhysics for compatibility
     
     // Expose highlight function globally
     window.highlightCollisionTargets = (idx1, idx2) => {

@@ -370,13 +370,13 @@ export class GPUPhysicsEngine {
         this.meshTemplates.LEO.thinInstanceEnablePicking = false;
         this.meshTemplates.LEO.isVisible = false;
         
-        // MEO - Green (25% of objects)
+        // MEO - Yellow (25% of objects) - GPS/GLONASS
         this.meshTemplates.MEO = BABYLON.MeshBuilder.CreateSphere('gpuSatMEO', {
             diameter: 0.005,
             segments: 3
         }, this.scene);
         this.materials.MEO = new BABYLON.StandardMaterial('gpuMatMEO', this.scene);
-        this.materials.MEO.emissiveColor = new BABYLON.Color3(0, 1, 0); // Green
+        this.materials.MEO.emissiveColor = new BABYLON.Color3(1, 1, 0); // YELLOW for MEO
         this.materials.MEO.disableLighting = true;
         this.meshTemplates.MEO.material = this.materials.MEO;
         this.meshTemplates.MEO.thinInstanceEnablePicking = false;
