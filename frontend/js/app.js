@@ -2969,6 +2969,9 @@ async function initializeHybridPhysics() {
         // Expose for navigation controller
         window.redOrbitPhysics = redOrbitPhysics;
         
+        // Set up interactive rogue placement system
+        setupRoguePlacementSystem(scene, camera, redOrbitPhysics);
+        
         console.log('RED ORBIT: Pure physics initialized with', redOrbitPhysics.bodies.size, 'satellites!');
         console.log('RED ORBIT: Ready to collide some shit!');
         
@@ -2976,6 +2979,206 @@ async function initializeHybridPhysics() {
         console.error('RED ORBIT: Failed to initialize pure physics:', error);
         // No fallback - we're all in on physics now!
     }
+}
+
+// Rogue Satellite Placement System
+function setupRoguePlacementSystem(scene, camera, physics) {
+    let placementMode = false;
+    let placementCallback = null;
+    let placementMarkers = [];
+    let placementObserver = null;
+    
+    // Visual marker material for placement preview
+    const markerMaterial = new BABYLON.StandardMaterial('roguePlacementMarker', scene);
+    markerMaterial.emissiveColor = new BABYLON.Color3(1, 0, 0);
+    markerMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
+    markerMaterial.alpha = 0.8;
+    
+    // Enable placement mode
+    window.enableRoguePlacement = function(callback) {
+        placementMode = true;
+        placementCallback = callback;
+        
+        // Remove old observer if exists
+        if (placementObserver) {
+            scene.onPointerObservable.remove(placementObserver);
+        }
+        
+        // Add right-click handler to canvas
+        placementObserver = scene.onPointerObservable.add((pointerInfo) => {
+            if (!placementMode) return;
+            
+            // Check for right-click (button 2)
+            if (pointerInfo.type === BABYLON.PointerEventTypes.POINTERDOWN && 
+                pointerInfo.event.button === 2) {
+                
+                // Prevent context menu
+                pointerInfo.event.preventDefault();
+                
+                const pickResult = scene.pick(scene.pointerX, scene.pointerY);
+                
+                if (pickResult.hit) {
+                    // Get world position
+                    const worldPos = pickResult.pickedPoint;
+                    
+                    // Convert Babylon coordinates to physics coordinates (km)
+                    const physicsPos = {
+                        x: worldPos.x * 6371, // Convert from Earth radius units to km
+                        y: worldPos.y * 6371,
+                        z: worldPos.z * 6371
+                    };
+                    
+                    // Create visual marker at placement location
+                    const marker = BABYLON.MeshBuilder.CreateSphere('rogueMarker', {
+                        diameter: 0.02, // Small visible marker
+                        segments: 8
+                    }, scene);
+                    marker.position = worldPos;
+                    marker.material = markerMaterial;
+                    placementMarkers.push(marker);
+                    
+                    // Notify callback with position
+                    if (placementCallback) {
+                        placementCallback(physicsPos);
+                    }
+                }
+            }
+        });
+        
+        // Disable context menu during placement mode
+        const canvas = scene.getEngine().getRenderingCanvas();
+        canvas.addEventListener('contextmenu', preventContextMenu);
+    };
+    
+    // Prevent context menu function
+    function preventContextMenu(e) {
+        if (placementMode) {
+            e.preventDefault();
+            return false;
+        }
+    }
+    
+    // Disable placement mode
+    window.disableRoguePlacement = function() {
+        placementMode = false;
+        placementCallback = null;
+        
+        // Remove observer
+        if (placementObserver) {
+            scene.onPointerObservable.remove(placementObserver);
+            placementObserver = null;
+        }
+        
+        // Re-enable context menu
+        const canvas = scene.getEngine().getRenderingCanvas();
+        canvas.removeEventListener('contextmenu', preventContextMenu);
+    };
+    
+    // Clear placed markers
+    window.clearPlacedRogues = function() {
+        placementMarkers.forEach(marker => marker.dispose());
+        placementMarkers = [];
+    };
+    
+    // Launch rogues with specified velocities
+    window.launchRogues = function(rogueData) {
+        if (!physics || !physics.device) {
+            console.error('[PLACEMENT] Physics not ready');
+            return;
+        }
+        
+        console.log(`[PLACEMENT] Launching ${rogueData.length} rogue satellites`);
+        
+        // For each placed rogue, create a high-velocity object for collision
+        rogueData.forEach((rogue, index) => {
+            // Pick specific indices near the beginning for visibility
+            const targetIdx = 100 + index * 5; // Space them out for better visibility
+            
+            // Get position vector
+            const px = rogue.position.x;
+            const py = rogue.position.y;
+            const pz = rogue.position.z;
+            const r = Math.sqrt(px*px + py*py + pz*pz);
+            
+            // Calculate RETROGRADE orbital velocity (opposite to normal orbits)
+            // This ensures head-on collisions with existing satellites
+            const orbitalSpeed = Math.sqrt(398600.4418 / r); // km/s
+            
+            // Get tangential direction (perpendicular to radius)
+            const radialUnit = { x: px/r, y: py/r, z: pz/r };
+            
+            // Cross product with Z-axis to get tangential direction
+            let tangX = -py/r;
+            let tangY = px/r;
+            let tangZ = 0;
+            
+            // Normalize tangential vector
+            const tangMag = Math.sqrt(tangX*tangX + tangY*tangY + tangZ*tangZ);
+            if (tangMag > 0) {
+                tangX /= tangMag;
+                tangY /= tangMag;
+                tangZ /= tangMag;
+            }
+            
+            // Create RETROGRADE velocity (negative tangential) + extra speed for impact
+            // Add user-specified velocity as extra collision speed
+            const totalSpeed = orbitalSpeed + rogue.velocity;
+            const vx = -tangX * totalSpeed; // Negative for retrograde
+            const vy = -tangY * totalSpeed;
+            const vz = -tangZ * totalSpeed;
+            
+            console.log(`[ROGUE ${index}] Position: (${px.toFixed(1)}, ${py.toFixed(1)}, ${pz.toFixed(1)}) km`);
+            console.log(`[ROGUE ${index}] Velocity: ${totalSpeed.toFixed(1)} km/s retrograde`);
+            
+            // Create update data for this rogue
+            const updateData = new Float32Array(8);
+            updateData[0] = px;
+            updateData[1] = py;
+            updateData[2] = pz;
+            updateData[3] = vx;
+            updateData[4] = vy;
+            updateData[5] = vz;
+            updateData[6] = rogue.mass;
+            updateData[7] = 5; // Type 5 = rogue (red color)
+            
+            // Write to GPU buffer
+            if (physics.device && physics.stateBuffer) {
+                physics.device.queue.writeBuffer(
+                    physics.stateBuffer,
+                    targetIdx * 32, // 8 floats * 4 bytes
+                    updateData
+                );
+                console.log(`[ROGUE ${index}] Written to GPU buffer at index ${targetIdx}`);
+            }
+        });
+        
+        // Clear visual markers after launch
+        window.clearPlacedRogues();
+        
+        // Show notification
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, #00ff00, #00cc00);
+            color: white;
+            padding: 20px 40px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            font-family: 'Orbitron', monospace;
+            z-index: 10000;
+            box-shadow: 0 0 50px rgba(0,255,0,0.8);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        `;
+        notification.textContent = `${rogueData.length} ROGUES LAUNCHED`;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => notification.remove(), 2000);
+    };
 }
 
 window.addEventListener('DOMContentLoaded', () => {

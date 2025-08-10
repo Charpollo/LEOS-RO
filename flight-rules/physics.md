@@ -28,37 +28,61 @@ KM_TO_BABYLON = 1/6371 (Earth radius = 1 Babylon unit)
 ## Orbital Mechanics
 
 ### Velocity Calculation
-All satellites use the **vis-viva equation** for proper orbital velocities:
+All satellites use proper **Keplerian orbital mechanics**:
+
+#### For Elliptical Orbits:
+```javascript
+// Specific angular momentum
+h = sqrt(μ * a * (1 - e²))
+
+// Radial velocity component
+vr = (μ * e * sin(ν)) / h
+
+// Tangential velocity component  
+vt = h / r
+
+// Total velocity from vis-viva equation
+v = sqrt(μ * (2/r - 1/a))
 ```
-v² = μ(2/r - 1/a)
-```
+
 Where:
-- v = orbital velocity
 - μ = Earth's gravitational parameter (398,600.4418 km³/s²)
-- r = current orbital radius
 - a = semi-major axis
+- e = eccentricity
+- ν = true anomaly (position in orbit)
+- r = current orbital radius
+- h = specific angular momentum
 
 ### Orbital Types Implemented
 
-1. **Circular Orbits** (e ≈ 0-0.02)
-   - GPS/GLONASS: MEO, e < 0.01
-   - Sun-synchronous: LEO, polar, e < 0.02
-   - Polar satellites: e < 0.02
+1. **LEO (Low Earth Orbit)** - 60% of objects
+   - **Equatorial LEO** (0-15° inclination): Communication satellites
+   - **Mid-inclination LEO** (40-60°): ISS (51.6°), Starlink (53°)
+   - **Sun-synchronous/Polar** (85-100°): Earth observation
+   - **Elliptical LEO** (e = 0.05-0.2): Various missions
+   - Altitudes: 200-2000 km
 
-2. **Slightly Elliptical** (e = 0.05-0.15)
-   - General LEO satellites
-   - Some MEO satellites
-   - Equatorial orbits
+2. **MEO (Medium Earth Orbit)** - 25% of objects
+   - **GPS**: 20,200 km, 55° inclination, e < 0.003
+   - **GLONASS**: 19,100 km, 64.8° inclination, e < 0.002
+   - **Galileo**: 23,222 km, 56° inclination, e < 0.002
+   - **BeiDou MEO**: 21,500 km, 55° inclination, e < 0.003
 
-3. **Moderately Elliptical** (e = 0.3-0.5)
-   - GTO (Geostationary Transfer Orbit)
-   - Communication satellites
-   - Transfer orbits
+3. **GEO (Geostationary Orbit)** - 10% of objects
+   - Altitude: 35,786 km ± 25 km (station keeping)
+   - Inclination: 0-5° (equatorial)
+   - Eccentricity: < 0.001 (nearly perfect circles)
 
-4. **Highly Elliptical** (e = 0.6-0.75)
-   - **Molniya orbits**: e = 0.6-0.75, i = 63.4° (critical inclination)
-   - Special reconnaissance orbits
-   - High apogee communication satellites
+4. **HEO (Highly Elliptical Orbit)** - 4% of objects
+   - **Molniya**: 12-hour period, 63.4° inclination, e = 0.6-0.75
+   - **Tundra**: 24-hour period, 63.4° inclination, e = 0.3-0.4
+   - Perigee: 600-25,000 km, Apogee: 40,000-46,000 km
+
+5. **Space Debris** - 1% initial objects
+   - **Fengyun/Cosmos zone**: 750-850 km, 70-100° inclination
+   - **ASAT debris**: 300-2200 km, 96-100° inclination
+   - **GEO graveyard**: 36,100+ km, 0-15° inclination
+   - **Random debris**: Various altitudes, e = 0.1-0.4
 
 ### Inclination Types
 - **Equatorial**: 0-10°
@@ -103,17 +127,25 @@ F_drag = -velocity * dragFactor
 
 ## Collision System
 
-### Detection
-- Continuous collision detection using Bullet Physics
-- Sphere-sphere collision shapes for efficiency
-- Real-time processing at 60 FPS
+### GPU-Based Detection
+- WebGPU compute shader for parallel collision detection
+- Spatial hashing with 100 km grid cells
+- Collision threshold: 50 meters (0.05 km)
+- Processes 1 million objects at 40+ FPS
 
 ### Debris Generation
 Based on **NASA Standard Breakup Model**:
 ```javascript
-numFragments = floor(impactVelocity * 10)
-// Mass distribution follows power law
-// Velocity distribution: Gaussian with σ based on impact energy
+// On collision, both objects become debris (type 1)
+objects[idx].objType = 1.0; // Red collision debris
+
+// Add explosive velocity based on impact
+explosion_force = impact_velocity * 0.5;
+
+// Debris velocity includes:
+// - Original orbital velocity
+// - Explosive fragmentation velocity
+// - Random directional component
 ```
 
 ### Kessler Syndrome Cascade
@@ -166,12 +198,36 @@ Cascade Messages:
   - 500K objects - Mega constellation
   - 1M objects - Theoretical maximum
   
-### Object Distribution
-- LEO: 60% (polar, sun-sync, inclined)
-- MEO: 25% (GPS, GLONASS patterns)
-- GEO: 10% (geostationary belt)
-- HEO: 4% (Molniya e=0.6-0.75)
-- Debris: 1% initial objects
+### Object Distribution (1 Million Objects)
+
+#### LEO: 600,000 objects (60%)
+- 30% Starlink-type (540-560 km, 53° inc)
+- 20% OneWeb-type (1180-1220 km, 87-93° inc)
+- 20% Sun-synchronous (600-800 km, 97-99° inc)
+- 15% ISS altitude (400-420 km, 51-53° inc)
+- 15% Various missions (200-2000 km, mixed inc)
+
+#### MEO: 250,000 objects (25%)
+- 40% GPS constellation (20,180-20,220 km, 55° inc)
+- 30% GLONASS constellation (19,100-19,200 km, 64.8° inc)
+- 20% Galileo constellation (23,200-23,244 km, 56° inc)
+- 10% BeiDou MEO (21,500-21,550 km, 55° inc)
+
+#### GEO: 100,000 objects (10%)
+- Clustered over continents
+- 35,786 km ± 25 km altitude
+- 0-5° inclination (equatorial)
+
+#### HEO: 40,000 objects (4%)
+- 50% Molniya orbits (12-hour)
+- 50% Tundra orbits (24-hour)
+- All at 63.4° critical inclination
+
+#### Debris: 10,000 objects (1%)
+- 40% Collision zones (750-850 km)
+- 30% ASAT debris (300-2200 km)
+- 15% GEO graveyard (36,100+ km)
+- 15% Random elliptical debris
 
 ### Performance Optimizations
 - Mesh instancing for similar objects
@@ -182,14 +238,27 @@ Cascade Messages:
 
 ## Key Physics Methods
 
-### `createSatellite(params)`
-Creates a satellite with proper orbital mechanics:
-- Supports circular and elliptical orbits (e = 0 to 0.75)
-- Calculates semi-major axis from periapsis and eccentricity
-- Places satellites at random true anomaly positions
-- Uses vis-viva equation for correct velocity at any orbital position
-- Proper velocity vectors using cross products for inclined orbits
-- Handles retrograde orbits (inclination > 90°)
+### GPU Orbital Initialization
+Creates 1 million objects with proper orbital mechanics:
+
+```javascript
+// Position calculation in orbital plane
+xOrbit = r * cos(trueAnomaly)
+yOrbit = r * sin(trueAnomaly)
+
+// Transform to inertial coordinates
+px = (cosΩ*cosω - sinΩ*sinω*cosI) * xOrbit + 
+     (-cosΩ*sinω - sinΩ*cosω*cosI) * yOrbit
+py = (sinΩ*cosω + cosΩ*sinω*cosI) * xOrbit + 
+     (-sinΩ*sinω + cosΩ*cosω*cosI) * yOrbit
+pz = (sinω*sinI) * xOrbit + (cosω*sinI) * yOrbit
+```
+
+Where:
+- Ω (RAAN) = Right Ascension of Ascending Node
+- ω = Argument of periapsis
+- I = Inclination
+- ν = True anomaly
 
 ### `applyGravity()`
 Applies gravitational force to all bodies:

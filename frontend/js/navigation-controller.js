@@ -159,9 +159,62 @@ function loadContent(contentId) {
 
 function loadMissionControl() {
     const mainContent = document.getElementById('main-content');
-    // Clear the main content area to allow Earth interaction
-    mainContent.innerHTML = '';
-    mainContent.style.pointerEvents = 'none';
+    mainContent.style.pointerEvents = 'none'; // Allow camera control through the content area
+    
+    // Create conjunction analysis panels for nominal state monitoring
+    mainContent.innerHTML = `
+        <!-- Conjunction Analysis Panel - MOVED TO BOTTOM RIGHT -->
+        <div id="conjunction-analysis" style="position: absolute; bottom: 20px; right: 20px; width: 350px; background: rgba(0,0,0,0.95); border: 2px solid #00ccff; border-radius: 10px; padding: 20px; backdrop-filter: blur(10px); box-shadow: 0 0 20px rgba(0,200,255,0.3); pointer-events: auto;">
+            <h3 style="color: #00ccff; font-size: 14px; margin-bottom: 15px; font-family: 'Orbitron', monospace; text-transform: uppercase; letter-spacing: 2px;">Conjunction Analysis</h3>
+            
+            <div style="margin-bottom: 15px; padding: 10px; background: rgba(0,200,255,0.05); border-radius: 6px; border: 1px solid rgba(0,200,255,0.2);">
+                <div style="color: #00ccff; font-size: 11px; margin-bottom: 8px;">SCAN STATUS</div>
+                <div id="scan-status" style="color: #999; font-size: 10px;">Analyzing orbital paths...</div>
+                <div style="margin-top: 8px;">
+                    <button id="refresh-conjunctions" style="padding: 6px 12px; background: linear-gradient(135deg, #0099cc, #00ccff); border: none; border-radius: 4px; color: white; font-size: 10px; cursor: pointer; font-family: 'Orbitron', monospace;">REFRESH SCAN</button>
+                </div>
+            </div>
+            
+            <div id="conjunction-list" style="max-height: 250px; overflow-y: auto;">
+                <div style="color: #666; font-size: 10px; text-align: center; padding: 20px;">No imminent conjunctions detected</div>
+            </div>
+        </div>
+        
+        <!-- Near Miss Alert Panel - STAYS TOP RIGHT BUT SMALLER -->
+        <div id="near-miss-panel" style="position: absolute; top: 20px; right: 20px; width: 300px; background: rgba(255,200,0,0.9); border: 2px solid #ffc800; border-radius: 10px; padding: 20px; backdrop-filter: blur(10px); box-shadow: 0 0 20px rgba(255,200,0,0.3); pointer-events: auto; display: none;">
+            <h3 style="color: #ffc800; font-size: 14px; margin-bottom: 15px; font-family: 'Orbitron', monospace; text-transform: uppercase; letter-spacing: 2px;">Near Miss Alert</h3>
+            
+            <div id="near-miss-details" style="color: white; font-size: 11px;">
+                <!-- Near miss details will be populated here -->
+            </div>
+        </div>
+        
+        <!-- Statistics Panel -->
+        <div id="nominal-stats" style="position: absolute; bottom: 20px; left: 20px; width: 250px; background: rgba(0,0,0,0.95); border: 2px solid #666; border-radius: 10px; padding: 15px; backdrop-filter: blur(10px); pointer-events: auto;">
+            <div style="color: #999; font-size: 11px; margin-bottom: 10px; text-transform: uppercase;">Nominal State Metrics</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div>
+                    <div style="color: #666; font-size: 9px;">Active Objects</div>
+                    <div id="active-count" style="color: #00ff00; font-size: 14px; font-family: 'Orbitron', monospace;">--</div>
+                </div>
+                <div>
+                    <div style="color: #666; font-size: 9px;">Debris Count</div>
+                    <div id="debris-count" style="color: #ff6600; font-size: 14px; font-family: 'Orbitron', monospace;">0</div>
+                </div>
+                <div>
+                    <div style="color: #666; font-size: 9px;">Conjunctions/Hr</div>
+                    <div id="conjunction-rate" style="color: #ffc800; font-size: 14px; font-family: 'Orbitron', monospace;">--</div>
+                </div>
+                <div>
+                    <div style="color: #666; font-size: 9px;">Risk Level</div>
+                    <div id="risk-level" style="color: #00ff00; font-size: 14px; font-family: 'Orbitron', monospace;">LOW</div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Set up conjunction monitoring
+    startConjunctionMonitoring();
     
     // Update header stats to show mission control is active
     const statusElement = document.querySelector('#mission-stats div:last-child div:last-child');
@@ -193,6 +246,16 @@ function loadKesslerScenario() {
             
             <div id="kessler-status" style="margin-bottom: 20px; padding: 15px; background: rgba(255,100,0,0.1); border-radius: 6px; border: 1px solid rgba(255,100,0,0.3);">
                 <div style="color: #ff6600; font-size: 12px; margin-bottom: 10px;">STATUS: <span id="status-message" style="color: ${kesslerStatus.active ? '#ff0000' : '#00ff00'}">${kesslerStatus.message || 'System Stable'}</span></div>
+                
+                <!-- Collision Data Display -->
+                <div id="collision-data" style="display: none; margin-top: 10px; padding: 10px; background: rgba(255,0,0,0.1); border-radius: 4px; border: 1px solid rgba(255,0,0,0.3);">
+                    <div style="color: #ff0000; font-size: 11px; margin-bottom: 8px; text-transform: uppercase; animation: pulse 1s infinite;">IMPACT IMMINENT</div>
+                    <div style="color: #999; font-size: 10px; margin-bottom: 4px;">Targets: <span id="collision-targets" style="color: #ff6600"></span></div>
+                    <div style="color: #999; font-size: 10px; margin-bottom: 4px;">Distance: <span id="collision-distance" style="color: #ff6600"></span> km</div>
+                    <div style="color: #999; font-size: 10px; margin-bottom: 4px;">Impact Velocity: <span id="collision-velocity" style="color: #ff6600"></span> km/s</div>
+                    <div style="color: #999; font-size: 10px; font-weight: bold;">Time to Impact: <span id="collision-timer" style="color: #ff0000; font-size: 12px;"></span> seconds</div>
+                </div>
+                
                 <div style="display: ${kesslerStatus.active ? 'block' : 'none'}">
                     <div style="color: #999; font-size: 11px; margin-bottom: 5px;">Collisions: <span id="collision-count" style="color: #ff6600">${kesslerStatus.collisionCount || 0}</span></div>
                     <div style="color: #999; font-size: 11px; margin-bottom: 5px;">Cascade Level: <span id="cascade-level" style="color: #ff6600">${kesslerStatus.cascadeLevel || 0}</span></div>
@@ -214,9 +277,32 @@ function loadKesslerScenario() {
                 </div>
             </div>
             
-            <button id="trigger-kessler" style="width: 100%; background: ${kesslerStatus.active ? 'rgba(100,100,100,0.5)' : 'linear-gradient(135deg, #ff6600, #ff3300)'}; border: none; color: white; padding: 12px; border-radius: 6px; cursor: ${kesslerStatus.active ? 'not-allowed' : 'pointer'}; font-weight: bold; font-size: 12px; font-family: 'Orbitron', monospace;" ${kesslerStatus.active ? 'disabled' : ''}>
-                ${kesslerStatus.active ? 'CASCADE IN PROGRESS' : 'INITIATE CASCADE'}
-            </button>
+            <div style="margin-bottom: 15px;">
+                <div style="color: #999; font-size: 11px; margin-bottom: 10px; text-transform: uppercase;">Disaster Scenarios</div>
+                
+                <select id="scenario-selector" style="width: 100%; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,100,0,0.3); color: #ff6600; padding: 10px; margin-bottom: 10px; border-radius: 4px; font-size: 11px; font-family: 'Orbitron', monospace;">
+                    <option value="random">RANDOM CASCADE - Two Random Satellites</option>
+                    <option value="polar">POLAR IMPACT - Head-on Collision</option>
+                    <option value="retrograde">RETROGRADE STRIKE - 30 km/s Impact</option>
+                    <option value="starlink">STARLINK NIGHTMARE - LEO Constellation Hit</option>
+                    <option value="gps">GPS DESTRUCTION - MEO Chain Reaction</option>
+                    <option value="geo">GEO GRAVEYARD - High Altitude Cascade</option>
+                    <option value="multi">MULTI-ALTITUDE - Cascading Across Orbits</option>
+                    <option value="asat">ASAT STRIKE - Military Weapon Test</option>
+                </select>
+                
+                <button id="trigger-scenario" style="width: 100%; background: ${kesslerStatus.active ? 'rgba(100,100,100,0.5)' : 'linear-gradient(135deg, #ff6600, #ff3300)'}; border: none; color: white; padding: 12px; border-radius: 6px; cursor: ${kesslerStatus.active ? 'not-allowed' : 'pointer'}; font-weight: bold; font-size: 12px; font-family: 'Orbitron', monospace; text-transform: uppercase;" ${kesslerStatus.active ? 'disabled' : ''}>
+                    ${kesslerStatus.active ? 'CASCADE IN PROGRESS' : 'TRIGGER SCENARIO'}
+                </button>
+            </div>
+            
+            <!-- Scenario Details -->
+            <div id="scenario-details" style="margin-bottom: 15px; padding: 15px; background: rgba(255,100,0,0.05); border-radius: 6px; border: 1px solid rgba(255,100,0,0.2);">
+                <div style="color: #ff6600; font-size: 10px; margin-bottom: 8px; text-transform: uppercase;">Scenario Parameters</div>
+                <div id="scenario-description" style="color: #999; font-size: 9px; line-height: 1.4;">
+                    Select a disaster scenario above to see details
+                </div>
+            </div>
             
             <div style="margin-top: 15px; padding: 10px; background: rgba(255,100,0,0.05); border-radius: 6px;">
                 <div style="color: #ff6600; font-size: 10px; margin-bottom: 5px; text-transform: uppercase;">Warning</div>
@@ -232,6 +318,24 @@ function loadKesslerScenario() {
                 Kessler Cascade Active
             </div>
             <div id="cascade-message" style="color: #ff6600; font-size: 12px; margin-top: 10px;">${kesslerStatus.message || ''}</div>
+        </div>
+        
+        <!-- Conjunction Warning Panel -->
+        <div id="conjunction-panel" style="position: absolute; top: 20px; right: 20px; width: 250px; background: rgba(255,100,0,0.9); border: 2px solid #ff6600; border-radius: 8px; padding: 15px; display: none; pointer-events: none;">
+            <div style="color: #ff6600; font-size: 12px; font-weight: bold; margin-bottom: 10px; text-transform: uppercase;">Conjunction Warning</div>
+            <div id="conjunction-list" style="color: #fff; font-size: 10px;"></div>
+        </div>
+        
+        <!-- Collision Countdown Panel -->
+        <div id="countdown-panel" style="position: absolute; top: 100px; right: 20px; width: 250px; background: rgba(255,0,0,0.9); border: 2px solid #ff0000; border-radius: 8px; padding: 15px; display: none; pointer-events: none;">
+            <div style="color: #ff0000; font-size: 12px; font-weight: bold; margin-bottom: 10px; text-transform: uppercase; animation: pulse 1s infinite;">Impact Countdown</div>
+            <div style="color: #fff; font-size: 24px; text-align: center; font-family: 'Orbitron', monospace;">
+                <span id="impact-timer">--</span>s
+            </div>
+            <div style="color: #ff6600; font-size: 10px; margin-top: 10px;">
+                Objects: <span id="impact-objects">--</span><br>
+                Velocity: <span id="impact-velocity">--</span> km/s
+            </div>
         </div>
     `;
     
@@ -444,29 +548,96 @@ function startKesslerStatusUpdates() {
 }
 
 function setupKesslerControls() {
+    // Set up scenario controls
+    const scenarioSelector = document.getElementById('scenario-selector');
+    const scenarioDescription = document.getElementById('scenario-description');
+    const triggerBtn = document.getElementById('trigger-scenario');
+    
+    // Scenario descriptions
+    const scenarios = {
+        random: {
+            description: "Two random satellites collide at orbital velocity (~7.5 km/s). The most common type of space collision.",
+            velocity: 7.5,
+            count: 2
+        },
+        polar: {
+            description: "Head-on collision between polar and equatorial orbits. Impact velocity: 15 km/s. Maximum debris generation.",
+            velocity: 15,
+            count: 2
+        },
+        retrograde: {
+            description: "Retrograde satellite strikes prograde traffic. Combined velocity: 30 km/s. Catastrophic fragmentation.",
+            velocity: 30,
+            count: 1
+        },
+        starlink: {
+            description: "Multiple impacts in LEO constellation at 550km altitude. Simulates constellation-wide cascade failure.",
+            velocity: 10,
+            count: 5
+        },
+        gps: {
+            description: "MEO collision at 20,200km altitude. GPS satellites destroyed. Navigation services lost globally.",
+            velocity: 3.9,
+            count: 3
+        },
+        geo: {
+            description: "GEO graveyard collision at 35,786km. Debris persists for millennia. Communications satellites at risk.",
+            velocity: 3.1,
+            count: 2
+        },
+        multi: {
+            description: "Simultaneous collisions at multiple altitudes. LEO, MEO, and GEO all affected. Total orbital chaos.",
+            velocity: 12,
+            count: 8
+        },
+        asat: {
+            description: "Anti-satellite weapon test. Deliberate destruction creates massive debris cloud. Based on real events.",
+            velocity: 25,
+            count: 1
+        }
+    };
+    
+    // Update description when scenario changes
+    if (scenarioSelector) {
+        scenarioSelector.addEventListener('change', (e) => {
+            const scenario = scenarios[e.target.value];
+            if (scenario && scenarioDescription) {
+                scenarioDescription.innerHTML = `
+                    ${scenario.description}<br><br>
+                    <span style="color: #ff6600;">Impact Velocity:</span> ${scenario.velocity} km/s<br>
+                    <span style="color: #ff6600;">Initial Collisions:</span> ${scenario.count}
+                `;
+            }
+        });
+        
+        // Set initial description
+        const initialScenario = scenarios[scenarioSelector.value];
+        if (initialScenario && scenarioDescription) {
+            scenarioDescription.innerHTML = `
+                ${initialScenario.description}<br><br>
+                <span style="color: #ff6600;">Impact Velocity:</span> ${initialScenario.velocity} km/s<br>
+                <span style="color: #ff6600;">Initial Collisions:</span> ${initialScenario.count}
+            `;
+        }
+    }
+    
     // Set up trigger button
-    const triggerBtn = document.getElementById('trigger-kessler');
     if (triggerBtn) {
         triggerBtn.addEventListener('click', () => {
-            // Trigger the enhanced Kessler Syndrome cascade
-            if (window.redOrbitPhysics && window.redOrbitPhysics.triggerKesslerSyndrome) {
-                const prediction = window.redOrbitPhysics.triggerKesslerSyndrome();
+            const selectedScenario = scenarioSelector ? scenarioSelector.value : 'random';
+            const scenario = scenarios[selectedScenario];
+            
+            // Trigger the scenario
+            if (window.redOrbitPhysics && window.redOrbitPhysics.triggerScenario) {
+                console.log(`[KESSLER] Triggering ${selectedScenario} scenario`);
                 
-                if (prediction) {
-                    // Focus camera on collision point if possible
-                    if (window.camera) {
-                        const pos = prediction.position;
-                        const babylonPos = new BABYLON.Vector3(
-                            pos.x * (1/6371),
-                            pos.y * (1/6371),
-                            pos.z * (1/6371)
-                        );
-                        window.camera.setTarget(babylonPos);
-                    }
-                    
+                // Call physics engine with scenario parameters
+                const result = window.redOrbitPhysics.triggerScenario(selectedScenario, scenario);
+                
+                if (result) {
                     // Show notification
                     if (window.showNotification) {
-                        window.showNotification('KESSLER CASCADE INITIATED!', 'error');
+                        window.showNotification(`${selectedScenario.toUpperCase()} SCENARIO INITIATED!`, 'error');
                     }
                     
                     // Start status updates
@@ -484,6 +655,90 @@ function setupKesslerControls() {
                         overlay.style.display = 'block';
                     }
                 }
+            } else if (window.redOrbitPhysics && window.redOrbitPhysics.triggerKesslerSyndrome) {
+                // Fallback to basic trigger if scenario method doesn't exist
+                window.redOrbitPhysics.triggerKesslerSyndrome().then(prediction => {
+                
+                if (prediction) {
+                    // Display collision data in new panels
+                    const countdownPanel = document.getElementById('countdown-panel');
+                    if (countdownPanel) {
+                        countdownPanel.style.display = 'block';
+                        
+                        // Update countdown panel
+                        document.getElementById('impact-objects').textContent = `#${prediction.idx1} → #${prediction.idx2}`;
+                        document.getElementById('impact-velocity').textContent = prediction.impactVelocity.toFixed(1);
+                        
+                        // Start countdown timer
+                        let timeRemaining = prediction.timeToImpact;
+                        const countdownInterval = setInterval(() => {
+                            timeRemaining -= 0.1;
+                            if (timeRemaining <= 0) {
+                                clearInterval(countdownInterval);
+                                document.getElementById('impact-timer').textContent = 'IMPACT';
+                                
+                                // Create explosion at impact location
+                                if (window.gpuPhysicsEngine && window.gpuPhysicsEngine.createExplosion) {
+                                    window.gpuPhysicsEngine.createExplosion(prediction.position);
+                                }
+                                
+                                // Hide countdown after impact
+                                setTimeout(() => {
+                                    countdownPanel.style.display = 'none';
+                                }, 3000);
+                            } else {
+                                document.getElementById('impact-timer').textContent = timeRemaining.toFixed(1);
+                            }
+                        }, 100);
+                    }
+                    
+                    // Also update the embedded collision data
+                    const collisionDataDiv = document.getElementById('collision-data');
+                    if (collisionDataDiv) {
+                        collisionDataDiv.style.display = 'block';
+                        document.getElementById('collision-targets').textContent = `Object #${prediction.idx1} → Object #${prediction.idx2}`;
+                        document.getElementById('collision-distance').textContent = prediction.distance.toFixed(0);
+                        document.getElementById('collision-velocity').textContent = prediction.impactVelocity.toFixed(1);
+                        document.getElementById('collision-timer').textContent = prediction.timeToImpact.toFixed(1);
+                    }
+                    
+                    // Highlight collision objects
+                    if (window.highlightCollisionTargets) {
+                        window.highlightCollisionTargets(prediction.idx1, prediction.idx2);
+                    }
+                    
+                    // Focus camera on collision point if possible
+                    if (window.camera) {
+                        const pos = prediction.position;
+                        const babylonPos = new BABYLON.Vector3(
+                            pos.x * (1/6371),
+                            pos.y * (1/6371),
+                            pos.z * (1/6371)
+                        );
+                        window.camera.setTarget(babylonPos);
+                    }
+                    
+                    // Show notification
+                    if (window.showNotification) {
+                        window.showNotification(`${selectedScenario.toUpperCase()} CASCADE INITIATED!`, 'error');
+                    }
+                    
+                    // Start status updates
+                    startKesslerStatusUpdates();
+                    
+                    // Update button state
+                    triggerBtn.disabled = true;
+                    triggerBtn.textContent = 'CASCADE IN PROGRESS';
+                    triggerBtn.style.background = 'rgba(100,100,100,0.5)';
+                    triggerBtn.style.cursor = 'not-allowed';
+                    
+                    // Show overlay
+                    const overlay = document.getElementById('cascade-overlay');
+                    if (overlay) {
+                        overlay.style.display = 'block';
+                    }
+                }
+                });
             } else {
                 console.error('Red Orbit Physics not initialized!');
                 if (window.showNotification) {
@@ -492,6 +747,155 @@ function setupKesslerControls() {
             }
         });
     }
+}
+
+// Conjunction monitoring system for nominal state
+function startConjunctionMonitoring() {
+    console.log('[CONJUNCTION] Starting conjunction analysis monitoring');
+    
+    // Update statistics
+    const updateStats = () => {
+        if (window.redOrbitPhysics) {
+            const count = window.redOrbitPhysics.activeObjects || 0;
+            const activeElement = document.getElementById('active-count');
+            if (activeElement) activeElement.textContent = count.toLocaleString();
+            
+            // Check for debris
+            const debrisCount = window.redOrbitPhysics.debrisCount || 0;
+            const debrisElement = document.getElementById('debris-count');
+            if (debrisElement) debrisElement.textContent = debrisCount.toLocaleString();
+            
+            // Update risk level based on debris
+            const riskLevel = document.getElementById('risk-level');
+            if (riskLevel) {
+                if (debrisCount > 1000) {
+                    riskLevel.textContent = 'CRITICAL';
+                    riskLevel.style.color = '#ff0000';
+                } else if (debrisCount > 100) {
+                    riskLevel.textContent = 'HIGH';
+                    riskLevel.style.color = '#ff6600';
+                } else if (debrisCount > 10) {
+                    riskLevel.textContent = 'MODERATE';
+                    riskLevel.style.color = '#ffc800';
+                } else {
+                    riskLevel.textContent = 'LOW';
+                    riskLevel.style.color = '#00ff00';
+                }
+            }
+        }
+    };
+    
+    // Analyze conjunctions
+    const analyzeConjunctions = async () => {
+        const statusElement = document.getElementById('scan-status');
+        if (!statusElement) return;
+        
+        if (!window.redOrbitPhysics || !window.redOrbitPhysics.analyzeConjunctions) {
+            statusElement.textContent = 'Physics system not ready';
+            return;
+        }
+        
+        statusElement.textContent = 'Scanning for conjunctions...';
+        
+        try {
+            // Get potential conjunctions
+            const conjunctions = await window.redOrbitPhysics.analyzeConjunctions(300, 10); // 5 min horizon, 10km threshold
+            
+            const listElement = document.getElementById('conjunction-list');
+            if (!listElement) return;
+            
+            if (conjunctions.length === 0) {
+                listElement.innerHTML = '<div style="color: #666; font-size: 10px; text-align: center; padding: 20px;">No imminent conjunctions detected</div>';
+                statusElement.textContent = 'Scan complete - All clear';
+                const rateElement = document.getElementById('conjunction-rate');
+                if (rateElement) rateElement.textContent = '0';
+            } else {
+                // Display conjunctions
+                let html = '';
+                conjunctions.forEach((conj, idx) => {
+                    const urgency = conj.timeToClosestApproach < 60 ? 'urgent' : 
+                                  conj.timeToClosestApproach < 180 ? 'warning' : 'normal';
+                    const color = urgency === 'urgent' ? '#ff0000' : 
+                                urgency === 'warning' ? '#ffc800' : '#00ccff';
+                    
+                    html += `
+                        <div style="margin-bottom: 10px; padding: 8px; background: rgba(0,200,255,0.05); border-radius: 4px; border: 1px solid ${color};">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                <span style="color: ${color}; font-size: 10px; font-weight: bold;">CONJUNCTION #${idx + 1}</span>
+                                <span style="color: #999; font-size: 9px;">TCA: ${conj.timeToClosestApproach.toFixed(1)}s</span>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 9px;">
+                                <div><span style="color: #666;">Objects:</span> <span style="color: #ccc;">${conj.object1}-${conj.object2}</span></div>
+                                <div><span style="color: #666;">Distance:</span> <span style="color: #ccc;">${conj.minDistance.toFixed(2)} km</span></div>
+                                <div><span style="color: #666;">Rel Vel:</span> <span style="color: #ccc;">${conj.relativeVelocity.toFixed(1)} km/s</span></div>
+                                <div><span style="color: #666;">P(collision):</span> <span style="color: ${conj.probability > 0.5 ? '#ff0000' : '#ffc800'};">${(conj.probability * 100).toFixed(1)}%</span></div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Show near-miss alert for high probability events
+                    if (conj.probability > 0.7 && conj.timeToClosestApproach < 60) {
+                        showNearMissAlert(conj);
+                    }
+                });
+                
+                listElement.innerHTML = html;
+                statusElement.textContent = `${conjunctions.length} potential conjunctions detected`;
+                
+                // Calculate conjunction rate (per hour)
+                const rate = (conjunctions.length * 3600) / 300; // Scale to per hour
+                const rateElement = document.getElementById('conjunction-rate');
+                if (rateElement) rateElement.textContent = rate.toFixed(1);
+            }
+        } catch (error) {
+            console.error('[CONJUNCTION] Analysis error:', error);
+            statusElement.textContent = 'Analysis error';
+        }
+    };
+    
+    // Show near-miss alert
+    const showNearMissAlert = (conjunction) => {
+        const panel = document.getElementById('near-miss-panel');
+        const details = document.getElementById('near-miss-details');
+        
+        if (panel && details) {
+            details.innerHTML = `
+                <div style="margin-bottom: 10px; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 4px;">
+                    <div style="font-size: 12px; margin-bottom: 8px; color: #ffc800;">CRITICAL PROXIMITY WARNING</div>
+                    <div style="font-size: 10px; line-height: 1.5;">
+                        <div>Objects ${conjunction.object1} and ${conjunction.object2}</div>
+                        <div>Time to approach: ${conjunction.timeToClosestApproach.toFixed(1)} seconds</div>
+                        <div>Minimum distance: ${conjunction.minDistance.toFixed(2)} km</div>
+                        <div>Collision probability: ${(conjunction.probability * 100).toFixed(1)}%</div>
+                    </div>
+                </div>
+            `;
+            
+            panel.style.display = 'block';
+            
+            // Auto-hide after 10 seconds
+            setTimeout(() => {
+                panel.style.display = 'none';
+            }, 10000);
+        }
+    };
+    
+    // Set up refresh button
+    const refreshBtn = document.getElementById('refresh-conjunctions');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', () => {
+            analyzeConjunctions();
+        });
+    }
+    
+    // Initial analysis
+    setTimeout(analyzeConjunctions, 2000);
+    
+    // Update stats every second
+    setInterval(updateStats, 1000);
+    
+    // Re-analyze every 30 seconds
+    setInterval(analyzeConjunctions, 30000);
 }
 
 // Auto-initialize when DOM is ready

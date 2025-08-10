@@ -86,6 +86,12 @@ export async function createPhysicsEngine(scene) {
     // Store references globally for debugging
     window.gpuPhysicsEngine = gpuEngine;
     
+    // Expose highlight function globally
+    window.highlightCollisionTargets = (idx1, idx2) => {
+        if (gpuEngine && gpuEngine.highlightCollisionTargets) {
+            gpuEngine.highlightCollisionTargets(idx1, idx2);
+        }
+    };
     
     // Log minimal info
     console.log('GPU Physics: 1,000,000 objects initialized');

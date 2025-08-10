@@ -313,14 +313,29 @@ export class GPUPhysicsEngine {
                         let hash2 = hashPosition(pos2);
                         if (hash1 != hash2) { continue; } // Different grid cells
                         
-                        // Fine collision check - using realistic collision distance
+                        // Fine collision check - increased range for cascade effect
                         let dist = distance(pos1, pos2);
-                        if (dist < 0.010) { // 10 meter collision threshold (0.01 km)
+                        if (dist < 0.050) { // 50 meter collision threshold for better cascade
                             // Mark collision!
                             atomicAdd(&collisions[0], 1u);
                             
-                            // Generate debris (simplified)
-                            // Full implementation would create new objects
+                            // Convert both objects to debris (type 1)
+                            objects[idx].objType = 1.0; // Mark as debris
+                            objects[j].objType = 1.0;   // Mark as debris
+                            
+                            // Add explosive velocity to simulate fragmentation
+                            let impact_vel = length(vec3<f32>(obj1.vx - obj2.vx, obj1.vy - obj2.vy, obj1.vz - obj2.vz));
+                            let explosion_force = impact_vel * 0.5; // Scale explosion by impact velocity
+                            
+                            // Random direction for debris scatter
+                            let dir = normalize(pos2 - pos1);
+                            objects[idx].vx += dir.x * explosion_force;
+                            objects[idx].vy += dir.y * explosion_force;
+                            objects[idx].vz += dir.z * explosion_force;
+                            
+                            objects[j].vx -= dir.x * explosion_force;
+                            objects[j].vy -= dir.y * explosion_force;
+                            objects[j].vz -= dir.z * explosion_force;
                         }
                     }
                 }
@@ -391,20 +406,150 @@ export class GPUPhysicsEngine {
         this.meshTemplates.HEO.thinInstanceEnablePicking = false;
         this.meshTemplates.HEO.isVisible = false;
         
-        // Debris - Orange/Red
+        // Debris - Orange for normal space debris (not collision debris)
         this.meshTemplates.DEBRIS = BABYLON.MeshBuilder.CreateSphere('gpuDebris', {
-            diameter: 0.003, // Smaller than satellites
+            diameter: 0.004, // Smaller than satellites
             segments: 2
         }, this.scene);
         this.materials.DEBRIS = new BABYLON.StandardMaterial('gpuMatDebris', this.scene);
-        this.materials.DEBRIS.emissiveColor = new BABYLON.Color3(1, 0.3, 0); // Orange
+        this.materials.DEBRIS.emissiveColor = new BABYLON.Color3(1, 0.5, 0); // Orange for normal debris
         this.materials.DEBRIS.disableLighting = true;
         this.meshTemplates.DEBRIS.material = this.materials.DEBRIS;
         this.meshTemplates.DEBRIS.thinInstanceEnablePicking = false;
         this.meshTemplates.DEBRIS.isVisible = false;
         
+        // Collision debris - Bright Red for Kessler cascade
+        this.meshTemplates.COLLISION_DEBRIS = BABYLON.MeshBuilder.CreateSphere('gpuCollisionDebris', {
+            diameter: 0.008, // Larger for visibility during cascade
+            segments: 2
+        }, this.scene);
+        this.materials.COLLISION_DEBRIS = new BABYLON.StandardMaterial('gpuMatCollisionDebris', this.scene);
+        this.materials.COLLISION_DEBRIS.emissiveColor = new BABYLON.Color3(1, 0, 0); // Bright RED for cascade
+        this.materials.COLLISION_DEBRIS.disableLighting = true;
+        this.meshTemplates.COLLISION_DEBRIS.material = this.materials.COLLISION_DEBRIS;
+        this.meshTemplates.COLLISION_DEBRIS.thinInstanceEnablePicking = false;
+        this.meshTemplates.COLLISION_DEBRIS.isVisible = false;
+        
         // Default to LEO for backward compatibility
         this.instancedMesh = this.meshTemplates.LEO;
+        
+        // Collision highlight material
+        this.materials.COLLISION = new BABYLON.StandardMaterial('gpuMatCollision', this.scene);
+        this.materials.COLLISION.emissiveColor = new BABYLON.Color3(1, 0, 0); // Bright red
+        this.materials.COLLISION.disableLighting = true;
+        
+        // Store highlighted objects
+        this.highlightedIndices = [];
+        
+        // Explosion effects list
+        this.explosions = [];
+    }
+    
+    createExplosion(position) {
+        // Create explosion particle effect
+        const explosion = BABYLON.MeshBuilder.CreateSphere('explosion', {
+            diameter: 0.05,
+            segments: 16
+        }, this.scene);
+        
+        explosion.position = new BABYLON.Vector3(
+            position.x * this.KM_TO_BABYLON,
+            position.y * this.KM_TO_BABYLON,
+            position.z * this.KM_TO_BABYLON
+        );
+        
+        // Explosion material
+        const explMat = new BABYLON.StandardMaterial('explMat', this.scene);
+        explMat.emissiveColor = new BABYLON.Color3(1, 0.5, 0); // Orange explosion
+        explMat.alpha = 1;
+        explMat.disableLighting = true;
+        explosion.material = explMat;
+        
+        // Animate explosion
+        const scaleAnim = new BABYLON.Animation(
+            'explScale',
+            'scaling',
+            60,
+            BABYLON.Animation.ANIMATIONTYPE_VECTOR3,
+            BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
+        );
+        
+        const alphaAnim = new BABYLON.Animation(
+            'explAlpha',
+            'material.alpha',
+            60,
+            BABYLON.Animation.ANIMATIONTYPE_FLOAT,
+            BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
+        );
+        
+        scaleAnim.setKeys([
+            { frame: 0, value: new BABYLON.Vector3(1, 1, 1) },
+            { frame: 30, value: new BABYLON.Vector3(5, 5, 5) },
+            { frame: 60, value: new BABYLON.Vector3(0.1, 0.1, 0.1) }
+        ]);
+        
+        alphaAnim.setKeys([
+            { frame: 0, value: 1 },
+            { frame: 30, value: 0.5 },
+            { frame: 60, value: 0 }
+        ]);
+        
+        explosion.animations = [scaleAnim, alphaAnim];
+        
+        // Start animation and dispose after completion
+        this.scene.beginAnimation(explosion, 0, 60, false, 1, () => {
+            explosion.dispose();
+        });
+        
+        this.explosions.push(explosion);
+    }
+    
+    highlightCollisionTargets(idx1, idx2) {
+        console.log(`[HIGHLIGHT] Marking objects ${idx1} and ${idx2} for collision`);
+        
+        // Store indices for highlighting
+        this.highlightedIndices = [idx1, idx2];
+        
+        // Create pulsing animation for highlighted objects
+        if (this.scene) {
+            // Create highlight spheres around target objects
+            if (this.highlightSphere1) this.highlightSphere1.dispose();
+            if (this.highlightSphere2) this.highlightSphere2.dispose();
+            
+            this.highlightSphere1 = BABYLON.MeshBuilder.CreateSphere('highlight1', {
+                diameter: 0.02, // Larger than normal satellites
+                segments: 8
+            }, this.scene);
+            this.highlightSphere1.material = this.materials.COLLISION;
+            
+            this.highlightSphere2 = BABYLON.MeshBuilder.CreateSphere('highlight2', {
+                diameter: 0.02,
+                segments: 8
+            }, this.scene);
+            this.highlightSphere2.material = this.materials.COLLISION;
+            
+            // Create pulsing animation
+            const pulseAnim = new BABYLON.Animation(
+                'pulseAnim',
+                'material.alpha',
+                60,
+                BABYLON.Animation.ANIMATIONTYPE_FLOAT,
+                BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE
+            );
+            
+            const keys = [
+                { frame: 0, value: 0.3 },
+                { frame: 30, value: 1.0 },
+                { frame: 60, value: 0.3 }
+            ];
+            pulseAnim.setKeys(keys);
+            
+            this.highlightSphere1.animations = [pulseAnim];
+            this.highlightSphere2.animations = [pulseAnim];
+            
+            this.scene.beginAnimation(this.highlightSphere1, 0, 60, true);
+            this.scene.beginAnimation(this.highlightSphere2, 0, 60, true);
+        }
     }
     
     async populateSpace(count = 400000) {
@@ -439,22 +584,50 @@ export class GPUPhysicsEngine {
             let altitude, inclination, eccentricity, orbitType;
             const rand = Math.random();
             
-            if (rand < 0.6) { // 60% LEO
-                altitude = 200 + Math.random() * 1800; // 200-2000 km
-                inclination = Math.random() * Math.PI;
-                eccentricity = Math.random() * 0.02;
+            if (rand < 0.6) { // 60% LEO - REALISTIC DISTRIBUTION WITH EQUATORIAL CONCENTRATION
+                const leoType = Math.random();
+                if (leoType < 0.5) {
+                    // MAJORITY at equatorial/low-inclination (ISS, commercial constellations)
+                    altitude = 400 + Math.random() * 600;
+                    inclination = Math.random() * 35 * Math.PI / 180; // 0-35 degrees - HEAVY EQUATORIAL
+                    eccentricity = 0.0001 + Math.random() * 0.001;
+                } else if (leoType < 0.75) {
+                    // Mid-inclination (many Starlink planes)
+                    altitude = 500 + Math.random() * 100;
+                    inclination = (40 + Math.random() * 20) * Math.PI / 180; // 40-60 degrees
+                    eccentricity = 0.0001 + Math.random() * 0.001;
+                } else if (leoType < 0.95) {
+                    // Sun-synchronous/polar (Earth observation) - FEWER at poles
+                    altitude = 600 + Math.random() * 400;
+                    inclination = (95 + Math.random() * 10) * Math.PI / 180; // 95-105 degrees - TRUE POLAR
+                    eccentricity = 0.001 + Math.random() * 0.01;
+                } else {
+                    // High-inclination reconnaissance - RARE
+                    altitude = 300 + Math.random() * 500;
+                    inclination = (70 + Math.random() * 20) * Math.PI / 180;
+                    eccentricity = 0.05 + Math.random() * 0.15; // More elliptical
+                }
                 orbitType = 0; // LEO
                 if (i < this.orbitTypeIndices.length) this.orbitTypeIndices[i] = 0;
             } else if (rand < 0.85) { // 25% MEO
-                altitude = 2000 + Math.random() * 18000; // 2000-20000 km
-                inclination = Math.random() * Math.PI;
-                eccentricity = Math.random() * 0.05;
+                // Navigation satellites with proper inclinations
+                const meoType = Math.random();
+                if (meoType < 0.5) {
+                    // GPS-like orbit
+                    altitude = 20180 + Math.random() * 40;
+                    inclination = (55 + Math.random() * 2) * Math.PI / 180;
+                } else {
+                    // GLONASS-like orbit
+                    altitude = 19100 + Math.random() * 100;
+                    inclination = (64.8 + Math.random() * 2) * Math.PI / 180;
+                }
+                eccentricity = 0.001 + Math.random() * 0.003;
                 orbitType = 1; // MEO
                 if (i < this.orbitTypeIndices.length) this.orbitTypeIndices[i] = 1;
-            } else if (rand < 0.95) { // 10% GEO
-                altitude = 35786; // Geostationary altitude
-                inclination = Math.random() * 0.1; // Near equatorial
-                eccentricity = Math.random() * 0.01; // Nearly circular
+            } else if (rand < 0.95) { // 10% GEO - TRUE GEOSTATIONARY AT EQUATOR
+                altitude = 35786; // Exact geostationary altitude
+                inclination = Math.random() * 2 * Math.PI / 180; // 0-2 degrees - STRICTLY EQUATORIAL
+                eccentricity = 0.00001 + Math.random() * 0.0001; // Near-perfect circles
                 orbitType = 2; // GEO
                 if (i < this.orbitTypeIndices.length) this.orbitTypeIndices[i] = 2;
             } else if (rand < 0.99) { // 4% HEO
@@ -469,11 +642,30 @@ export class GPUPhysicsEngine {
                 inclination = 63.4 * Math.PI / 180; // Molniya orbit inclination
                 orbitType = 3; // HEO
                 if (i < this.orbitTypeIndices.length) this.orbitTypeIndices[i] = 3;
-            } else { // 1% Debris
-                altitude = 200 + Math.random() * 2000; // Mostly in LEO
-                inclination = Math.random() * Math.PI;
-                eccentricity = Math.random() * 0.1; // Can be more eccentric
-                orbitType = 4; // DEBRIS
+            } else { // 1% Debris (orange, normal space junk)
+                const debrisType = Math.random();
+                if (debrisType < 0.4) {
+                    // Debris from Fengyun/Cosmos collision zone (~800km)
+                    altitude = 750 + Math.random() * 100;
+                    inclination = (70 + Math.random() * 30) * Math.PI / 180;
+                    eccentricity = 0.001 + Math.random() * 0.05;
+                } else if (debrisType < 0.7) {
+                    // Indian ASAT test debris (~300-2200km)
+                    altitude = 300 + Math.random() * 1900;
+                    inclination = (96 + Math.random() * 4) * Math.PI / 180;
+                    eccentricity = 0.01 + Math.random() * 0.1;
+                } else if (debrisType < 0.85) {
+                    // GEO graveyard orbit
+                    altitude = 36100 + Math.random() * 300;
+                    inclination = Math.random() * 15 * Math.PI / 180;
+                    eccentricity = 0.001 + Math.random() * 0.01;
+                } else {
+                    // Random debris with high eccentricity
+                    altitude = 400 + Math.random() * 1000;
+                    inclination = Math.random() * 180 * Math.PI / 180;
+                    eccentricity = 0.1 + Math.random() * 0.3; // Very elliptical
+                }
+                orbitType = 4; // DEBRIS (orange, not red collision debris)
                 if (i < this.orbitTypeIndices.length) this.orbitTypeIndices[i] = 4;
             }
             
@@ -506,11 +698,12 @@ export class GPUPhysicsEngine {
             const raan = Math.random() * 2 * Math.PI; // Right Ascension of Ascending Node
             const argPeriapsis = Math.random() * 2 * Math.PI; // Argument of periapsis
             
-            // Position in orbital plane
+            // Position in orbital plane (orbit is in XY plane initially)
             const xOrbit = r * Math.cos(trueAnomaly);
             const yOrbit = r * Math.sin(trueAnomaly);
             
             // Rotation matrices for 3D orientation
+            // NOTE: We need to rotate so equatorial orbits go around the equator (XZ plane with Y as north)
             const cosI = Math.cos(inclination);
             const sinI = Math.sin(inclination);
             const cosR = Math.cos(raan);
@@ -518,10 +711,12 @@ export class GPUPhysicsEngine {
             const cosW = Math.cos(argPeriapsis);
             const sinW = Math.sin(argPeriapsis);
             
-            // Transform to inertial coordinates
+            // Transform to Earth-centered inertial coordinates
+            // For Earth: Y is north pole, XZ is equatorial plane
+            // Equatorial orbit (inclination=0) should be in XZ plane
             const px = (cosR * cosW - sinR * sinW * cosI) * xOrbit + (-cosR * sinW - sinR * cosW * cosI) * yOrbit;
-            const py = (sinR * cosW + cosR * sinW * cosI) * xOrbit + (-sinR * sinW + cosR * cosW * cosI) * yOrbit;
-            const pz = (sinW * sinI) * xOrbit + (cosW * sinI) * yOrbit;
+            const pz = (sinR * cosW + cosR * sinW * cosI) * xOrbit + (-sinR * sinW + cosR * cosW * cosI) * yOrbit;
+            const py = (sinW * sinI) * xOrbit + (cosW * sinI) * yOrbit;
             
             data[baseIdx + 0] = px;
             data[baseIdx + 1] = py;
@@ -535,43 +730,24 @@ export class GPUPhysicsEngine {
             // VELOCITY using vis-viva equation: v² = μ(2/r - 1/a)
             const orbitalSpeed = Math.sqrt(this.EARTH_MU * (2/r - 1/a));
             
-            // Calculate velocity using cross product to ensure perpendicular to radius
-            // This is the EXACT method from working Havok physics
-            const position = { x: px, y: py, z: pz };
-            const zAxis = { x: 0, y: 0, z: 1 };
+            // Calculate velocity in orbital plane
+            // For elliptical orbits, velocity direction is perpendicular to radius vector
+            // but magnitude varies with position
             
-            // Cross product: temp = position × zAxis
-            let temp = {
-                x: position.y * zAxis.z - position.z * zAxis.y,
-                y: position.z * zAxis.x - position.x * zAxis.z,
-                z: position.x * zAxis.y - position.y * zAxis.x
-            };
+            // Velocity components in orbital plane
+            const h = Math.sqrt(this.EARTH_MU * a * (1 - eccentricity * eccentricity)); // Specific angular momentum
+            const vr = (this.EARTH_MU * eccentricity * Math.sin(trueAnomaly)) / h; // Radial velocity
+            const vt = h / r; // Tangential velocity
             
-            const tempMag = Math.sqrt(temp.x * temp.x + temp.y * temp.y + temp.z * temp.z);
+            // Convert to orbital frame
+            const vxOrbit = vr * Math.cos(trueAnomaly) - vt * Math.sin(trueAnomaly);
+            const vyOrbit = vr * Math.sin(trueAnomaly) + vt * Math.cos(trueAnomaly);
             
-            let velocity;
-            if (tempMag < 0.01) {
-                // Use x-axis for cross product instead (for polar orbits)
-                const xAxis = { x: 1, y: 0, z: 0 };
-                temp = {
-                    x: position.y * xAxis.z - position.z * xAxis.y,
-                    y: position.z * xAxis.x - position.x * xAxis.z,
-                    z: position.x * xAxis.y - position.y * xAxis.x
-                };
-            }
-            
-            // Normalize temp
-            const tempMagFinal = Math.sqrt(temp.x * temp.x + temp.y * temp.y + temp.z * temp.z);
-            const velDir = {
-                x: temp.x / tempMagFinal,
-                y: temp.y / tempMagFinal,
-                z: temp.z / tempMagFinal
-            };
-            
-            // Apply orbital speed in the perpendicular direction
-            const vx = velDir.x * orbitalSpeed;
-            const vy = velDir.y * orbitalSpeed;
-            const vz = velDir.z * orbitalSpeed;
+            // Apply same transformation as position to get inertial velocity
+            // Must match the coordinate swap we did for position (Y and Z swapped)
+            const vx = (cosR * cosW - sinR * sinW * cosI) * vxOrbit + (-cosR * sinW - sinR * cosW * cosI) * vyOrbit;
+            const vz = (sinR * cosW + cosR * sinW * cosI) * vxOrbit + (-sinR * sinW + cosR * cosW * cosI) * vyOrbit;
+            const vy = (sinW * sinI) * vxOrbit + (cosW * sinI) * vyOrbit;
             
             data[baseIdx + 3] = vx;
             data[baseIdx + 4] = vy;
@@ -579,7 +755,9 @@ export class GPUPhysicsEngine {
             
             // Mass and type
             data[baseIdx + 6] = 100 + Math.random() * 5000; // 100-5100 kg realistic satellite mass
-            data[baseIdx + 7] = orbitType; // Store orbit type for shader
+            // Object types: 0=normal satellite, 1=collision debris (red), 5=rogue (red)
+            // Start with all normal satellites in nominal state
+            data[baseIdx + 7] = 0; // Type 0 = normal operational satellite
             
             // Debug first few objects
             if (i < 3) {
@@ -812,6 +990,48 @@ export class GPUPhysicsEngine {
         await readBuffer.mapAsync(GPUMapMode.READ);
         const data = new Float32Array(readBuffer.getMappedRange());
         
+        // Store for debris counting
+        this.lastStateData = data;
+        
+        // Count debris and detect new collisions for explosions
+        if (this.kesslerActive) {
+            let debrisCount = 0;
+            const newDebris = [];
+            
+            for (let i = 0; i < this.renderCount; i++) {
+                const objType = data[i * 8 + 7];
+                if (objType === 1 || objType === 5) {
+                    debrisCount++;
+                    
+                    // Check if this is newly created debris
+                    if (!this.lastDebrisIndices || !this.lastDebrisIndices.includes(i)) {
+                        newDebris.push({
+                            x: data[i * 8 + 0],
+                            y: data[i * 8 + 1],
+                            z: data[i * 8 + 2]
+                        });
+                    }
+                }
+            }
+            
+            // Create explosions for new debris (collisions)
+            if (newDebris.length > 0 && this.frameCount % 10 === 0) { // Limit explosion rate
+                for (const pos of newDebris.slice(0, 2)) { // Max 2 explosions per frame
+                    this.createExplosion(pos);
+                }
+            }
+            
+            // Update debris tracking
+            this.debrisGenerated = debrisCount;
+            this.lastDebrisIndices = [];
+            for (let i = 0; i < this.renderCount; i++) {
+                const objType = data[i * 8 + 7];
+                if (objType === 1 || objType === 5) {
+                    this.lastDebrisIndices.push(i);
+                }
+            }
+        }
+        
         // Track indices for each orbit type
         const typeIndices = {
             LEO: 0,
@@ -852,6 +1072,26 @@ export class GPUPhysicsEngine {
             this.lastDebugPos = {x: x0, y: y0, z: z0, r: r};
         }
         
+        // Update highlight spheres if they exist
+        if (this.highlightedIndices.length > 0 && this.highlightSphere1 && this.highlightSphere2) {
+            const idx1 = this.highlightedIndices[0];
+            const idx2 = this.highlightedIndices[1];
+            
+            if (idx1 < this.renderCount) {
+                const baseIdx1 = idx1 * 8;
+                this.highlightSphere1.position.x = data[baseIdx1 + 0] * this.KM_TO_BABYLON;
+                this.highlightSphere1.position.y = data[baseIdx1 + 1] * this.KM_TO_BABYLON;
+                this.highlightSphere1.position.z = data[baseIdx1 + 2] * this.KM_TO_BABYLON;
+            }
+            
+            if (idx2 < this.renderCount) {
+                const baseIdx2 = idx2 * 8;
+                this.highlightSphere2.position.x = data[baseIdx2 + 0] * this.KM_TO_BABYLON;
+                this.highlightSphere2.position.y = data[baseIdx2 + 1] * this.KM_TO_BABYLON;
+                this.highlightSphere2.position.z = data[baseIdx2 + 2] * this.KM_TO_BABYLON;
+            }
+        }
+        
         // Update instance matrices by orbit type for proper coloring
         for (let i = 0; i < this.renderCount; i++) {
             const baseIdx = i * 8;
@@ -863,24 +1103,27 @@ export class GPUPhysicsEngine {
             // Determine orbit type from stored index or object type
             let orbitType;
             
-            // Check for special rogue satellites first (type 5)
-            if (objType === 5) {
-                orbitType = 'DEBRIS'; // Use red debris color for rogues
-            } else if (i < this.orbitTypeIndices.length) {
-                const typeIdx = this.orbitTypeIndices[i];
-                orbitType = ['LEO', 'MEO', 'GEO', 'HEO', 'DEBRIS'][typeIdx] || 'LEO';
+            // Check object type for collision debris/rogues
+            if (objType === 1 || objType === 5) {
+                // Type 1 = collision debris (from cascade)
+                // Type 5 = rogue satellites (collision initiators)
+                // Both display as RED COLLISION DEBRIS for visual impact
+                orbitType = 'COLLISION_DEBRIS';
             } else {
-                // Fallback: determine by altitude
-                const r = Math.sqrt(x*x + y*y + z*z) / this.KM_TO_BABYLON;
-                const altitude = r - this.EARTH_RADIUS;
-                if (altitude < 2000) orbitType = 'LEO';
-                else if (altitude < 20000) orbitType = 'MEO';
-                else if (altitude > 35000 && altitude < 36000) orbitType = 'GEO';
-                else if (altitude > 20000) orbitType = 'HEO';
-                else orbitType = 'LEO';
-                
-                // Check if debris
-                if (objType === 1) orbitType = 'DEBRIS';
+                // Normal satellites - determine by orbit type index or altitude
+                if (i < this.orbitTypeIndices.length) {
+                    const typeIdx = this.orbitTypeIndices[i];
+                    orbitType = ['LEO', 'MEO', 'GEO', 'HEO', 'DEBRIS'][typeIdx] || 'LEO';
+                } else {
+                    // Fallback: determine by altitude
+                    const r = Math.sqrt(x*x + y*y + z*z) / this.KM_TO_BABYLON;
+                    const altitude = r - this.EARTH_RADIUS;
+                    if (altitude < 2000) orbitType = 'LEO';
+                    else if (altitude < 20000) orbitType = 'MEO';
+                    else if (altitude > 35000 && altitude < 36000) orbitType = 'GEO';
+                    else if (altitude > 20000) orbitType = 'HEO';
+                    else orbitType = 'LEO';
+                }
             }
             
             // Update the appropriate matrix buffer
@@ -909,6 +1152,112 @@ export class GPUPhysicsEngine {
         readBuffer.unmap();
     }
     
+    /**
+     * Analyze potential conjunctions (close approaches) in the nominal state
+     * Returns array of potential collision events sorted by time to closest approach
+     */
+    async analyzeConjunctions(timeHorizon = 60, minDistance = 5) {
+        if (!this.device || this.activeObjects === 0) return [];
+        
+        const conjunctions = [];
+        const sampleSize = Math.min(1000, this.activeObjects); // Sample first 1000 objects
+        
+        // Read current state
+        const commandEncoder = this.device.createCommandEncoder();
+        const readSize = sampleSize * 32;
+        const readBuffer = this.device.createBuffer({
+            size: readSize,
+            usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
+        });
+        
+        commandEncoder.copyBufferToBuffer(this.stateBuffer, 0, readBuffer, 0, readSize);
+        this.device.queue.submit([commandEncoder.finish()]);
+        
+        await readBuffer.mapAsync(GPUMapMode.READ);
+        const data = new Float32Array(readBuffer.getMappedRange());
+        
+        // Analyze pairs for potential conjunctions
+        for (let i = 0; i < sampleSize - 1; i++) {
+            // Skip debris objects
+            if (data[i * 8 + 7] === 1) continue;
+            
+            const obj1 = {
+                idx: i,
+                x: data[i * 8 + 0], y: data[i * 8 + 1], z: data[i * 8 + 2],
+                vx: data[i * 8 + 3], vy: data[i * 8 + 4], vz: data[i * 8 + 5]
+            };
+            
+            // Only check nearby objects for efficiency
+            for (let j = i + 1; j < Math.min(i + 50, sampleSize); j++) {
+                // Skip debris
+                if (data[j * 8 + 7] === 1) continue;
+                
+                const obj2 = {
+                    idx: j,
+                    x: data[j * 8 + 0], y: data[j * 8 + 1], z: data[j * 8 + 2],
+                    vx: data[j * 8 + 3], vy: data[j * 8 + 4], vz: data[j * 8 + 5]
+                };
+                
+                // Calculate relative position and velocity
+                const dx = obj2.x - obj1.x;
+                const dy = obj2.y - obj1.y;
+                const dz = obj2.z - obj1.z;
+                const dvx = obj2.vx - obj1.vx;
+                const dvy = obj2.vy - obj1.vy;
+                const dvz = obj2.vz - obj1.vz;
+                
+                // Calculate time to closest approach (TCA)
+                const dvDotDv = dvx*dvx + dvy*dvy + dvz*dvz;
+                if (dvDotDv < 0.0001) continue; // Objects moving in parallel
+                
+                const tca = -(dx*dvx + dy*dvy + dz*dvz) / dvDotDv;
+                
+                // Only consider future conjunctions within time horizon
+                if (tca > 0 && tca < timeHorizon) {
+                    // Calculate distance at closest approach
+                    const xAtTCA = dx + dvx * tca;
+                    const yAtTCA = dy + dvy * tca;
+                    const zAtTCA = dz + dvz * tca;
+                    const distanceAtTCA = Math.sqrt(xAtTCA*xAtTCA + yAtTCA*yAtTCA + zAtTCA*zAtTCA);
+                    
+                    // Check if this is a close approach
+                    if (distanceAtTCA < minDistance) {
+                        // Calculate collision probability (simplified model)
+                        const probability = Math.max(0, 1 - (distanceAtTCA / minDistance));
+                        
+                        conjunctions.push({
+                            object1: obj1.idx,
+                            object2: obj2.idx,
+                            timeToClosestApproach: tca,
+                            minDistance: distanceAtTCA,
+                            probability: probability,
+                            relativeVelocity: Math.sqrt(dvx*dvx + dvy*dvy + dvz*dvz),
+                            position1: { x: obj1.x, y: obj1.y, z: obj1.z },
+                            position2: { x: obj2.x, y: obj2.y, z: obj2.z }
+                        });
+                    }
+                }
+            }
+        }
+        
+        readBuffer.unmap();
+        
+        // Sort by time to closest approach
+        conjunctions.sort((a, b) => a.timeToClosestApproach - b.timeToClosestApproach);
+        
+        // Return top 10 most imminent conjunctions
+        return conjunctions.slice(0, 10);
+    }
+    
+    /**
+     * Get near-misses that have recently occurred
+     */
+    async getNearMisses(lookbackTime = 10, maxDistance = 10) {
+        // This would track recent close approaches that didn't result in collision
+        // For now, return empty array as this requires historical tracking
+        return [];
+    }
+    
     async triggerKesslerSyndrome() {
         console.log('GPU KESSLER: Initiating cascade with 1M objects!');
         
@@ -917,10 +1266,15 @@ export class GPUPhysicsEngine {
             return;
         }
         
-        // Pick two objects that are close together for quick collision
-        // Search for objects in LEO altitude range (200-2000km)
-        const idx1 = Math.floor(Math.random() * 100); // Pick from first 100 objects  
-        const idx2 = idx1 + 1 + Math.floor(Math.random() * 10); // Pick very close neighbor
+        // Pick two objects close together in LEO for faster collision
+        // Search for objects that are actually near each other
+        const searchStart = 100; // Start from index 100 to avoid edge cases
+        const searchRange = 200; // Search within 200 objects for proximity
+        
+        // Pick first object
+        const idx1 = searchStart + Math.floor(Math.random() * searchRange);
+        // Pick nearby object (within 10 indices for spatial proximity)
+        const idx2 = idx1 + 1 + Math.floor(Math.random() * 5);
         
         // Create a command to read current state
         const commandEncoder = this.device.createCommandEncoder();
@@ -1001,11 +1355,14 @@ export class GPUPhysicsEngine {
         
         return {
             message: 'Kessler cascade initiated!',
+            idx1: idx1,
+            idx2: idx2,
             object1: obj1,
             object2: obj2,
             distance: dist,
             impactVelocity: collisionSpeed,
-            timeToImpact: dist / collisionSpeed
+            timeToImpact: dist / collisionSpeed,
+            position: { x: obj1.x, y: obj1.y, z: obj1.z }
         };
     }
     
