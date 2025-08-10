@@ -48,6 +48,9 @@ else
     npm run build
 fi
 
-# Start the server
-echo "Starting HTTP server on port $PORT..."
-python3 server.py --port "$PORT"
+# Start the server (use localhost for WebGPU compatibility)
+echo "Starting HTTP server on localhost:$PORT..."
+echo "Access at: http://localhost:$PORT"
+echo ""
+echo "NOTE: For WebGPU to work, use http://localhost:$PORT not http://0.0.0.0:$PORT"
+python3 server.py --host localhost --port "$PORT"

@@ -57,16 +57,17 @@ export class GPUPhysicsEngine {
     }
     
     async initialize() {
-        console.log('GPU Physics: Initializing WebGPU...');
+        console.log('%c🚀 GPU Physics: Initializing WebGPU...', 'color: #00ffff; font-size: 14px; font-weight: bold');
         
         // Check WebGPU support with better detection
         if (!navigator.gpu) {
             console.error('%c❌ WebGPU NOT AVAILABLE', 'color: #ff0000; font-size: 16px; font-weight: bold');
             console.warn('To enable WebGPU:');
-            console.warn('1. Chrome: Go to chrome://flags/#enable-unsafe-webgpu and ENABLE it');
-            console.warn('2. Safari: Enable Developer menu, then Develop > Experimental Features > WebGPU');
-            console.warn('3. Use Chrome Canary for latest WebGPU support');
-            throw new Error('WebGPU not supported! Enable it in browser flags');
+            console.warn('1. Use http://localhost:8080 instead of http://0.0.0.0:8080');
+            console.warn('2. Chrome: Go to chrome://flags/#enable-unsafe-webgpu and ENABLE it');
+            console.warn('3. Safari: Enable Developer menu, then Develop > Experimental Features > WebGPU');
+            console.warn('4. Use Chrome Canary for latest WebGPU support');
+            throw new Error('WebGPU not supported! Use localhost:8080 or enable it in browser flags');
         }
         
         const adapter = await navigator.gpu.requestAdapter({
@@ -108,7 +109,8 @@ export class GPUPhysicsEngine {
         }
         
         const info = adapter.requestAdapterInfo ? await adapter.requestAdapterInfo() : {};
-        console.log(`GPU: ${info.description || 'WebGPU Device'} initialized`);
+        console.log('%c✅ WebGPU AVAILABLE!', 'color: #00ff00; font-size: 14px; font-weight: bold');
+        console.log(`%c🎮 GPU: ${info.description || 'WebGPU Device'} initialized`, 'color: #00ffff; font-size: 12px');
         
         // Create buffers for 1M objects
         await this.createBuffers();
@@ -655,9 +657,8 @@ export class GPUPhysicsEngine {
         this.device.queue.submit([commandEncoder.finish()]);
         
         // Read back positions for rendering (async)
-        if (this.frameCount % 5 === 0) { // Update rendering every 5 frames
-            await this.updateRendering();
-        }
+        // Update every frame for smooth motion at 1x and 60x speeds
+        await this.updateRendering();
         
         this.frameCount++;
     }

@@ -15,17 +15,36 @@ export const PHYSICS_CONFIG = {
  * Create GPU physics engine - FULL GPU!
  */
 export async function createPhysicsEngine(scene) {
-    console.log('%c🌍 RED ORBIT: GPU PHYSICS ENGINE', 'color: #ff0000; font-size: 20px; font-weight: bold');
-    console.log('%c⚡ FULL GPU MODE - NO CPU FALLBACK', 'color: #00ff00; font-size: 16px');
     
-    // Check WebGPU support FIRST
+    // Check if we're accessing via 0.0.0.0 and warn
+    if (window.location.hostname === '0.0.0.0') {
+        console.warn('⚠️ Accessing via 0.0.0.0 - WebGPU may not work!');
+        console.warn('Try using http://localhost:8080 instead');
+    }
+    
+    // Wait a moment for WebGPU to be available (Chrome Canary sometimes needs this)
     if (!navigator.gpu) {
-        console.error('%c❌ WebGPU NOT AVAILABLE', 'color: #ff0000; font-size: 20px; font-weight: bold');
-        console.error('%c🔧 REQUIRED: Enable WebGPU in browser flags', 'color: #ffff00; font-size: 16px');
-        console.error('   1. Go to: chrome://flags/#enable-unsafe-webgpu');
-        console.error('   2. Set to: Enabled');
-        console.error('   3. Restart Chrome');
-        throw new Error('WebGPU is required for RED ORBIT GPU Physics');
+        console.log('Waiting for WebGPU to initialize...');
+        await new Promise(resolve => setTimeout(resolve, 500)); // Increased wait time
+    }
+    
+    // Check WebGPU support after wait
+    if (!navigator.gpu) {
+        console.error('❌ WebGPU NOT AVAILABLE!');
+        console.error('');
+        console.error('SOLUTION:');
+        console.error('1. Use http://localhost:8080 instead of http://0.0.0.0:8080');
+        console.error('2. Or enable WebGPU in Chrome:');
+        console.error('   - Go to chrome://flags/#enable-unsafe-webgpu');
+        console.error('   - Set "Unsafe WebGPU Support" to Enabled');
+        console.error('   - Restart Chrome');
+        console.error('');
+        console.error('TEST WebGPU: http://localhost:8080/webgpu-test.html');
+        
+        // Show alert to user
+        alert('WebGPU not detected!\n\nPlease use http://localhost:8080 instead of 0.0.0.0:8080\n\nOr enable WebGPU in chrome://flags');
+        
+        throw new Error('WebGPU is REQUIRED - use localhost:8080 or enable WebGPU');
     }
     
     // Create GPU physics engine directly
@@ -60,8 +79,7 @@ export async function createPhysicsEngine(scene) {
     await gpuEngine.initialize();
     await gpuEngine.populateSpace(initialCount);
     
-    // Create simple object count controls (no modal)
-    createSimpleObjectControls(gpuEngine);
+    // No controls needed - we're pure 1 MILLION!
     
     // Skip GPU controls modal - we're pure GPU now
     
@@ -69,14 +87,8 @@ export async function createPhysicsEngine(scene) {
     window.gpuPhysicsEngine = gpuEngine;
     
     
-    // Log capabilities
-    console.log('%c✅ WebGPU INITIALIZED - Can scale to 1,000,000 objects!', 'color: #00ff00; font-size: 16px; font-weight: bold');
-    console.log('%c🎮 Press "G" to open GPU control panel', 'color: #00ffff; font-size: 14px');
-    console.log('%c🔗 URL Parameters:', 'color: #ffff00; font-size: 14px');
-    console.log('   ?mode=max&objects=1000000 - Million objects');
-    console.log('   ?mode=mega&objects=400000 - 400K objects');
-    console.log('   ?mode=catalog&objects=100000 - Full catalog');
-    console.log('   ?mode=kessler&objects=50000 - Kessler syndrome');
+    // Log minimal info
+    console.log('GPU Physics: 1,000,000 objects initialized');
     
     // Return the engine with compatibility wrapper
     return createCompatibilityWrapper(gpuEngine);
@@ -176,44 +188,6 @@ function createCompatibilityWrapper(gpuEngine) {
     return wrapper;
 }
 
-/**
- * Create simple object count controls
- */
-function createSimpleObjectControls(gpuEngine) {
-    // Create small control panel for object counts
-    const panel = document.createElement('div');
-    panel.id = 'object-count-controls';
-    panel.style.cssText = `
-        position: absolute;
-        bottom: 20px;
-        left: 20px;
-        background: rgba(0, 0, 0, 0.8);
-        border: 1px solid #ff0000;
-        border-radius: 4px;
-        padding: 10px;
-        color: white;
-        font-family: monospace;
-        font-size: 12px;
-        z-index: 100;
-    `;
-    
-    panel.innerHTML = `
-        <div style="margin-bottom: 5px; color: #ff0000; font-weight: bold;">GPU Objects</div>
-        <button onclick="window.setObjectCount(10000)" style="margin: 2px; padding: 4px 8px; background: #333; color: white; border: 1px solid #666; cursor: pointer;">10K</button>
-        <button onclick="window.setObjectCount(100000)" style="margin: 2px; padding: 4px 8px; background: #333; color: white; border: 1px solid #666; cursor: pointer;">100K</button>
-        <button onclick="window.setObjectCount(250000)" style="margin: 2px; padding: 4px 8px; background: #333; color: white; border: 1px solid #666; cursor: pointer;">250K</button>
-        <button onclick="window.setObjectCount(500000)" style="margin: 2px; padding: 4px 8px; background: #333; color: white; border: 1px solid #666; cursor: pointer;">500K</button>
-        <button onclick="window.setObjectCount(1000000)" style="margin: 2px; padding: 4px 8px; background: #333; color: white; border: 1px solid #666; cursor: pointer;">1M</button>
-    `;
-    
-    document.body.appendChild(panel);
-    
-    // Add global function to change object count
-    window.setObjectCount = async (count) => {
-        console.log(`Setting object count to ${count.toLocaleString()}...`);
-        await gpuEngine.populateSpace(count);
-    };
-}
 
 // Export GPU physics engine for direct use
 export { GPUPhysicsEngine } from './gpu-physics-engine.js';

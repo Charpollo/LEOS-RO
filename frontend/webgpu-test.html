@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebGPU Test - RED ORBIT</title>
+    <style>
+        body {
+            background: #000;
+            color: #0ff;
+            font-family: monospace;
+            padding: 20px;
+            line-height: 1.8;
+        }
+        .success { color: #0f0; }
+        .error { color: #f00; }
+        .warning { color: #ff0; }
+        .info { color: #0ff; }
+        pre {
+            background: #111;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>RED ORBIT - WebGPU Status Check</h1>
+    <div id="status"></div>
+    
+    <script>
+        const status = document.getElementById('status');
+        
+        async function checkWebGPU() {
+            let html = '<h2>WebGPU Detection Results:</h2>';
+            
+            // Check basic WebGPU availability
+            if (!navigator.gpu) {
+                html += '<p class="error">❌ navigator.gpu is NOT available!</p>';
+                html += '<p class="warning">This means WebGPU is not enabled in your browser.</p>';
+                html += '<h3>To enable WebGPU:</h3>';
+                html += '<ol>';
+                html += '<li><strong>Chrome/Chrome Canary:</strong><br>';
+                html += 'Go to <code>chrome://flags/#enable-unsafe-webgpu</code><br>';
+                html += 'Set "Unsafe WebGPU Support" to <strong>Enabled</strong><br>';
+                html += 'Restart Chrome</li>';
+                html += '<li><strong>Access via localhost:</strong><br>';
+                html += 'Use <code>http://localhost:8080</code> instead of <code>http://0.0.0.0:8080</code></li>';
+                html += '<li><strong>Safari:</strong><br>';
+                html += 'Enable Developer menu, then go to:<br>';
+                html += 'Develop > Experimental Features > WebGPU</li>';
+                html += '</ol>';
+            } else {
+                html += '<p class="success">✅ navigator.gpu is available!</p>';
+                
+                // Try to get adapter
+                try {
+                    const adapter = await navigator.gpu.requestAdapter({
+                        powerPreference: 'high-performance'
+                    });
+                    
+                    if (!adapter) {
+                        html += '<p class="error">❌ No WebGPU adapter found!</p>';
+                    } else {
+                        html += '<p class="success">✅ WebGPU adapter found!</p>';
+                        
+                        // Get adapter info
+                        if (adapter.requestAdapterInfo) {
+                            const info = await adapter.requestAdapterInfo();
+                            html += '<p class="info">GPU Info:</p>';
+                            html += '<pre>' + JSON.stringify(info, null, 2) + '</pre>';
+                        }
+                        
+                        // Try to get device
+                        try {
+                            const device = await adapter.requestDevice();
+                            html += '<p class="success">✅ WebGPU device created successfully!</p>';
+                            html += '<p class="success">🚀 RED ORBIT GPU Physics will work!</p>';
+                            
+                            // Show limits
+                            const limits = device.limits;
+                            html += '<p class="info">Device Limits:</p>';
+                            html += '<pre>';
+                            html += `Max buffer size: ${(limits.maxBufferSize / 1024 / 1024 / 1024).toFixed(2)} GB\n`;
+                            html += `Max storage buffer: ${(limits.maxStorageBufferBindingSize / 1024 / 1024).toFixed(2)} MB\n`;
+                            html += `Max compute workgroup size: ${limits.maxComputeWorkgroupSizeX}\n`;
+                            html += `Max compute invocations: ${limits.maxComputeInvocationsPerWorkgroup}`;
+                            html += '</pre>';
+                            
+                        } catch (e) {
+                            html += '<p class="error">❌ Failed to create WebGPU device: ' + e.message + '</p>';
+                        }
+                    }
+                } catch (e) {
+                    html += '<p class="error">❌ Error requesting adapter: ' + e.message + '</p>';
+                }
+            }
+            
+            // Check current URL
+            html += '<h3>Current Access URL:</h3>';
+            html += '<p class="info">URL: ' + window.location.href + '</p>';
+            if (window.location.hostname === '0.0.0.0') {
+                html += '<p class="warning">⚠️ You\'re accessing via 0.0.0.0</p>';
+                html += '<p class="warning">WebGPU may not work properly. Try using localhost instead:</p>';
+                html += '<p><a href="http://localhost:8080/webgpu-test.html" style="color: #0f0;">http://localhost:8080/webgpu-test.html</a></p>';
+            }
+            
+            status.innerHTML = html;
+        }
+        
+        checkWebGPU();
+    </script>
+</body>
+</html>
