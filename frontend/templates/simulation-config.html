@@ -1,0 +1,426 @@
+<div id="simulation-config-panel" class="content-panel">
+    <div class="panel-header">
+        <h2>SIMULATION CONFIGURATION</h2>
+        <div class="panel-subtitle">Build Your Test Environment</div>
+    </div>
+    
+    <!-- Preset Configurations -->
+    <div class="config-section">
+        <h3>PRESET SCENARIOS</h3>
+        <div class="preset-grid">
+            <button class="preset-btn" data-preset="starlink">
+                <div class="preset-icon">🛰️</div>
+                <div class="preset-name">STARLINK CONSTELLATION</div>
+                <div class="preset-info">4,425 satellites @ 550km</div>
+            </button>
+            
+            <button class="preset-btn" data-preset="blueorigin">
+                <div class="preset-icon">🚀</div>
+                <div class="preset-name">BLUE ORIGIN KUIPER</div>
+                <div class="preset-info">3,236 satellites @ 590-630km</div>
+            </button>
+            
+            <button class="preset-btn" data-preset="kessler15">
+                <div class="preset-icon">☢️</div>
+                <div class="preset-name">KESSLER IN 15 YEARS</div>
+                <div class="preset-info">100K objects with decay</div>
+            </button>
+            
+            <button class="preset-btn" data-preset="anomaly">
+                <div class="preset-icon">⚠️</div>
+                <div class="preset-name">ANOMALY ORBIT</div>
+                <div class="preset-info">Collision-prone configuration</div>
+            </button>
+            
+            <button class="preset-btn" data-preset="debris">
+                <div class="preset-icon">💥</div>
+                <div class="preset-name">DEBRIS FIELD</div>
+                <div class="preset-info">50K debris objects</div>
+            </button>
+            
+            <button class="preset-btn" data-preset="current">
+                <div class="preset-icon">🌍</div>
+                <div class="preset-name">CURRENT CATALOG</div>
+                <div class="preset-info">27,000 tracked objects</div>
+            </button>
+        </div>
+    </div>
+    
+    <!-- Quick Scale Options -->
+    <div class="config-section">
+        <h3>QUICK SCALE</h3>
+        <div class="scale-options">
+            <button class="scale-btn" data-count="15000">15K</button>
+            <button class="scale-btn" data-count="30000">30K</button>
+            <button class="scale-btn" data-count="100000">100K</button>
+            <button class="scale-btn" data-count="500000">500K</button>
+            <button class="scale-btn active" data-count="1000000">1M</button>
+        </div>
+    </div>
+    
+    <!-- Custom Configuration -->
+    <div class="config-section">
+        <h3>CUSTOM ENVIRONMENT</h3>
+        
+        <div class="config-group">
+            <label>Total Objects</label>
+            <input type="range" id="total-objects-slider" min="1000" max="1000000" value="100000" step="1000">
+            <span id="total-objects-value">100,000</span>
+        </div>
+        
+        <div class="config-group">
+            <label>Object Distribution</label>
+            <div class="distribution-controls">
+                <div class="dist-item">
+                    <label>Satellites</label>
+                    <input type="range" id="sat-percent" min="0" max="100" value="80">
+                    <span class="dist-value">80%</span>
+                </div>
+                <div class="dist-item">
+                    <label>Debris</label>
+                    <input type="range" id="debris-percent" min="0" max="100" value="20">
+                    <span class="dist-value">20%</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="config-group">
+            <label>Orbital Distribution</label>
+            <div class="orbital-controls">
+                <div class="orbit-item">
+                    <label>LEO (200-2000km)</label>
+                    <input type="range" id="leo-percent" min="0" max="100" value="60">
+                    <span class="orbit-value">60%</span>
+                </div>
+                <div class="orbit-item">
+                    <label>MEO (2000-35786km)</label>
+                    <input type="range" id="meo-percent" min="0" max="100" value="25">
+                    <span class="orbit-value">25%</span>
+                </div>
+                <div class="orbit-item">
+                    <label>GEO (35786km)</label>
+                    <input type="range" id="geo-percent" min="0" max="100" value="10">
+                    <span class="orbit-value">10%</span>
+                </div>
+                <div class="orbit-item">
+                    <label>HEO (Elliptical)</label>
+                    <input type="range" id="heo-percent" min="0" max="100" value="5">
+                    <span class="orbit-value">5%</span>
+                </div>
+            </div>
+            <div class="total-indicator">
+                Total: <span id="orbit-total">100%</span>
+            </div>
+        </div>
+        
+        <div class="config-group">
+            <label>Advanced Options</label>
+            <div class="advanced-options">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="enable-collisions" checked>
+                    Enable Collision Detection
+                </label>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="enable-debris-gen">
+                    Enable Debris Generation
+                </label>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="enable-decay">
+                    Enable Orbital Decay
+                </label>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Build Controls -->
+    <div class="build-section">
+        <div class="config-summary">
+            <div class="summary-item">
+                <span class="summary-label">Total Objects:</span>
+                <span class="summary-value" id="summary-total">100,000</span>
+            </div>
+            <div class="summary-item">
+                <span class="summary-label">Satellites:</span>
+                <span class="summary-value" id="summary-sats">80,000</span>
+            </div>
+            <div class="summary-item">
+                <span class="summary-label">Debris:</span>
+                <span class="summary-value" id="summary-debris">20,000</span>
+            </div>
+        </div>
+        
+        <button id="build-simulation-btn" class="build-btn">
+            BUILD SIMULATION
+        </button>
+        
+        <button id="reset-config-btn" class="reset-btn">
+            RESET TO DEFAULTS
+        </button>
+    </div>
+</div>
+
+<style>
+.config-section {
+    margin-bottom: 30px;
+    padding: 20px;
+    background: rgba(0,0,0,0.5);
+    border: 1px solid rgba(255,0,0,0.2);
+    border-radius: 8px;
+}
+
+.config-section h3 {
+    color: #ff0000;
+    font-size: 14px;
+    margin-bottom: 20px;
+    font-family: 'Orbitron', monospace;
+    letter-spacing: 2px;
+}
+
+.preset-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+}
+
+.preset-btn {
+    background: rgba(255,0,0,0.1);
+    border: 1px solid rgba(255,0,0,0.3);
+    padding: 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.preset-btn:hover {
+    background: rgba(255,0,0,0.2);
+    border-color: #ff0000;
+    transform: translateY(-2px);
+}
+
+.preset-icon {
+    font-size: 32px;
+    margin-bottom: 10px;
+}
+
+.preset-name {
+    color: #ff0000;
+    font-size: 12px;
+    font-weight: bold;
+    margin-bottom: 5px;
+    font-family: 'Orbitron', monospace;
+}
+
+.preset-info {
+    color: #999;
+    font-size: 11px;
+}
+
+.scale-options {
+    display: flex;
+    gap: 10px;
+}
+
+.scale-btn {
+    flex: 1;
+    padding: 15px;
+    background: rgba(255,0,0,0.1);
+    border: 1px solid rgba(255,0,0,0.3);
+    color: #999;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.3s;
+    font-family: 'Orbitron', monospace;
+}
+
+.scale-btn:hover {
+    background: rgba(255,0,0,0.2);
+    color: #ff0000;
+}
+
+.scale-btn.active {
+    background: rgba(255,0,0,0.3);
+    border-color: #ff0000;
+    color: #ff0000;
+}
+
+.config-group {
+    margin-bottom: 25px;
+}
+
+.config-group > label {
+    display: block;
+    color: #ff0000;
+    font-size: 12px;
+    margin-bottom: 15px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.distribution-controls,
+.orbital-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.dist-item,
+.orbit-item {
+    display: grid;
+    grid-template-columns: 150px 1fr 60px;
+    align-items: center;
+    gap: 15px;
+}
+
+.dist-item label,
+.orbit-item label {
+    color: #999;
+    font-size: 12px;
+}
+
+input[type="range"] {
+    width: 100%;
+    height: 4px;
+    background: rgba(255,0,0,0.2);
+    outline: none;
+    -webkit-appearance: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    background: #ff0000;
+    cursor: pointer;
+    border-radius: 50%;
+}
+
+.dist-value,
+.orbit-value {
+    color: #ff0000;
+    font-size: 12px;
+    font-weight: bold;
+    text-align: right;
+    font-family: 'Orbitron', monospace;
+}
+
+#total-objects-value {
+    color: #ff0000;
+    font-size: 14px;
+    font-weight: bold;
+    margin-left: 15px;
+    font-family: 'Orbitron', monospace;
+}
+
+.total-indicator {
+    text-align: right;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,0,0,0.2);
+    color: #999;
+    font-size: 12px;
+}
+
+#orbit-total {
+    color: #ff0000;
+    font-weight: bold;
+    font-family: 'Orbitron', monospace;
+}
+
+.advanced-options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    color: #999;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.checkbox-label input {
+    margin-right: 10px;
+}
+
+.build-section {
+    padding: 30px;
+    background: rgba(0,0,0,0.7);
+    border: 2px solid rgba(255,0,0,0.3);
+    border-radius: 8px;
+}
+
+.config-summary {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 25px;
+    padding-bottom: 25px;
+    border-bottom: 1px solid rgba(255,0,0,0.2);
+}
+
+.summary-item {
+    text-align: center;
+}
+
+.summary-label {
+    display: block;
+    color: #666;
+    font-size: 11px;
+    margin-bottom: 5px;
+    text-transform: uppercase;
+}
+
+.summary-value {
+    display: block;
+    color: #ff0000;
+    font-size: 24px;
+    font-weight: bold;
+    font-family: 'Orbitron', monospace;
+}
+
+.build-btn {
+    width: 100%;
+    padding: 20px;
+    background: linear-gradient(135deg, #ff0000, #ff3333);
+    border: none;
+    color: #fff;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    border-radius: 8px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-family: 'Orbitron', monospace;
+    transition: all 0.3s;
+    margin-bottom: 10px;
+}
+
+.build-btn:hover {
+    background: linear-gradient(135deg, #ff3333, #ff6666);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px rgba(255,0,0,0.3);
+}
+
+.reset-btn {
+    width: 100%;
+    padding: 15px;
+    background: transparent;
+    border: 1px solid rgba(255,0,0,0.3);
+    color: #999;
+    font-size: 12px;
+    cursor: pointer;
+    border-radius: 6px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-family: 'Orbitron', monospace;
+    transition: all 0.3s;
+}
+
+.reset-btn:hover {
+    border-color: #ff0000;
+    color: #ff0000;
+}
+</style>

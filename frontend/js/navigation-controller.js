@@ -9,6 +9,9 @@ export function initNavigationController() {
     const collapseBtn = document.getElementById('nav-collapse-btn');
     const topHeader = document.getElementById('top-header');
     const dashboard = document.getElementById('red-orbit-dashboard');
+    const fullscreenBtn = document.getElementById('fullscreen-toggle-btn');
+    
+    let isFullscreen = false;
     
     // Create and expose navigation controller for other modules
     window.navigationController = {
@@ -26,6 +29,69 @@ export function initNavigationController() {
         { id: 'settings', iconPath: 'assets/support.svg', label: 'Settings', color: '#666666' }
     ];
     
+    // Initialize fullscreen toggle
+    if (fullscreenBtn) {
+        fullscreenBtn.addEventListener('click', () => {
+            isFullscreen = !isFullscreen;
+            
+            if (isFullscreen) {
+                // Hide navigation and header for fullscreen
+                if (navSidebar) navSidebar.style.display = 'none';
+                if (topHeader) topHeader.style.display = 'none';
+                if (mainContent) {
+                    mainContent.style.left = '0';
+                    mainContent.style.top = '0';
+                }
+                if (collapseBtn) collapseBtn.style.display = 'none';
+                
+                // Change icon to exit fullscreen
+                fullscreenBtn.style.position = 'fixed';
+                fullscreenBtn.style.left = '20px';
+                fullscreenBtn.style.top = '20px';
+                fullscreenBtn.style.zIndex = '10000';
+                fullscreenBtn.style.background = 'rgba(0,0,0,0.8)';
+                fullscreenBtn.innerHTML = `
+                    <svg style="width: 16px; height: 16px; fill: #ff0000;" viewBox="0 0 24 24">
+                        <path d="M14,14H19V16H16V19H14V14M5,14H10V19H8V16H5V14M8,5H10V10H5V8H8V5M19,8V10H14V5H16V8H19Z"/>
+                    </svg>
+                `;
+                
+                if (window.showNotification) {
+                    window.showNotification('Fullscreen Mode - Press ESC or click button to exit', 'info');
+                }
+            } else {
+                // Restore navigation and header
+                if (navSidebar) navSidebar.style.display = '';
+                if (topHeader) topHeader.style.display = '';
+                if (mainContent) {
+                    mainContent.style.left = '280px';
+                    mainContent.style.top = '50px';
+                }
+                if (collapseBtn) collapseBtn.style.display = '';
+                
+                // Restore button position
+                fullscreenBtn.style.position = 'absolute';
+                fullscreenBtn.style.left = '20px';
+                fullscreenBtn.style.top = '';
+                fullscreenBtn.style.zIndex = '1001';
+                fullscreenBtn.style.background = 'rgba(255,0,0,0.1)';
+                fullscreenBtn.innerHTML = `
+                    <svg style="width: 16px; height: 16px; fill: #ff0000;" viewBox="0 0 24 24">
+                        <path d="M5,5H10V7H7V10H5V5M14,5H19V10H17V7H14V5M17,14H19V19H14V17H17V14M10,17V19H5V14H7V17H10Z"/>
+                    </svg>
+                `;
+            }
+        });
+        
+        // Add ESC keyboard shortcut for exiting fullscreen
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && isFullscreen) {
+                e.preventDefault();
+                fullscreenBtn.click();
+            }
+        });
+    }
+    
     // Initialize collapse/expand functionality
     if (collapseBtn && navSidebar && mainContent) {
         collapseBtn.addEventListener('click', () => {
@@ -36,50 +102,116 @@ export function initNavigationController() {
                 navSidebar.style.width = '280px';
                 navSidebar.style.overflow = 'hidden';
                 mainContent.style.left = '280px';
-                // Show labels
+                
+                // Adjust header for expanded state
+                if (topHeader) {
+                    const logoContainer = topHeader.querySelector('div[style*="margin-left: 50px"]');
+                    if (logoContainer) {
+                        logoContainer.style.opacity = '1';
+                        logoContainer.style.visibility = 'visible';
+                    }
+                }
+                
+                // Show labels and headers
                 document.querySelectorAll('.nav-label').forEach(label => {
                     label.style.display = '';
+                    label.style.opacity = '1';
                 });
                 document.querySelectorAll('.nav-section-header').forEach(header => {
                     header.style.display = 'block';
+                    header.style.opacity = '1';
                 });
+                
+                // Show expand icons
+                document.querySelectorAll('.expand-icon').forEach(icon => {
+                    icon.style.display = '';
+                });
+                
                 // Adjust user profile
                 const userProfile = document.querySelector('.user-profile');
                 if (userProfile) {
                     userProfile.style.padding = '20px';
                     userProfile.style.justifyContent = 'flex-start';
+                    const userName = userProfile.querySelector('.nav-label');
+                    if (userName) userName.style.display = 'block';
                 }
-                // Adjust nav items
+                
+                // Adjust nav items and sub-items
                 document.querySelectorAll('.nav-item').forEach(item => {
                     item.style.padding = '12px 20px';
                     item.style.justifyContent = 'flex-start';
                 });
+                document.querySelectorAll('.nav-subitem').forEach(item => {
+                    item.style.padding = '10px 20px 10px 45px';
+                    item.style.justifyContent = 'flex-start';
+                });
+                
                 collapseBtn.innerHTML = '◀';
                 collapseBtn.style.left = '280px';
             } else {
                 // Collapse
                 navSidebar.classList.add('collapsed');
                 navSidebar.style.width = '70px';
-                navSidebar.style.overflow = 'hidden';
+                navSidebar.style.overflow = 'visible'; // Allow tooltips
                 mainContent.style.left = '70px';
-                // Hide labels
+                
+                // Keep header visible but adjust
+                if (topHeader) {
+                    const logoContainer = topHeader.querySelector('div[style*="margin-left: 50px"]');
+                    if (logoContainer) {
+                        // Hide CyberRTS logo and separator, keep RED ORBIT
+                        const cyberLogo = logoContainer.querySelector('img');
+                        const separator = logoContainer.querySelector('div');
+                        if (cyberLogo) cyberLogo.style.display = 'none';
+                        if (separator) separator.style.display = 'none';
+                    }
+                }
+                
+                // Hide labels with animation
                 document.querySelectorAll('.nav-label').forEach(label => {
                     label.style.display = 'none';
+                    label.style.opacity = '0';
                 });
                 document.querySelectorAll('.nav-section-header').forEach(header => {
                     header.style.display = 'none';
+                    header.style.opacity = '0';
                 });
-                // Center user profile avatar
+                
+                // Hide expand icons
+                document.querySelectorAll('.expand-icon').forEach(icon => {
+                    icon.style.display = 'none';
+                });
+                
+                // Hide sub-items completely in collapsed state
+                document.querySelectorAll('.nav-subitems').forEach(subitems => {
+                    subitems.style.display = 'none';
+                });
+                
+                // Center user profile avatar only
                 const userProfile = document.querySelector('.user-profile');
                 if (userProfile) {
-                    userProfile.style.padding = '10px';
+                    userProfile.style.padding = '15px 10px';
                     userProfile.style.justifyContent = 'center';
+                    const userName = userProfile.querySelector('.nav-label');
+                    if (userName) userName.style.display = 'none';
                 }
+                
                 // Center nav item icons
                 document.querySelectorAll('.nav-item').forEach(item => {
                     item.style.padding = '12px 0';
                     item.style.justifyContent = 'center';
+                    // Add tooltip with title
+                    const label = item.querySelector('.nav-label');
+                    if (label) {
+                        item.title = label.textContent;
+                    }
                 });
+                
+                // Hide sub-items
+                document.querySelectorAll('.nav-subitem').forEach(item => {
+                    item.style.display = 'none';
+                });
+                
                 collapseBtn.innerHTML = '▶';
                 collapseBtn.style.left = '70px';
             }
@@ -107,9 +239,30 @@ export function initNavigationController() {
     
     // Initialize navigation items
     document.querySelectorAll('.nav-item').forEach(item => {
-        item.addEventListener('click', () => {
+        item.addEventListener('click', (e) => {
+            // Handle expandable items (Mission Control)
+            if (item.classList.contains('expandable')) {
+                const subitems = item.nextElementSibling;
+                const expandIcon = item.querySelector('.expand-icon');
+                
+                if (subitems && subitems.classList.contains('nav-subitems')) {
+                    const isExpanded = subitems.style.maxHeight && subitems.style.maxHeight !== '0px';
+                    
+                    if (isExpanded) {
+                        subitems.style.maxHeight = '0px';
+                        if (expandIcon) expandIcon.style.transform = 'rotate(-90deg)';
+                    } else {
+                        subitems.style.maxHeight = '500px';
+                        if (expandIcon) expandIcon.style.transform = 'rotate(0deg)';
+                    }
+                }
+                
+                // Don't process further for expandable items
+                return;
+            }
+            
             // Remove active from all items
-            document.querySelectorAll('.nav-item').forEach(i => {
+            document.querySelectorAll('.nav-item, .nav-subitem').forEach(i => {
                 i.classList.remove('active');
                 i.style.borderLeft = '3px solid transparent';
             });
@@ -120,7 +273,38 @@ export function initNavigationController() {
             
             // Load content based on selection
             const contentId = item.dataset.content;
-            loadContent(contentId);
+            if (contentId) {
+                loadContent(contentId);
+            }
+        });
+    });
+    
+    // Initialize sub-navigation items
+    document.querySelectorAll('.nav-subitem').forEach(item => {
+        item.addEventListener('click', (e) => {
+            e.stopPropagation();
+            
+            // Remove active from all items
+            document.querySelectorAll('.nav-item, .nav-subitem').forEach(i => {
+                i.classList.remove('active');
+                i.style.borderLeft = '3px solid transparent';
+            });
+            
+            // Keep parent Mission Control highlighted
+            const missionControl = document.querySelector('.nav-item[data-content="mission-control"]');
+            if (missionControl) {
+                missionControl.style.borderLeft = '3px solid #ff0000';
+            }
+            
+            // Add active to clicked sub-item
+            item.classList.add('active');
+            item.style.borderLeft = '3px solid #00ccff';
+            
+            // Load content based on selection
+            const contentId = item.dataset.content;
+            if (contentId) {
+                loadContent(contentId);
+            }
         });
     });
     
@@ -133,6 +317,9 @@ function loadContent(contentId) {
     if (!mainContent) return;
     
     switch(contentId) {
+        case 'configuration':
+            loadConfiguration();
+            break;
         case 'mission-control':
             loadMissionControl();
             break;
@@ -157,6 +344,32 @@ function loadContent(contentId) {
     }
 }
 
+async function loadConfiguration() {
+    const mainContent = document.getElementById('main-content');
+    mainContent.style.pointerEvents = 'auto'; // Enable interaction with config panel
+    
+    // Load the configuration template
+    try {
+        const response = await fetch('/templates/simulation-config.html');
+        const html = await response.text();
+        mainContent.innerHTML = html;
+        
+        // Initialize the configuration module
+        const { simulationConfig } = await import('./ui/simulation-config.js');
+        simulationConfig.initialize();
+        
+        console.log('Configuration panel loaded');
+    } catch (error) {
+        console.error('Failed to load configuration panel:', error);
+        mainContent.innerHTML = `
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ff0000; text-align: center;">
+                <h3>Failed to load configuration panel</h3>
+                <p style="color: #999;">${error.message}</p>
+            </div>
+        `;
+    }
+}
+
 function loadMissionControl() {
     const mainContent = document.getElementById('main-content');
     mainContent.style.pointerEvents = 'none'; // Allow camera control through the content area
@@ -170,8 +383,10 @@ function loadMissionControl() {
             <div style="margin-bottom: 15px; padding: 10px; background: rgba(0,200,255,0.05); border-radius: 6px; border: 1px solid rgba(0,200,255,0.2);">
                 <div style="color: #00ccff; font-size: 11px; margin-bottom: 8px;">SCAN STATUS</div>
                 <div id="scan-status" style="color: #999; font-size: 10px;">Analyzing orbital paths...</div>
-                <div style="margin-top: 8px;">
-                    <button id="refresh-conjunctions" style="padding: 6px 12px; background: linear-gradient(135deg, #0099cc, #00ccff); border: none; border-radius: 4px; color: white; font-size: 10px; cursor: pointer; font-family: 'Orbitron', monospace;">REFRESH SCAN</button>
+                <div style="margin-top: 8px; display: flex; gap: 8px;">
+                    <button id="refresh-conjunctions" style="flex: 1; padding: 6px 12px; background: linear-gradient(135deg, #0099cc, #00ccff); border: none; border-radius: 4px; color: white; font-size: 10px; cursor: pointer; font-family: 'Orbitron', monospace;">REFRESH SCAN</button>
+                    <button id="save-analysis" style="padding: 6px 12px; background: rgba(0,200,255,0.2); border: 1px solid rgba(0,200,255,0.4); border-radius: 4px; color: #00ccff; font-size: 10px; cursor: pointer; font-family: 'Orbitron', monospace;" title="Save Analysis">💾</button>
+                    <button id="export-history" style="padding: 6px 12px; background: rgba(0,200,255,0.2); border: 1px solid rgba(0,200,255,0.4); border-radius: 4px; color: #00ccff; font-size: 10px; cursor: pointer; font-family: 'Orbitron', monospace;" title="Export History">📥</button>
                 </div>
             </div>
             
@@ -788,19 +1003,33 @@ function setupKesslerControls() {
     }
 }
 
+// Import conjunction history
+let conjunctionHistoryModule = null;
+
 // Conjunction monitoring system for nominal state
-function startConjunctionMonitoring() {
+async function startConjunctionMonitoring() {
     console.log('[CONJUNCTION] Starting conjunction analysis monitoring');
+    
+    // Load conjunction history module
+    if (!conjunctionHistoryModule) {
+        try {
+            const module = await import('./ui/conjunction-history.js');
+            conjunctionHistoryModule = module.conjunctionHistory;
+        } catch (error) {
+            console.warn('Failed to load conjunction history module:', error);
+        }
+    }
     
     // Update statistics
     const updateStats = () => {
-        if (window.redOrbitPhysics) {
-            const count = window.redOrbitPhysics.activeObjects || 0;
+        if (window.gpuPhysicsEngine) {
+            // Get active object count from GPU physics
+            const count = window.gpuPhysicsEngine.activeObjects || 0;
             const activeElement = document.getElementById('active-count');
             if (activeElement) activeElement.textContent = count.toLocaleString();
             
-            // Check for debris
-            const debrisCount = window.redOrbitPhysics.debrisCount || 0;
+            // Calculate debris count based on configuration
+            const debrisCount = window.gpuPhysicsEngine.debrisGenerated || 0;
             const debrisElement = document.getElementById('debris-count');
             if (debrisElement) debrisElement.textContent = debrisCount.toLocaleString();
             
@@ -829,26 +1058,51 @@ function startConjunctionMonitoring() {
         const statusElement = document.getElementById('scan-status');
         if (!statusElement) return;
         
-        if (!window.redOrbitPhysics || !window.redOrbitPhysics.analyzeConjunctions) {
-            statusElement.textContent = 'Physics system not ready';
+        if (!window.gpuPhysicsEngine || !window.gpuPhysicsEngine.analyzeConjunctions) {
+            statusElement.textContent = 'GPU physics initializing...';
             return;
         }
         
         statusElement.textContent = 'Scanning for conjunctions...';
         
         try {
-            // Get potential conjunctions
-            const conjunctions = await window.redOrbitPhysics.analyzeConjunctions(300, 10); // 5 min horizon, 10km threshold
+            // Get potential conjunctions from GPU physics
+            const conjunctions = await window.gpuPhysicsEngine.analyzeConjunctions(300, 10); // 5 min horizon, 10km threshold
             
             const listElement = document.getElementById('conjunction-list');
             if (!listElement) return;
             
             if (conjunctions.length === 0) {
-                listElement.innerHTML = '<div style="color: #666; font-size: 10px; text-align: center; padding: 20px;">No imminent conjunctions detected</div>';
+                // Show history if no active conjunctions
+                let historyHTML = '<div style="color: #666; font-size: 10px; text-align: center; padding: 20px;">No imminent conjunctions detected</div>';
+                
+                if (conjunctionHistoryModule) {
+                    const history = conjunctionHistoryModule.getHistory(5);
+                    if (history.length > 0) {
+                        historyHTML += '<div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(0,200,255,0.2);">';
+                        historyHTML += '<div style="color: #00ccff; font-size: 10px; margin-bottom: 10px;">Recent History:</div>';
+                        history.forEach(h => {
+                            const time = new Date(h.timestamp).toLocaleTimeString();
+                            historyHTML += `<div style="color: #666; font-size: 9px; margin-bottom: 5px;">
+                                ${time} - Objects ${h.object1}/${h.object2} - ${h.minDistance?.toFixed(2)}km
+                            </div>`;
+                        });
+                        historyHTML += '</div>';
+                    }
+                }
+                
+                listElement.innerHTML = historyHTML;
                 statusElement.textContent = 'Scan complete - All clear';
                 const rateElement = document.getElementById('conjunction-rate');
                 if (rateElement) rateElement.textContent = '0';
             } else {
+                // Save conjunctions to history
+                if (conjunctionHistoryModule) {
+                    conjunctions.forEach(conj => {
+                        conjunctionHistoryModule.addConjunction(conj);
+                    });
+                }
+                
                 // Display conjunctions
                 let html = '';
                 conjunctions.forEach((conj, idx) => {
@@ -924,6 +1178,32 @@ function startConjunctionMonitoring() {
     if (refreshBtn) {
         refreshBtn.addEventListener('click', () => {
             analyzeConjunctions();
+        });
+    }
+    
+    // Set up save button
+    const saveBtn = document.getElementById('save-analysis');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', () => {
+            if (conjunctionHistoryModule) {
+                conjunctionHistoryModule.saveAnalysisSnapshot();
+                if (window.showNotification) {
+                    window.showNotification('Analysis saved', 'success');
+                }
+            }
+        });
+    }
+    
+    // Set up export button
+    const exportBtn = document.getElementById('export-history');
+    if (exportBtn) {
+        exportBtn.addEventListener('click', () => {
+            if (conjunctionHistoryModule) {
+                conjunctionHistoryModule.exportHistory();
+                if (window.showNotification) {
+                    window.showNotification('History exported', 'success');
+                }
+            }
         });
     }
     
