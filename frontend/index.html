@@ -96,6 +96,36 @@
         justify-content: center;
         color: #fff;
       }
+      
+      /* Time controls styling */
+      .time-controls-panel {
+        animation: slideDown 0.2s ease-out;
+      }
+      
+      .time-controls-panel.hidden {
+        display: none !important;
+      }
+      
+      @keyframes slideDown {
+        from {
+          opacity: 0;
+          transform: translateY(-10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      
+      .time-btn:hover {
+        background: rgba(255,0,0,0.4) !important;
+        transform: scale(1.05);
+      }
+      
+      #current-time:hover {
+        background: rgba(255,0,0,0.1);
+        border-radius: 4px;
+      }
 
     </style>
 </head>
@@ -109,26 +139,6 @@
         <!-- Control Dock Removed -->
         
         <!-- CyberRTS Logo removed - now in header -->
-        
-        <!-- Floating Time Display -->
-        <div id="time-display" class="floating-display" style="position:absolute; top:24px; left:50%; transform:translateX(-50%); z-index:3000; min-width:220px; text-align:center;">
-            <div id="current-time" style="font-size:1.18em; font-weight:600; letter-spacing:0.04em; color:#ff0000; background:rgba(40,0,0,0.92); border-radius:8px; padding:0.5em 1.2em; box-shadow:0 2px 12px #ff000033; border:1px solid #ff0000; display:inline-block; cursor:pointer;">
-                00:00:00 UTC
-            </div>
-            <div id="time-controls" class="time-controls-panel hidden" style="margin-top:8px;">
-                <button class="time-btn speed-btn" data-mult="0.25">0.25x</button>
-                <button class="time-btn speed-btn" data-mult="0.5">0.5x</button>
-                <button class="time-btn speed-btn" data-mult="1">1x</button>
-                <button class="time-btn speed-btn" data-mult="2">2x</button>
-                <button class="time-btn speed-btn" data-mult="4">4x</button>
-            </div>
-        </div>
-        
-        <!-- Speed Mode Toggle -->
-        <div id="speed-mode-toggle" style="position:absolute; top:70px; left:50%; transform:translateX(-50%); z-index:3000; display:flex; gap:5px; background:rgba(0,0,0,0.8); padding:5px; border-radius:6px; border:1px solid rgba(255,0,0,0.3);">
-            <button id="realtime-mode" style="background:rgba(255,0,0,0.8); color:#ffffff; border:1px solid rgba(255,0,0,0.8); padding:6px 12px; border-radius:4px; cursor:pointer; font-size:11px; font-family:'Orbitron',monospace; font-weight:600;">REAL TIME</button>
-            <button id="fast-mode" style="background:rgba(255,0,0,0.2); color:#ff0000; border:1px solid rgba(255,0,0,0.4); padding:6px 12px; border-radius:4px; cursor:pointer; font-size:11px; font-family:'Orbitron',monospace; font-weight:600;">60X SPEED</button>
-        </div>
         
         <!-- Loading Screen -->
         <div id="loading-screen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 9999; overflow: hidden;">
@@ -147,42 +157,45 @@
         
         <!-- Red Orbit Dashboard Layout -->
         <div id="red-orbit-dashboard" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 100;">
-            <!-- Top Header Bar -->
-            <div id="top-header" style="position: absolute; top: 0; left: 0; right: 0; height: 50px; background: rgba(0,0,0,0.95); border-bottom: 1px solid rgba(255,0,0,0.2); pointer-events: auto; backdrop-filter: blur(10px); display: flex; align-items: center; padding: 0 20px; transition: all 0.3s;">
-                <!-- Fullscreen Toggle Button -->
-                <button id="fullscreen-toggle-btn" style="position: absolute; left: 20px; width: 30px; height: 30px; background: rgba(255,0,0,0.1); border: 1px solid rgba(255,0,0,0.3); border-radius: 4px; color: #ff0000; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: all 0.3s; z-index: 10001; pointer-events: auto;" title="Toggle Fullscreen (ESC to exit)">
-                    <svg style="width: 16px; height: 16px; fill: #ff0000;" viewBox="0 0 24 24">
-                        <path d="M5,5H10V7H7V10H5V5M14,5H19V10H17V7H14V5M17,14H19V19H14V17H17V14M10,17V19H5V14H7V17H10Z"/>
-                    </svg>
-                </button>
-                
-                <!-- Logos on left (with margin for fullscreen button) -->
-                <div style="display: flex; align-items: center; gap: 15px; margin-left: 50px;">
-                    <img src="assets/CyberRTS-Simple-Logo.svg" alt="CyberRTS" style="height: 35px; opacity: 0.8;">
-                    <div style="width: 1px; height: 25px; background: rgba(255,255,255,0.2);"></div>
-                    <h1 style="color: #ff0000; font-size: 16px; font-weight: bold; margin: 0; font-family: 'Orbitron', monospace; letter-spacing: 2px;">RED ORBIT</h1>
+            <!-- Logo and Title (Top Left) -->
+            <div id="logo-container" style="position: absolute; top: 20px; left: 20px; display: flex; align-items: center; gap: 15px; pointer-events: auto; z-index: 1000;">
+                <img src="assets/CyberRTS-Simple-Logo.svg" alt="CyberRTS" style="height: 40px; opacity: 0.9;">
+                <div style="width: 1px; height: 30px; background: rgba(255,255,255,0.3);"></div>
+                <h1 style="color: #ff0000; font-size: 18px; font-weight: bold; margin: 0; font-family: 'Orbitron', monospace; letter-spacing: 2px; text-shadow: 0 0 10px rgba(255,0,0,0.5);">RED ORBIT</h1>
+            </div>
+            
+            <!-- Time Display (Top Center) -->
+            <div id="time-display" style="position: absolute; top: 24px; left: 50%; transform: translateX(-50%); text-align: center; pointer-events: auto;">
+                <div id="current-time" style="font-size: 1.18em; font-weight: 600; letter-spacing: 0.04em; color: #ff0000; background: rgba(40,0,0,0.92); border-radius: 8px; padding: 0.5em 1.2em; box-shadow: 0 2px 12px #ff000033; border: 1px solid #ff0000; display: inline-block; cursor: pointer;">
+                    <span id="time-text">00:00:00 UTC</span>
                 </div>
-                
-                <!-- Mission Status Only (stats moved to bottom panels) -->
-                <div id="mission-stats" style="margin-left: auto; display: flex; gap: 30px; align-items: center;">
-                    <div style="text-align: center;">
-                        <div style="color: #666; font-size: 9px; text-transform: uppercase;">Status</div>
-                        <div style="color: #00ff00; font-size: 16px; font-weight: bold; font-family: 'Orbitron', monospace;">NOMINAL</div>
-                    </div>
-                    <div style="width: 1px; height: 25px; background: rgba(255,255,255,0.2); margin: 0 10px;"></div>
-                    <div style="color: #ff0000; font-size: 10px; font-family: 'Orbitron', monospace; text-transform: uppercase; letter-spacing: 1px;">
-                        <span id="live-indicator" style="display: inline-block; width: 6px; height: 6px; background: #ff0000; border-radius: 50%; margin-right: 5px; animation: pulse 2s infinite;"></span>
-                        LIVE
-                    </div>
+                <div id="time-controls" class="time-controls-panel hidden" style="position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 8px; background: rgba(0,0,0,0.95); border: 1px solid rgba(255,0,0,0.3); border-radius: 6px; padding: 8px; display: flex; gap: 5px; justify-content: center; min-width: 200px; z-index: 10002;">
+                    <button class="time-btn speed-btn" data-mult="1" style="background: rgba(255,0,0,0.2); color: #ff0000; border: 1px solid rgba(255,0,0,0.4); padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 11px; font-family: 'Orbitron', monospace; font-weight: 600; transition: all 0.2s;">1X</button>
+                    <button class="time-btn speed-btn" data-mult="60" style="background: rgba(255,0,0,0.2); color: #ff0000; border: 1px solid rgba(255,0,0,0.4); padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 11px; font-family: 'Orbitron', monospace; font-weight: 600; transition: all 0.2s;">60X</button>
+                    <button class="time-btn speed-btn" data-mult="600" style="background: rgba(255,0,0,0.2); color: #ff0000; border: 1px solid rgba(255,0,0,0.4); padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 11px; font-family: 'Orbitron', monospace; font-weight: 600; transition: all 0.2s;">600X</button>
+                    <button class="time-btn speed-btn" data-mult="3600" style="background: rgba(255,0,0,0.2); color: #ff0000; border: 1px solid rgba(255,0,0,0.4); padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 11px; font-family: 'Orbitron', monospace; font-weight: 600; transition: all 0.2s;">3600X</button>
+                </div>
+            </div>
+            
+            <!-- Mission Status (Top Right) -->
+            <div id="mission-stats" style="position: absolute; top: 25px; right: 20px; display: flex; gap: 20px; align-items: center; pointer-events: auto; z-index: 1000;">
+                <div style="text-align: center;">
+                    <div style="color: #666; font-size: 10px; text-transform: uppercase;">Status</div>
+                    <div style="color: #00ff00; font-size: 18px; font-weight: bold; font-family: 'Orbitron', monospace; text-shadow: 0 0 8px rgba(0,255,0,0.5);">NOMINAL</div>
+                </div>
+                <div style="width: 1px; height: 30px; background: rgba(255,255,255,0.2);"></div>
+                <div style="color: #ff0000; font-size: 12px; font-family: 'Orbitron', monospace; text-transform: uppercase; letter-spacing: 1px;">
+                    <span id="live-indicator" style="display: inline-block; width: 8px; height: 8px; background: #ff0000; border-radius: 50%; margin-right: 5px; animation: pulse 2s infinite;"></span>
+                    LIVE
                 </div>
             </div>
             
             <!-- Left Navigation Sidebar -->
-            <div id="nav-sidebar" style="position: absolute; top: 50px; left: 0; width: 280px; bottom: 0; background: rgba(0,0,0,0.95); border-right: 1px solid rgba(255,0,0,0.2); pointer-events: auto; overflow: hidden; backdrop-filter: blur(10px); transition: all 0.3s;">
+            <div id="nav-sidebar" style="position: absolute; top: 0; left: 0; width: 280px; bottom: 0; background: rgba(0,0,0,0.95); border-right: 1px solid rgba(255,0,0,0.2); pointer-events: auto; overflow: hidden; backdrop-filter: blur(10px); transition: all 0.3s;">
                 <button id="nav-collapse-btn" style="position: fixed; left: 280px; top: 50%; transform: translateY(-50%); width: 24px; height: 60px; background: rgba(0,0,0,0.9); border: 1px solid rgba(255,0,0,0.3); border-left: none; border-radius: 0 8px 8px 0; color: #ff0000; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; z-index: 10000; transition: all 0.3s; pointer-events: auto;">◀</button>
                 
-                <!-- User Profile Section -->
-                <div class="user-profile" style="padding: 20px; border-bottom: 1px solid rgba(255,0,0,0.2); display: flex; align-items: center; gap: 15px; cursor: pointer; position: relative;" onclick="window.toggleUserProfile(event)">
+                <!-- User Profile Section (moved down to avoid logo overlap) -->
+                <div class="user-profile" style="margin-top: 80px; padding: 20px; border-bottom: 1px solid rgba(255,0,0,0.2); display: flex; align-items: center; gap: 15px; cursor: pointer; position: relative;" onclick="window.toggleUserProfile(event)">
                     <div style="width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, #ff0000, #ff6600); display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; font-size: 18px;">
                         KJ
                     </div>
@@ -341,7 +354,7 @@
             </div>
             
             <!-- Main Content Area -->
-            <div id="main-content" style="position: absolute; top: 50px; left: 280px; right: 0; bottom: 0; pointer-events: none; overflow: visible; transition: all 0.3s;">
+            <div id="main-content" style="position: absolute; top: 0; left: 280px; right: 0; bottom: 0; pointer-events: none; overflow: visible; transition: all 0.3s;">
                 <!-- Content will be loaded here by navigation controller -->
             </div>
             
@@ -380,70 +393,94 @@
         
         // L key handler removed - orbital legend no longer exists
         
-        // Speed mode toggle handlers
+        // Speed control handlers
         document.addEventListener('DOMContentLoaded', function() {
-            const realtimeBtn = document.getElementById('realtime-mode');
-            const fastBtn = document.getElementById('fast-mode');
+            const timeDisplay = document.getElementById('current-time');
+            const timeControls = document.getElementById('time-controls');
+            const speedButtons = document.querySelectorAll('.speed-btn');
             
-            if (realtimeBtn && fastBtn) {
-                // Real-time mode (1x speed)
-                realtimeBtn.addEventListener('click', function() {
-                    // Update visual state
-                    realtimeBtn.style.background = 'rgba(255,0,0,0.8)';
-                    realtimeBtn.style.color = '#ffffff';
-                    fastBtn.style.background = 'rgba(255,0,0,0.2)';
-                    fastBtn.style.color = '#ff0000';
+            // Toggle time controls panel when clicking time display
+            if (timeDisplay) {
+                timeDisplay.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    if (timeControls) {
+                        timeControls.classList.toggle('hidden');
+                    }
+                });
+            }
+            
+            // Handle speed button clicks
+            speedButtons.forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const mult = parseFloat(this.dataset.mult);
                     
-                    // Set simulation speed to 1x
+                    // Update all buttons visual state
+                    speedButtons.forEach(b => {
+                        b.style.background = 'rgba(255,0,0,0.2)';
+                        b.style.color = '#ff0000';
+                    });
+                    
+                    // Highlight active button
+                    this.style.background = 'rgba(255,0,0,0.8)';
+                    this.style.color = '#ffffff';
+                    
+                    // Update simulation speed
                     if (window.simState) {
-                        window.simState.timeMultiplier = 1;
-                        window.simState.lastTimeMultiplier = 1;
+                        window.simState.timeMultiplier = mult;
+                        window.simState.lastTimeMultiplier = mult;
                     }
                     
                     // Update physics engine
                     if (window.redOrbitPhysics) {
-                        window.redOrbitPhysics.physicsTimeMultiplier = 1;
+                        window.redOrbitPhysics.physicsTimeMultiplier = mult;
+                    }
+                    
+                    // Update GPU physics engine if it exists
+                    if (window.gpuPhysicsEngine) {
+                        window.gpuPhysicsEngine.physicsTimeMultiplier = mult;
+                    }
+                    
+                    // Hide controls after selection
+                    if (timeControls) {
+                        setTimeout(() => {
+                            timeControls.classList.add('hidden');
+                        }, 300);
                     }
                     
                     // Show notification
                     if (window.showNotification) {
-                        window.showNotification('REAL-TIME MODE ACTIVATED', 'info');
+                        const message = mult === 1 ? 'REAL-TIME MODE' : `${mult}X SPEED MODE`;
+                        window.showNotification(message, 'info');
                     }
                 });
-                
-                // 60x speed mode
-                fastBtn.addEventListener('click', function() {
-                    // Update visual state
-                    fastBtn.style.background = 'rgba(255,0,0,0.8)';
-                    fastBtn.style.color = '#ffffff';
-                    realtimeBtn.style.background = 'rgba(255,0,0,0.2)';
-                    realtimeBtn.style.color = '#ff0000';
-                    
-                    // Set simulation speed to 60x
-                    if (window.simState) {
-                        window.simState.timeMultiplier = 60;
-                        window.simState.lastTimeMultiplier = 60;
-                    }
-                    
-                    // Update physics engine
-                    if (window.redOrbitPhysics) {
-                        window.redOrbitPhysics.physicsTimeMultiplier = 60;
-                    }
-                    
-                    // Show notification
-                    if (window.showNotification) {
-                        window.showNotification('60X SPEED MODE ACTIVATED', 'info');
-                    }
-                });
-                
-                // Add keyboard shortcuts
-                document.addEventListener('keydown', function(e) {
-                    if (e.key === 'r' || e.key === 'R') {
-                        realtimeBtn.click();
-                    } else if (e.key === 'f' || e.key === 'F') {
-                        fastBtn.click();
-                    }
-                });
+            });
+            
+            // Close time controls when clicking outside
+            document.addEventListener('click', function(e) {
+                if (timeControls && !timeControls.contains(e.target) && !timeDisplay.contains(e.target)) {
+                    timeControls.classList.add('hidden');
+                }
+            });
+            
+            // Keyboard shortcuts
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'r' || e.key === 'R') {
+                    // Real-time mode
+                    const realtimeBtn = document.querySelector('.speed-btn[data-mult="1"]');
+                    if (realtimeBtn) realtimeBtn.click();
+                } else if (e.key === 'f' || e.key === 'F') {
+                    // Fast mode (60x)
+                    const fastBtn = document.querySelector('.speed-btn[data-mult="60"]');
+                    if (fastBtn) fastBtn.click();
+                }
+            });
+            
+            // Set initial state to real-time
+            const initialBtn = document.querySelector('.speed-btn[data-mult="1"]');
+            if (initialBtn) {
+                initialBtn.style.background = 'rgba(255,0,0,0.8)';
+                initialBtn.style.color = '#ffffff';
             }
             
             // Navigation and profile functionality initialized in app.js

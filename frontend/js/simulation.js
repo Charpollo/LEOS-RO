@@ -86,7 +86,7 @@ export function startSimulationLoop(scene, satelliteData, orbitalElements, simul
 }
 
 export function updateTimeDisplay(simulationTime) {
-    const el = document.getElementById('current-time');
+    const el = document.getElementById('time-text');
     if (!el) return;
     
     // Safety check for null or undefined simulationTime

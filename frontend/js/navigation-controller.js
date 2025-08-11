@@ -7,9 +7,7 @@ export function initNavigationController() {
     const navSidebar = document.getElementById('nav-sidebar');
     const mainContent = document.getElementById('main-content');
     const collapseBtn = document.getElementById('nav-collapse-btn');
-    const topHeader = document.getElementById('top-header');
     const dashboard = document.getElementById('red-orbit-dashboard');
-    const fullscreenBtn = document.getElementById('fullscreen-toggle-btn');
     
     let isFullscreen = false;
     
@@ -29,68 +27,7 @@ export function initNavigationController() {
         { id: 'settings', iconPath: 'assets/support.svg', label: 'Settings', color: '#666666' }
     ];
     
-    // Initialize fullscreen toggle
-    if (fullscreenBtn) {
-        fullscreenBtn.addEventListener('click', () => {
-            isFullscreen = !isFullscreen;
-            
-            if (isFullscreen) {
-                // Hide navigation and header for fullscreen
-                if (navSidebar) navSidebar.style.display = 'none';
-                if (topHeader) topHeader.style.display = 'none';
-                if (mainContent) {
-                    mainContent.style.left = '0';
-                    mainContent.style.top = '0';
-                }
-                if (collapseBtn) collapseBtn.style.display = 'none';
-                
-                // Change icon to exit fullscreen
-                fullscreenBtn.style.position = 'fixed';
-                fullscreenBtn.style.left = '20px';
-                fullscreenBtn.style.top = '20px';
-                fullscreenBtn.style.zIndex = '10000';
-                fullscreenBtn.style.background = 'rgba(0,0,0,0.8)';
-                fullscreenBtn.innerHTML = `
-                    <svg style="width: 16px; height: 16px; fill: #ff0000;" viewBox="0 0 24 24">
-                        <path d="M14,14H19V16H16V19H14V14M5,14H10V19H8V16H5V14M8,5H10V10H5V8H8V5M19,8V10H14V5H16V8H19Z"/>
-                    </svg>
-                `;
-                
-                if (window.showNotification) {
-                    window.showNotification('Fullscreen Mode - Press ESC or click button to exit', 'info');
-                }
-            } else {
-                // Restore navigation and header
-                if (navSidebar) navSidebar.style.display = '';
-                if (topHeader) topHeader.style.display = '';
-                if (mainContent) {
-                    mainContent.style.left = '280px';
-                    mainContent.style.top = '50px';
-                }
-                if (collapseBtn) collapseBtn.style.display = '';
-                
-                // Restore button position
-                fullscreenBtn.style.position = 'absolute';
-                fullscreenBtn.style.left = '20px';
-                fullscreenBtn.style.top = '';
-                fullscreenBtn.style.zIndex = '1001';
-                fullscreenBtn.style.background = 'rgba(255,0,0,0.1)';
-                fullscreenBtn.innerHTML = `
-                    <svg style="width: 16px; height: 16px; fill: #ff0000;" viewBox="0 0 24 24">
-                        <path d="M5,5H10V7H7V10H5V5M14,5H19V10H17V7H14V5M17,14H19V19H14V17H17V14M10,17V19H5V14H7V17H10Z"/>
-                    </svg>
-                `;
-            }
-        });
-        
-        // Add ESC keyboard shortcut for exiting fullscreen
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && isFullscreen) {
-                e.preventDefault();
-                fullscreenBtn.click();
-            }
-        });
-    }
+    // Fullscreen functionality removed since button is gone
     
     // Initialize collapse/expand functionality
     if (collapseBtn && navSidebar && mainContent) {
@@ -102,15 +39,6 @@ export function initNavigationController() {
                 navSidebar.style.width = '280px';
                 navSidebar.style.overflow = 'hidden';
                 mainContent.style.left = '280px';
-                
-                // Adjust header for expanded state
-                if (topHeader) {
-                    const logoContainer = topHeader.querySelector('div[style*="margin-left: 50px"]');
-                    if (logoContainer) {
-                        logoContainer.style.opacity = '1';
-                        logoContainer.style.visibility = 'visible';
-                    }
-                }
                 
                 // Show labels and headers
                 document.querySelectorAll('.nav-label').forEach(label => {
@@ -154,18 +82,6 @@ export function initNavigationController() {
                 navSidebar.style.width = '70px';
                 navSidebar.style.overflow = 'visible'; // Allow tooltips
                 mainContent.style.left = '70px';
-                
-                // Keep header visible but adjust
-                if (topHeader) {
-                    const logoContainer = topHeader.querySelector('div[style*="margin-left: 50px"]');
-                    if (logoContainer) {
-                        // Hide CyberRTS logo and separator, keep RED ORBIT
-                        const cyberLogo = logoContainer.querySelector('img');
-                        const separator = logoContainer.querySelector('div');
-                        if (cyberLogo) cyberLogo.style.display = 'none';
-                        if (separator) separator.style.display = 'none';
-                    }
-                }
                 
                 // Hide labels with animation
                 document.querySelectorAll('.nav-label').forEach(label => {
