@@ -9,6 +9,12 @@ export function initNavigationController() {
     const collapseBtn = document.getElementById('nav-collapse-btn');
     const dashboard = document.getElementById('red-orbit-dashboard');
     
+    // Debug logging
+    console.log('[Navigation] Initializing navigation controller');
+    console.log('[Navigation] Collapse button found:', !!collapseBtn);
+    console.log('[Navigation] Nav sidebar found:', !!navSidebar);
+    console.log('[Navigation] Main content found:', !!mainContent);
+    
     let isFullscreen = false;
     
     // Create and expose navigation controller for other modules
@@ -116,11 +122,6 @@ export function initNavigationController() {
                 document.querySelectorAll('.nav-item').forEach(item => {
                     item.style.padding = '12px 0';
                     item.style.justifyContent = 'center';
-                    // Add tooltip with title
-                    const label = item.querySelector('.nav-label');
-                    if (label) {
-                        item.title = label.textContent;
-                    }
                 });
                 
                 // Hide sub-items
@@ -301,8 +302,8 @@ function loadMissionControl() {
                 <div id="scan-status" style="color: #999; font-size: 10px;">Analyzing orbital paths...</div>
                 <div style="margin-top: 8px; display: flex; gap: 8px;">
                     <button id="refresh-conjunctions" style="flex: 1; padding: 6px 12px; background: linear-gradient(135deg, #0099cc, #00ccff); border: none; border-radius: 4px; color: white; font-size: 10px; cursor: pointer; font-family: 'Orbitron', monospace;">REFRESH SCAN</button>
-                    <button id="save-analysis" style="padding: 6px 12px; background: rgba(0,200,255,0.2); border: 1px solid rgba(0,200,255,0.4); border-radius: 4px; color: #00ccff; font-size: 10px; cursor: pointer; font-family: 'Orbitron', monospace;" title="Save Analysis">💾</button>
-                    <button id="export-history" style="padding: 6px 12px; background: rgba(0,200,255,0.2); border: 1px solid rgba(0,200,255,0.4); border-radius: 4px; color: #00ccff; font-size: 10px; cursor: pointer; font-family: 'Orbitron', monospace;" title="Export History">📥</button>
+                    <button id="save-analysis" style="padding: 6px 12px; background: rgba(0,200,255,0.2); border: 1px solid rgba(0,200,255,0.4); border-radius: 4px; color: #00ccff; font-size: 10px; cursor: pointer; font-family: 'Orbitron', monospace; text-transform: uppercase; letter-spacing: 1px;">Save</button>
+                    <button id="export-history" style="padding: 6px 12px; background: rgba(0,200,255,0.2); border: 1px solid rgba(0,200,255,0.4); border-radius: 4px; color: #00ccff; font-size: 10px; cursor: pointer; font-family: 'Orbitron', monospace; text-transform: uppercase; letter-spacing: 1px;">Export</button>
                 </div>
             </div>
             
@@ -1144,9 +1145,4 @@ document.addEventListener('keydown', (event) => {
     }
 });
 
-// Auto-initialize when DOM is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initNavigationController);
-} else {
-    initNavigationController();
-}
+// Initialization is handled by app.js, not auto-initialized here

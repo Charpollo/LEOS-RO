@@ -38,6 +38,10 @@ import { createPhysicsEngine, PHYSICS_CONFIG } from './red-orbit/physics/physics
 import { AdvancedKesslerSystem } from './red-orbit/kessler-advanced.js';
 import { KesslerUI } from './red-orbit/kessler-ui.js';
 
+// Import engineering panel and conjunction history
+import { engineeringPanel } from './ui/engineering-panel.js';
+import { conjunctionHistory } from './ui/conjunction-history.js';
+
 // Globals
 let engine;
 let scene;
@@ -1842,7 +1846,12 @@ function restoreAllMinimizedPanels() {
  * @param {string} message - The message to display
  * @param {number} duration - Time in milliseconds to show the notification (default: 3000ms)
  */
-function showNotification(message, duration = 3000) {
+function showNotification(message, type = 'info', duration = 3000) {
+    // Support both old (message, duration) and new (message, type, duration) signatures
+    if (typeof type === 'number') {
+        duration = type;
+        type = 'info';
+    }
     // Create notification element if it doesn't exist
     let notification = document.getElementById('leos-notification');
     if (!notification) {
@@ -2956,6 +2965,19 @@ async function initializeHybridPhysics() {
         window.redOrbitPhysics = redOrbitPhysics;
         window.advancedKessler = advancedKessler;
         window.kesslerUI = kesslerUI;
+        window.kesslerSystem = advancedKessler; // Alias for engineering panel
+        window.gpuPhysicsEngine = redOrbitPhysics; // Alias for engineering panel
+        window.conjunctionHistory = conjunctionHistory;
+        window.engineeringPanel = engineeringPanel;
+        window.showNotification = showNotification; // Expose globally
+        window.engine = engine; // Expose for FPS monitoring
+        
+        // Create simulation config for engineering panel
+        window.simulationConfig = {
+            currentConfig: {
+                distribution: { satellites: 0.3, debris: 0.7 }
+            }
+        };
         
         // Hide the original satellite meshes - physics engine creates its own
         const meshes = getSatelliteMeshes();

@@ -111,10 +111,16 @@ function createCompatibilityWrapper(gpuEngine) {
         debris: new Map(),
         initialized: true,
         physicsTimeMultiplier: 1,
+        activeObjects: gpuEngine.activeObjects,
+        debrisGenerated: 0,
+        workgroupSize: 256,
         
         // Direct methods to GPU engine
         step(deltaTime) {
             gpuEngine.step(deltaTime);
+            // Update our activeObjects count
+            this.activeObjects = gpuEngine.activeObjects;
+            this.debrisGenerated = gpuEngine.debrisGenerated || 0;
         },
         
         update(deltaTime) {
@@ -137,6 +143,19 @@ function createCompatibilityWrapper(gpuEngine) {
         
         getStats() {
             return gpuEngine.getStats();
+        },
+        
+        // Conjunction analysis
+        analyzeConjunctions(timeHorizon, minDistance) {
+            return gpuEngine.analyzeConjunctions(timeHorizon, minDistance);
+        },
+        
+        // Set target object count
+        setTargetObjects(count) {
+            const result = gpuEngine.setTargetObjects(count);
+            // Update our wrapper's activeObjects count
+            wrapper.activeObjects = gpuEngine.activeObjects;
+            return result;
         },
         
         // Compatibility method for creating satellites
