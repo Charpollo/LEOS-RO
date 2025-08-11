@@ -118,25 +118,25 @@ Every single frame (60 FPS), we calculate:
 ## Why This Is Real, Not Fake
 
 ### We DON'T Use:
-- ❌ **TLE/SGP4**: Propagation model with approximations
-- ❌ **Kepler elements**: Just store initial parameters
-- ❌ **Pre-computed orbits**: Everything calculated live
-- ❌ **Simplified physics**: Full Newtonian dynamics
+-  **TLE/SGP4**: Propagation model with approximations
+-  **Kepler elements**: Just store initial parameters
+-  **Pre-computed orbits**: Everything calculated live
+-  **Simplified physics**: Full Newtonian dynamics
 
 ### We DO Use:
-- ✅ **Newton's Law**: F = -GMm/r² calculated every frame
-- ✅ **Vis-viva equation**: v² = μ(2/r - 1/a) for initial velocities
-- ✅ **Euler integration**: Standard physics simulation
-- ✅ **Real constants**: μ = 398,600.4418 km³/s² (exact)
+-  **Newton's Law**: F = -GMm/r² calculated every frame
+-  **Vis-viva equation**: v² = μ(2/r - 1/a) for initial velocities
+-  **Euler integration**: Standard physics simulation
+-  **Real constants**: μ = 398,600.4418 km³/s² (exact)
 
 ## Verification: Our Orbits Match Reality
 
 | Orbit Type | Our Simulation | Real Satellites | Match |
 |------------|---------------|-----------------|-------|
-| **ISS (408km)** | 7.66 km/s | 7.66 km/s | ✅ Exact |
-| **Starlink (550km)** | 7.59 km/s | 7.59 km/s | ✅ Exact |
-| **GPS (20,200km)** | 3.87 km/s | 3.87 km/s | ✅ Exact |
-| **GEO (35,786km)** | 3.07 km/s | 3.07 km/s | ✅ Exact |
+| **ISS (408km)** | 7.66 km/s | 7.66 km/s |  Exact |
+| **Starlink (550km)** | 7.59 km/s | 7.59 km/s |  Exact |
+| **GPS (20,200km)** | 3.87 km/s | 3.87 km/s |  Exact |
+| **GEO (35,786km)** | 3.07 km/s | 3.07 km/s |  Exact |
 
 ## The GPU Shader Code (Actual Implementation)
 
@@ -181,7 +181,7 @@ For 8 million objects at 60 FPS:
 - **Each calculation**: ~10 floating-point operations
 - **Total FLOPS**: 4.8 billion/second
 - **GPU capability**: ~10 TFLOPS (10 trillion/second)
-- **Usage**: 0.048% of GPU capacity ✅
+- **Usage**: 0.048% of GPU capacity 
 
 **We have 2000x headroom for physics calculations!**
 
@@ -218,9 +218,9 @@ We created a test mode with a single satellite at ISS altitude to verify our phy
 After extensive testing at 60x time acceleration:
 ```
 🛰️ ORBITAL TEST Results:
-  Velocity: 7.667-7.675 km/s (expected: 7.66 km/s) ✅
-  Altitude: 402-406 km (stable around 408km) ✅
-  Period: 92.59 min (expected: 92.68 min) ✅
+  Velocity: 7.667-7.675 km/s (expected: 7.66 km/s)
+  Altitude: 402-406 km (stable around 408km) 
+  Period: 92.59 min (expected: 92.68 min) 
 ```
 
 ### What This Proves
@@ -242,10 +242,10 @@ When time multiplier was set to 3600x (1 hour per second), the satellite crashed
 5. GPU computes 480 million calculations/second
 
 **We're NOT lying about:**
-- Using real physics (F = -GMm/r²) ✅ VERIFIED
-- Simulating 8 million objects ✅
-- Running at 40-60 FPS ✅
-- Browser-based with WebGPU ✅
+- Using real physics (F = -GMm/r²)  VERIFIED
+- Simulating 8 million objects 
+- Running at 40-60 FPS 
+- Browser-based with WebGPU 
 
 **We're HONEST about limitations:**
 - Collision detection only samples (<1% coverage)
