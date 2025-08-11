@@ -73,6 +73,14 @@ export async function createPhysicsEngine(scene) {
         initialCount = 1000000;
         console.log('%c🎆 MAXIMUM MODE: 1,000,000 OBJECTS!', 'color: #00ff00; font-size: 20px; font-weight: bold; background: #000; padding: 10px');
         console.log('%c🌍 WORLD\'S FIRST BROWSER-BASED MILLION OBJECT SIMULATOR', 'color: #ffff00; font-size: 16px');
+    } else if (mode === 'test-single') {
+        initialCount = 1;
+        console.log('%c🧪 SINGLE SATELLITE TEST MODE', 'color: #00ff00; font-size: 16px; font-weight: bold');
+        console.log('Testing orbital mechanics with 1 satellite at ISS altitude (408km)');
+    } else if (mode === 'test-collision') {
+        initialCount = 2;
+        console.log('%c💥 COLLISION TEST MODE', 'color: #ff0000; font-size: 16px; font-weight: bold');
+        console.log('Testing collision between satellite and debris');
     }
     
     // Initialize GPU engine
