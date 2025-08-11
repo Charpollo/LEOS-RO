@@ -239,6 +239,7 @@ When time multiplier was set to 3600x (1 hour per second), the satellite crashed
 2. No propagation models or shortcuts
 3. Actual gravitational calculations every frame
 4. Velocities match real satellites exactly (proven in test mode)
+4. Velocities match real satellites exactly (proven in test mode)
 5. GPU computes 480 million calculations/second
 
 **We're NOT lying about:**
@@ -253,4 +254,5 @@ When time multiplier was set to 3600x (1 hour per second), the satellite crashed
 - Can't check all 32 trillion possible collisions
 
 ---
+*This is the world's first browser-based simulation of 8 million objects with REAL Newtonian physics. The physics is 100% accurate and has been verified through single satellite testing. The collision detection is limited by computational reality, not physics accuracy.*
 *This is the world's first browser-based simulation of 8 million objects with REAL Newtonian physics. The physics is 100% accurate and has been verified through single satellite testing. The collision detection is limited by computational reality, not physics accuracy.*

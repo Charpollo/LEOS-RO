@@ -362,12 +362,20 @@ export class GPUPhysicsEngine {
         this.materials = {};
         
         // LEO - Cyan (60% of objects)
+        // Check if test mode - make satellite MUCH larger
+        const urlParams = new URLSearchParams(window.location.search);
+        const isTestMode = urlParams.get('mode') === 'test-single' || urlParams.get('mode') === 'test-collision';
+        const diameter = isTestMode ? 5.0 : 0.005; // 1000x larger in test mode - HUGE for visibility
+        
         this.meshTemplates.LEO = BABYLON.MeshBuilder.CreateSphere('gpuSatLEO', {
-            diameter: 0.005, // Visible but not too large (5km at Earth scale)
-            segments: 3 // Low poly for performance
+            diameter: diameter, // Visible but not too large (5km at Earth scale, 50km in test)
+            segments: isTestMode ? 8 : 3 // Higher quality in test mode
         }, this.scene);
         this.materials.LEO = new BABYLON.StandardMaterial('gpuMatLEO', this.scene);
-        this.materials.LEO.emissiveColor = new BABYLON.Color3(0, 1, 1); // Cyan
+        // Make test satellite bright yellow for visibility
+        this.materials.LEO.emissiveColor = isTestMode ? 
+            new BABYLON.Color3(1, 1, 0) : // Bright yellow in test mode
+            new BABYLON.Color3(0, 1, 1); // Cyan normally
         this.materials.LEO.disableLighting = true;
         this.meshTemplates.LEO.material = this.materials.LEO;
         this.meshTemplates.LEO.thinInstanceEnablePicking = false;
@@ -561,6 +569,10 @@ export class GPUPhysicsEngine {
         const startTime = performance.now();
         this.activeObjects = count;
         
+        // Check for test modes
+        const urlParams = new URLSearchParams(window.location.search);
+        const mode = urlParams.get('mode');
+        
         // Initialize orbit type indices array BEFORE using it
         this.orbitTypeIndices = new Uint8Array(count);
         
@@ -585,7 +597,41 @@ export class GPUPhysicsEngine {
             
             // Determine orbit type and store it
             let altitude, inclination, eccentricity, orbitType;
-            const rand = Math.random();
+            
+            // Special handling for test modes
+            if (mode === 'test-single') {
+                // Single satellite at ISS altitude for orbital verification
+                altitude = 408;  // ISS altitude exactly
+                inclination = 51.6 * Math.PI / 180;  // ISS inclination
+                eccentricity = 0.0001;  // Nearly circular
+                orbitType = 0;  // LEO
+                console.log('📍 Placing satellite at ISS orbit: 408km, 51.6° inclination');
+                console.log('Expected orbital period: 92.68 minutes');
+                console.log('Expected velocity: 7.66 km/s');
+                
+                // Store initial position for tracking
+                window.testSatelliteInitial = {
+                    altitude: altitude,
+                    inclination: inclination,
+                    startTime: performance.now()
+                };
+            } else if (mode === 'test-collision' && i === 0) {
+                // First object: satellite in circular orbit
+                altitude = 500;
+                inclination = 0;  // Equatorial for simplicity
+                eccentricity = 0.0001;
+                orbitType = 0;
+                console.log('🛰️ Satellite placed at 500km equatorial orbit');
+            } else if (mode === 'test-collision' && i === 1) {
+                // Second object: debris on collision course
+                altitude = 500;  // Same altitude
+                inclination = 0.1;  // Slightly different inclination for intersection
+                eccentricity = 0.0001;
+                orbitType = 4;  // Mark as debris
+                console.log('💥 Debris placed on intersecting orbit');
+            } else {
+                // Normal distribution for non-test modes
+                const rand = Math.random();
             
             if (rand < 0.6) { // 60% LEO - REALISTIC DISTRIBUTION WITH EQUATORIAL CONCENTRATION
                 const leoType = Math.random();
@@ -671,6 +717,7 @@ export class GPUPhysicsEngine {
                 orbitType = 4; // DEBRIS (orange, not red collision debris)
                 if (i < this.orbitTypeIndices.length) this.orbitTypeIndices[i] = 4;
             }
+            } // Close the else block for test mode handling
             
             // REAL ORBITAL MECHANICS - NO CHEATING!
             // Calculate semi-major axis from periapsis and eccentricity
@@ -923,6 +970,12 @@ export class GPUPhysicsEngine {
         if (this.activeObjects >= 100000 && this.frameCount % 300 === 0) { // Log every 5 seconds instead of every second
             const fps = 1 / deltaTime;
             console.log(`GPU: ${this.activeObjects.toLocaleString()} objects @ ${fps.toFixed(1)} FPS`);
+        }
+        
+        // Test mode tracking for single satellite
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('mode') === 'test-single' && this.frameCount % 60 === 0) { // Log every second
+            await this.trackTestSatellite();
         }
         
         // Increment frame count
@@ -1388,6 +1441,56 @@ export class GPUPhysicsEngine {
             collisionCount: this.collisionCount,
             debrisGenerated: this.debrisGenerated
         };
+    }
+    
+    async trackTestSatellite() {
+        // Read position and velocity of our test satellite
+        const commandEncoder = this.device.createCommandEncoder();
+        const readBuffer = this.device.createBuffer({
+            size: 32, // Just read first object (8 floats × 4 bytes)
+            usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
+        });
+        
+        commandEncoder.copyBufferToBuffer(this.stateBuffer, 0, readBuffer, 0, 32);
+        this.device.queue.submit([commandEncoder.finish()]);
+        
+        await readBuffer.mapAsync(GPUMapMode.READ);
+        const data = new Float32Array(readBuffer.getMappedRange());
+        
+        const x = data[0];
+        const y = data[1];
+        const z = data[2];
+        const vx = data[3];
+        const vy = data[4];
+        const vz = data[5];
+        
+        // Calculate orbital parameters
+        const r = Math.sqrt(x*x + y*y + z*z);
+        const v = Math.sqrt(vx*vx + vy*vy + vz*vz);
+        const altitude = r - this.EARTH_RADIUS;
+        
+        // Calculate orbital period using vis-viva
+        const a = 1 / (2/r - v*v/this.EARTH_MU); // Semi-major axis
+        const period = 2 * Math.PI * Math.sqrt(a*a*a / this.EARTH_MU) / 60; // In minutes
+        
+        // Track if satellite completed orbit
+        const elapsedTime = (performance.now() - window.testSatelliteInitial.startTime) / 1000 / 60; // Minutes
+        
+        console.log(`🛰️ ORBITAL TEST at T+${elapsedTime.toFixed(1)} min:`);
+        console.log(`  Position: r=${r.toFixed(1)}km, alt=${altitude.toFixed(1)}km`);
+        console.log(`  Velocity: ${v.toFixed(3)} km/s (expected: 7.66 km/s)`);
+        console.log(`  Calculated period: ${period.toFixed(2)} min (expected: 92.68 min)`);
+        console.log(`  Position: (${x.toFixed(1)}, ${y.toFixed(1)}, ${z.toFixed(1)}) km`);
+        
+        // Check if we've completed an orbit
+        if (elapsedTime >= 92.68 && elapsedTime <= 93) {
+            console.log(`✅ ORBIT COMPLETE! Satellite should be near starting position`);
+            console.log(`  Initial altitude: ${window.testSatelliteInitial.altitude}km`);
+            console.log(`  Current altitude: ${altitude.toFixed(1)}km`);
+            console.log(`  Drift: ${Math.abs(altitude - window.testSatelliteInitial.altitude).toFixed(2)}km`);
+        }
+        
+        readBuffer.unmap();
     }
     
     setTimeMultiplier(multiplier) {
