@@ -193,6 +193,44 @@ export class ConjunctionHistory {
         a.click();
         URL.revokeObjectURL(url);
     }
+    
+    /**
+     * Export single conjunction event
+     */
+    exportSingleEvent(eventId) {
+        const event = this.history.find(h => h.id === eventId);
+        if (!event) {
+            console.warn('Event not found:', eventId);
+            return;
+        }
+        
+        const data = {
+            exportDate: new Date().toISOString(),
+            event: event,
+            metadata: {
+                id: event.id,
+                timestamp: event.timestamp,
+                object1: event.object1,
+                object2: event.object2,
+                minDistance: event.minDistance,
+                relativeVelocity: event.relativeVelocity || 'N/A',
+                timeToClosestApproach: event.timeToClosestApproach || 'N/A',
+                status: event.status || 'resolved'
+            }
+        };
+        
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `conjunction_${event.object1}_${event.object2}_${Date.now()}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        if (window.showNotification) {
+            window.showNotification('Conjunction data exported', 'success');
+        }
+    }
 }
 
 // Export singleton instance

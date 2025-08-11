@@ -8,7 +8,7 @@ import { GPUPhysicsEngine } from './gpu-physics-engine.js';
 // Export the PHYSICS_CONFIG - GPU ONLY!
 export const PHYSICS_CONFIG = {
     USE_GPU: true,     // ALWAYS GPU
-    INITIAL_COUNT: 1000000  // Start with 1 MILLION - GO BIG!
+    INITIAL_COUNT: 8000000  // 8 MILLION - Showcasing massive scale with real physics!
 };
 
 /**

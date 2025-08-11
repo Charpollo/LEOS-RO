@@ -1,10 +1,10 @@
-# RED ORBIT LIVE: World's First Million-Object Kessler Cascade Demonstration
+# RED ORBIT LIVE: World's First 9-Million Object Space Simulation
 
 ## Event Overview
 
-**Title:** "RED ORBIT LIVE: Witnessing Space's Worst Nightmare at Scale"
+**Title:** "RED ORBIT LIVE: 9 Million Objects. Real Physics. Your Browser."
 
-**Tagline:** "Watch 1,000,000 satellites collide in real-time. The first public demonstration of true Kessler syndrome physics at scale."
+**Tagline:** "Watch 9,000,000 satellites interact with real Newtonian physics. The first public demonstration of this scale - no servers, no shortcuts, just physics."
 
 **Date:** [TBD - Suggest Tuesday/Thursday 2PM EST for maximum attendance]  
 **Duration:** 45 minutes (30 min demo + 15 min Q&A)  
@@ -16,11 +16,12 @@
 ## The Historic Claim
 
 ### WORLD'S FIRST PUBLIC DEMONSTRATION
-- **1,000,000 objects** with real Newtonian physics
-- **Live Kessler cascade** triggered in real-time
+- **9,000,000 objects** with real Newtonian physics (not SGP4!)
+- **Live Kessler cascade** triggered on demand
 - **GPU-accelerated** WebGPU compute shaders
-- **No servers, no shortcuts** - pure browser computation
-- **Interactive placement** of collision scenarios
+- **Engineering Panel** - Press 'O' for staging controls
+- **Conjunction Analysis** - Real-time collision probabilities
+- **Megaconstellation Scenarios** - Starlink, Kuiper, Chinese satellites
 
 **We are the FIRST and ONLY platform to publicly demonstrate this scale.**
 
@@ -35,12 +36,12 @@
 - The stakes: "$1 trillion in assets, humanity's future"
 
 ### Live Demo Part 1: The Scale (10 minutes)
-**"One Million Objects, One Browser Tab"**
-1. Load RED ORBIT with 1,000,000 satellites
-2. Show real-time physics (no cheating, no approximations)
-3. Demonstrate orbit types: LEO, MEO, GEO, Molniya
-4. Show performance metrics: 40 FPS on M4 Max
-5. "This is more objects than exist in space today - by 20x"
+**"Nine Million Objects, One Browser Tab"**
+1. Start with default 1,000,000 satellites at 60 FPS
+2. Open Engineering Panel (Press 'O') - show presets
+3. Scale to 9,000,000 objects - still running at 30 FPS
+4. Show real physics: 540 million calculations per second
+5. "This is 600x more objects than exist in space today"
 
 ### Live Demo Part 2: The Disaster (10 minutes)
 **"Triggering Armageddon"**

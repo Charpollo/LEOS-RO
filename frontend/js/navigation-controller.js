@@ -294,8 +294,12 @@ function loadMissionControl() {
     // Create conjunction analysis panels for nominal state monitoring
     mainContent.innerHTML = `
         <!-- Conjunction Analysis Panel - MOVED TO BOTTOM RIGHT -->
-        <div id="conjunction-analysis" style="position: absolute; bottom: 20px; right: 20px; width: 350px; background: rgba(0,0,0,0.95); border: 2px solid #00ccff; border-radius: 10px; padding: 20px; backdrop-filter: blur(10px); box-shadow: 0 0 20px rgba(0,200,255,0.3); pointer-events: auto;">
-            <h3 style="color: #00ccff; font-size: 14px; margin-bottom: 15px; font-family: 'Orbitron', monospace; text-transform: uppercase; letter-spacing: 2px;">Conjunction Analysis</h3>
+        <div id="conjunction-analysis" style="position: absolute; bottom: 20px; right: 20px; width: 480px; max-height: 420px; background: rgba(0,0,0,0.95); border: 2px solid #00ccff; border-radius: 10px; padding: 20px; backdrop-filter: blur(10px); box-shadow: 0 0 20px rgba(0,200,255,0.3); pointer-events: auto; transition: all 0.3s ease;">
+            <div id="conjunction-header" style="display: flex; justify-content: space-between; align-items: center; height: 20px;">
+                <h3 style="color: #00ccff; font-size: 14px; margin: 0; font-family: 'Orbitron', monospace; text-transform: uppercase; letter-spacing: 2px; line-height: 20px;">Conjunction Analysis</h3>
+                <button id="toggle-conjunction" style="background: none; border: 1px solid #00ccff; color: #00ccff; width: 24px; height: 24px; border-radius: 4px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">−</button>
+            </div>
+            <div id="conjunction-content" style="margin-top: 15px;">
             
             <div style="margin-bottom: 15px; padding: 10px; background: rgba(0,200,255,0.05); border-radius: 6px; border: 1px solid rgba(0,200,255,0.2);">
                 <div style="color: #00ccff; font-size: 11px; margin-bottom: 8px;">SCAN STATUS</div>
@@ -307,9 +311,10 @@ function loadMissionControl() {
                 </div>
             </div>
             
-            <div id="conjunction-list" style="max-height: 250px; overflow-y: auto;">
+            <div id="conjunction-list" style="min-height: 180px; max-height: 280px; overflow-y: auto; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,200,255,0.2); border-radius: 5px; padding: 10px;">
                 <div style="color: #666; font-size: 10px; text-align: center; padding: 20px;">No imminent conjunctions detected</div>
             </div>
+            </div> <!-- End conjunction-content -->
         </div>
         
         <!-- Near Miss Alert Panel - STAYS TOP RIGHT BUT SMALLER -->
@@ -387,6 +392,42 @@ function loadMissionControl() {
     // Set up conjunction monitoring
     startConjunctionMonitoring();
     
+    // Add toggle functionality for conjunction panel
+    const toggleBtn = document.getElementById('toggle-conjunction');
+    const conjunctionPanel = document.getElementById('conjunction-analysis');
+    const conjunctionContent = document.getElementById('conjunction-content');
+    let isCollapsed = false;
+    
+    if (toggleBtn && conjunctionPanel && conjunctionContent) {
+        toggleBtn.addEventListener('click', () => {
+            isCollapsed = !isCollapsed;
+            if (isCollapsed) {
+                // Collapse panel - clean minimized view
+                conjunctionContent.style.display = 'none';
+                conjunctionPanel.style.maxHeight = '60px';
+                conjunctionPanel.style.minHeight = '60px';
+                conjunctionPanel.style.width = '300px';
+                toggleBtn.textContent = '+';
+                toggleBtn.style.fontSize = '20px';
+            } else {
+                // Expand panel - full view
+                conjunctionContent.style.display = 'block';
+                conjunctionPanel.style.maxHeight = '420px';
+                conjunctionPanel.style.minHeight = 'auto';
+                conjunctionPanel.style.width = '480px';
+                toggleBtn.textContent = '−';
+                toggleBtn.style.fontSize = '16px';
+            }
+        });
+        
+        // Allow keyboard shortcut 'C' to toggle
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'c' || e.key === 'C') {
+                toggleBtn.click();
+            }
+        });
+    }
+    
     // Update header stats to show mission control is active
     const statusElement = document.querySelector('#mission-stats div:last-child div:last-child');
     if (statusElement) {
@@ -412,7 +453,7 @@ function loadKesslerScenario() {
     };
     
     mainContent.innerHTML = `
-        <div style="position: absolute; bottom: 20px; right: 20px; width: 400px; background: rgba(0,0,0,0.95); border: 2px solid #ff0000; border-radius: 10px; padding: 20px; backdrop-filter: blur(10px); box-shadow: 0 0 20px rgba(255,0,0,0.5); pointer-events: auto;">
+        <div style="position: absolute; bottom: 20px; right: 20px; width: 480px; background: rgba(0,0,0,0.95); border: 2px solid #ff0000; border-radius: 10px; padding: 20px; backdrop-filter: blur(10px); box-shadow: 0 0 20px rgba(255,0,0,0.5); pointer-events: auto;">
             <h3 style="color: #ff0000; font-size: 16px; margin-bottom: 20px; font-family: 'Orbitron', monospace; text-align: center; text-transform: uppercase; letter-spacing: 2px;">Kessler Cascade Control</h3>
             
             <div id="kessler-status" style="margin-bottom: 20px; padding: 15px; background: rgba(255,100,0,0.1); border-radius: 6px; border: 1px solid rgba(255,100,0,0.3);">
@@ -997,12 +1038,55 @@ async function startConjunctionMonitoring() {
                     const history = conjunctionHistoryModule.getHistory(5);
                     if (history.length > 0) {
                         historyHTML += '<div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(0,200,255,0.2);">';
-                        historyHTML += '<div style="color: #00ccff; font-size: 10px; margin-bottom: 10px;">Recent History:</div>';
-                        history.forEach(h => {
+                        historyHTML += '<div style="color: #00ccff; font-size: 12px; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">Recent History:</div>';
+                        history.forEach((h, idx) => {
                             const time = new Date(h.timestamp).toLocaleTimeString();
-                            historyHTML += `<div style="color: #666; font-size: 9px; margin-bottom: 5px;">
-                                ${time} - Objects ${h.object1}/${h.object2} - ${h.minDistance?.toFixed(2)}km
-                            </div>`;
+                            const date = new Date(h.timestamp).toLocaleDateString();
+                            const riskColor = h.minDistance < 1 ? '#ff0000' : h.minDistance < 5 ? '#ffc800' : '#00ff00';
+                            
+                            historyHTML += `
+                                <div class="history-item" data-history-id="${h.id}"
+                                     style="margin-bottom: 8px; padding: 8px; background: rgba(100,100,100,0.2); border-radius: 4px; border: 1px solid rgba(100,100,100,0.3); cursor: pointer; transition: all 0.2s;"
+                                     onmouseover="this.style.background='rgba(100,100,100,0.3)'; this.style.borderColor='rgba(0,200,255,0.5)';"
+                                     onmouseout="this.style.background='rgba(100,100,100,0.2)'; this.style.borderColor='rgba(100,100,100,0.3)';"
+                                     onclick="this.querySelector('.history-details').style.display = this.querySelector('.history-details').style.display === 'none' ? 'block' : 'none';">
+                                    
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <div style="color: #aaa; font-size: 10px;">
+                                            <span style="color: #00ccff;">${time}</span> - Objects ${h.object1}/${h.object2}
+                                        </div>
+                                        <div style="color: ${riskColor}; font-size: 10px; font-weight: bold;">
+                                            ${h.minDistance?.toFixed(2)}km
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="history-details" style="display: none; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(100,100,100,0.3);">
+                                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 9px;">
+                                            <div><span style="color: #666;">Date:</span> <span style="color: #999;">${date}</span></div>
+                                            <div><span style="color: #666;">Time:</span> <span style="color: #999;">${time}</span></div>
+                                            <div><span style="color: #666;">Object 1:</span> <span style="color: #ccc;">#${h.object1}</span></div>
+                                            <div><span style="color: #666;">Object 2:</span> <span style="color: #ccc;">#${h.object2}</span></div>
+                                            <div><span style="color: #666;">Min Distance:</span> <span style="color: ${riskColor}; font-weight: bold;">${h.minDistance?.toFixed(3)} km</span></div>
+                                            <div><span style="color: #666;">Status:</span> <span style="color: #999;">${h.status || 'Resolved'}</span></div>
+                                            ${h.relativeVelocity ? `<div><span style="color: #666;">Rel Velocity:</span> <span style="color: #999;">${h.relativeVelocity.toFixed(2)} km/s</span></div>` : ''}
+                                            ${h.timeToClosestApproach ? `<div><span style="color: #666;">TCA:</span> <span style="color: #999;">${h.timeToClosestApproach.toFixed(0)}s</span></div>` : ''}
+                                        </div>
+                                        <div style="margin-top: 8px; display: flex; gap: 8px; justify-content: center;">
+                                            <button onclick="event.stopPropagation(); if(window.conjunctionHistory) window.conjunctionHistory.exportSingleEvent('${h.id}');" 
+                                                    style="padding: 4px 8px; background: rgba(0,200,255,0.2); border: 1px solid rgba(0,200,255,0.4); border-radius: 3px; color: #00ccff; font-size: 9px; cursor: pointer; font-family: 'Orbitron', monospace;">
+                                                Export Data
+                                            </button>
+                                            <button onclick="event.stopPropagation(); if(window.focusOnConjunction) window.focusOnConjunction(${h.object1}, ${h.object2});" 
+                                                    style="padding: 4px 8px; background: rgba(0,200,255,0.2); border: 1px solid rgba(0,200,255,0.4); border-radius: 3px; color: #00ccff; font-size: 9px; cursor: pointer; font-family: 'Orbitron', monospace;">
+                                                Track Objects
+                                            </button>
+                                        </div>
+                                        <div style="margin-top: 6px; font-size: 9px; color: #666; text-align: center;">
+                                            Click card again to collapse
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
                         });
                         historyHTML += '</div>';
                     }
@@ -1029,16 +1113,23 @@ async function startConjunctionMonitoring() {
                                 urgency === 'warning' ? '#ffc800' : '#00ccff';
                     
                     html += `
-                        <div style="margin-bottom: 10px; padding: 8px; background: rgba(0,200,255,0.05); border-radius: 4px; border: 1px solid ${color};">
-                            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                                <span style="color: ${color}; font-size: 10px; font-weight: bold;">CONJUNCTION #${idx + 1}</span>
-                                <span style="color: #999; font-size: 9px;">TCA: ${conj.timeToClosestApproach.toFixed(1)}s</span>
+                        <div class="conjunction-item" data-obj1="${conj.object1}" data-obj2="${conj.object2}" 
+                             style="margin-bottom: 12px; padding: 12px; background: rgba(0,200,255,0.08); border-radius: 6px; border: 1px solid ${color}; transition: all 0.2s; cursor: pointer;"
+                             onmouseover="this.style.background='rgba(0,200,255,0.15)'; this.style.transform='scale(1.02)'; this.style.boxShadow='0 2px 10px rgba(0,200,255,0.3)';"
+                             onmouseout="this.style.background='rgba(0,200,255,0.08)'; this.style.transform='scale(1)'; this.style.boxShadow='none';"
+                             onclick="if(window.focusOnConjunction) window.focusOnConjunction(${conj.object1}, ${conj.object2});">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                <span style="color: ${color}; font-size: 12px; font-weight: bold; text-transform: uppercase;">Conjunction #${idx + 1}</span>
+                                <span style="color: #fff; font-size: 11px; background: ${color}; padding: 3px 10px; border-radius: 12px; font-weight: 600;">TCA: ${conj.timeToClosestApproach.toFixed(0)}s</span>
                             </div>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 9px;">
-                                <div><span style="color: #666;">Objects:</span> <span style="color: #ccc;">${conj.object1}-${conj.object2}</span></div>
-                                <div><span style="color: #666;">Distance:</span> <span style="color: #ccc;">${conj.minDistance.toFixed(2)} km</span></div>
-                                <div><span style="color: #666;">Rel Vel:</span> <span style="color: #ccc;">${conj.relativeVelocity.toFixed(1)} km/s</span></div>
-                                <div><span style="color: #666;">P(collision):</span> <span style="color: ${conj.probability > 0.5 ? '#ff0000' : '#ffc800'};">${(conj.probability * 100).toFixed(1)}%</span></div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11px;">
+                                <div><span style="color: #888;">Objects:</span> <span style="color: #fff; font-weight: 600;">${conj.object1} × ${conj.object2}</span></div>
+                                <div><span style="color: #888;">Min Distance:</span> <span style="color: #fff; font-weight: 600;">${conj.minDistance.toFixed(2)} km</span></div>
+                                <div><span style="color: #888;">Rel Velocity:</span> <span style="color: #ccc;">${conj.relativeVelocity.toFixed(1)} km/s</span></div>
+                                <div><span style="color: #888;">Collision Risk:</span> <span style="color: ${conj.probability > 0.5 ? '#ff0000' : conj.probability > 0.2 ? '#ffc800' : '#00ff00'}; font-weight: bold;">${(conj.probability * 100).toFixed(1)}%</span></div>
+                            </div>
+                            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(0,200,255,0.2); font-size: 10px; color: #00ccff; text-align: center; opacity: 0.7;">
+                                ↑ Click to track objects
                             </div>
                         </div>
                     `;

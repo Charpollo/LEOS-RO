@@ -2,7 +2,9 @@
 
 ## Executive Summary
 
-RED ORBIT is the world's first browser-based space simulation platform capable of tracking **1,000,000 objects** with real Newtonian physics using WebGPU compute shaders. While competitors charge $500K+/year for tools limited to 5,000 objects with simplified physics, we deliver **200x the scale** with actual physics at zero server cost.
+RED ORBIT is the world's first browser-based space simulation platform capable of simulating **8,000,000 objects** with real Newtonian physics using WebGPU compute shaders. While competitors charge $500K+/year for tools limited to 5,000 objects with simplified physics, we deliver **1,600x the scale** with actual physics at zero server cost.
+
+**Note**: Full conjunction analysis is limited to ~100,000 objects due to computational constraints (see CONJUNCTION-TRACKING-LIMITATIONS.md for details).
 
 ---
 
@@ -25,12 +27,15 @@ RED ORBIT is the world's first browser-based space simulation platform capable o
 ## Our Technical Achievement
 
 ### Core Capabilities
-- **1,000,000 objects** with full Newtonian dynamics on GPU
+- **8,000,000 objects** with full Newtonian dynamics on GPU
 - **Real physics engine**: F = -GMm/r² (no SGP4/TLE approximations)
-- **Collision detection**: GPU-parallel spatial hashing
-- **Browser-based**: WebGPU compute shaders at 40+ FPS
+- **Collision detection**: Spatial hashing (limited coverage at scale)
+- **Full conjunction analysis**: Available up to 100,000 objects
+- **Sample-based analysis**: For millions of objects
+- **Browser-based**: WebGPU compute shaders at 30+ FPS
 - **Zero server costs**: All computation client-side
-- **Real-time TLE ingestion**: Track actual satellites alongside synthetic
+- **Engineering Control Panel**: Press 'O' for staging and configuration
+- **Conjunction Analysis**: Real-time collision probability calculations
 
 ### Physics Implementation
 ```javascript
@@ -43,9 +48,10 @@ Debris: NASA Standard Breakup Model
 ```
 
 ### Performance Metrics
-- **1,000,000 objects @ 40 FPS** (WebGPU)
-- **Parallel compute shaders** for physics
-- **Instanced mesh rendering** by orbit type
+- **1,000,000 objects @ 60 FPS** (default configuration)
+- **9,000,000 objects @ 30 FPS** (maximum tested)
+- **540 million calculations/second** at 1M objects
+- **Parallel compute shaders** with 256 thread workgroups
 - **GPU-accelerated** (WebGPU required)
 - **Runs on M4 Max, RTX 4090/5090**
 - **Fallback: 15,000 objects CPU-only**

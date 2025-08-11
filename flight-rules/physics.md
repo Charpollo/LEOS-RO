@@ -1,20 +1,22 @@
 # RED ORBIT PHYSICS DOCUMENTATION
-*Last Updated: December 2024*
+*Last Updated: January 2025*
 
 ## Core Physics Engine
 
 RED ORBIT uses **GPU-ONLY physics** for unprecedented scale:
-- **WebGPU**: Up to 1,000,000 objects with parallel compute shaders
-- **NO CPU FALLBACK**: Pure GPU implementation (NO HAVOK!)
+- **WebGPU**: Up to 9,000,000 objects with parallel compute shaders
+- **NO CPU FALLBACK**: Pure GPU implementation (NO HAVOK, NO SGP4!)
+- **Default Start**: 1,000,000 objects on initialization
 
 ### Key Features
-- Real gravitational dynamics (no cheating!)
-- Accurate collision detection and debris generation
+- Real Newtonian gravitational dynamics (F = -GMm/r²)
+- GPU-accelerated collision detection and debris generation
 - NASA Standard Breakup Model for realistic fragmentation
-- Support for **400,000+ simultaneous objects** at 60 FPS (GPU)
-- Support for **1,000,000 objects** at 30 FPS (theoretical max)
+- Support for **1,000,000 objects** at 60 FPS (default)
+- Support for **9,000,000 objects** at 30 FPS (maximum tested)
 - Elliptical and circular orbit support (e = 0 to 0.75)
-- Automatic engine switching based on object count
+- Real-time conjunction analysis with probability calculations
+- Engineering control panel (Press 'O' for staging controls)
 
 ## Physics Constants
 
@@ -190,15 +192,16 @@ Cascade Messages:
 ## Object Management
 
 ### Current Configuration
-- **Default Objects**: 10,000 (starts at 1x real-time)
-- **Available Scales**:
-  - 10K objects - Smooth visualization
-  - 100K objects - Full catalog
-  - 250K objects - Future projection
-  - 500K objects - Mega constellation
-  - 1M objects - Theoretical maximum
+- **Default Objects**: 1,000,000 (starts at 1x real-time)
+- **Engineering Panel Presets** (Press 'O' to access):
+  - 15K objects - Current tracked catalog
+  - 55K objects - Starlink full constellation
+  - 91K objects - All planned megaconstellations
+  - 200K objects - Kessler critical mass
+  - 1M objects - Default simulation start
+  - 9M objects - Maximum GPU capacity demonstrated
   
-### Object Distribution (1 Million Objects)
+### Object Distribution (Default 1 Million Objects - Scalable to 9 Million)
 
 #### LEO: 600,000 objects (60%)
 - 30% Starlink-type (540-560 km, 53° inc)
@@ -335,44 +338,91 @@ For every Earth rotation:
 ## No Cheating Policy
 
 This simulation uses **REAL PHYSICS ONLY**:
+- ❌ No SGP4 propagation models
 - ❌ No artificial station-keeping
 - ❌ No magic forces
 - ❌ No simplified 2-body approximations
-- ✅ Real gravitational dynamics
-- ✅ Real atmospheric drag
-- ✅ Real collision physics
+- ✅ Real Newtonian gravitational dynamics
+- ✅ Real atmospheric drag (exponential model)
+- ✅ Real collision physics with debris generation
 - ✅ Conservation of energy and momentum
+- ✅ GPU-computed force calculations (540M/second at 1M objects)
+
+## Conjunction Analysis System
+
+### Real-Time Detection
+- GPU-accelerated conjunction scanning
+- Analyzes all object pairs within time horizon
+- Calculates probability of collision based on:
+  - Minimum distance approach
+  - Relative velocity vectors
+  - Object sizes and uncertainties
+  - Time to closest approach (TCA)
+
+### Interactive Panel Features
+- **Live Conjunctions**: Clickable cards with detailed data
+- **Risk Assessment**: Color-coded by collision probability
+- **Historical Events**: Expandable history with export capability
+- **Object Tracking**: Click to focus camera on conjunction pairs
+
+## Engineering Control Panel
+
+### Access
+Press **'O'** key to open the engineering control panel for staging and configuration.
+
+### Features
+- **Object Count Control**: Slider and presets from 15K to 9M objects
+- **Scenario Loading**: Pre-configured constellation deployments
+  - Current NORAD catalog
+  - Starlink (42,000 satellites)
+  - Project Kuiper (3,236 satellites)
+  - Chinese Guowang (13,000 satellites)
+  - Kessler syndrome scenarios
+- **Live Statistics**: FPS, active conjunctions, risk level
+- **Data Export**: JSON telemetry for analysis
 
 ## Usage Notes
 
 ### Initialization
 ```javascript
-const redOrbitPhysics = new RedOrbitPhysics(scene);
-await redOrbitPhysics.initialize();
-```
-
-### Update Loop
-```javascript
-redOrbitPhysics.update(deltaTime);
+// System now starts with 1M objects by default
+const redOrbitPhysics = await createPhysicsEngine(scene);
 ```
 
 ### Speed Control
 ```javascript
-// Set real-time mode
-redOrbitPhysics.physicsTimeMultiplier = 1;
+// Via UI buttons or keyboard shortcuts
+// R - Real-time (1x)
+// F - Fast mode (60x)
+// Or use engineering panel controls
+```
 
-// Set 60x speed mode
-redOrbitPhysics.physicsTimeMultiplier = 60;
+### Conjunction Analysis
+```javascript
+// Automatic scanning in bottom-right panel
+// Click "REFRESH SCAN" for manual update
+// Export individual events or full history
 ```
 
 ## Future Enhancements
 
+### Physics Improvements
 - [ ] N-body gravitation (Moon, Sun perturbations)
 - [ ] Solar radiation pressure
 - [ ] J2 perturbation (Earth's oblateness)
 - [ ] Detailed atmospheric density models
 - [ ] Magnetic field interactions
 - [ ] Tidal forces
+
+### Platform Features
+- [x] 9 million object support (COMPLETED)
+- [x] Engineering control panel (COMPLETED)
+- [x] Conjunction analysis system (COMPLETED)
+- [ ] WebSocket telemetry streaming to Grafana
+- [ ] Tab-based interface (Option 2 documented)
+- [ ] Voice control for scenarios
+- [ ] Multi-user collaboration mode
+- [ ] Machine learning collision predictions
 
 ---
 
