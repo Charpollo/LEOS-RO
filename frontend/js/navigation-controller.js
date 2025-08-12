@@ -293,8 +293,8 @@ function loadMissionControl() {
     
     // Create conjunction analysis panels for nominal state monitoring
     mainContent.innerHTML = `
-        <!-- Conjunction Analysis Panel - MOVED TO BOTTOM RIGHT -->
-        <div id="conjunction-analysis" style="position: absolute; bottom: 20px; right: 20px; width: 480px; max-height: 420px; background: rgba(0,0,0,0.95); border: 2px solid #00ccff; border-radius: 10px; padding: 20px; backdrop-filter: blur(10px); box-shadow: 0 0 20px rgba(0,200,255,0.3); pointer-events: auto; transition: all 0.3s ease;">
+        <!-- Conjunction Analysis Panel - REMOVED - Now in Engineering Tabs -->
+        <!-- <div id="conjunction-analysis" style="position: absolute; bottom: 20px; right: 20px; width: 480px; max-height: 420px; background: rgba(0,0,0,0.95); border: 2px solid #00ccff; border-radius: 10px; padding: 20px; backdrop-filter: blur(10px); box-shadow: 0 0 20px rgba(0,200,255,0.3); pointer-events: auto; transition: all 0.3s ease;">
             <div id="conjunction-header" style="display: flex; justify-content: space-between; align-items: center; height: 20px;">
                 <h3 style="color: #00ccff; font-size: 14px; margin: 0; font-family: 'Orbitron', monospace; text-transform: uppercase; letter-spacing: 2px; line-height: 20px;">Conjunction Analysis</h3>
                 <button id="toggle-conjunction" style="background: none; border: 1px solid #00ccff; color: #00ccff; width: 24px; height: 24px; border-radius: 4px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">−</button>
@@ -314,8 +314,8 @@ function loadMissionControl() {
             <div id="conjunction-list" style="min-height: 180px; max-height: 280px; overflow-y: auto; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,200,255,0.2); border-radius: 5px; padding: 10px;">
                 <div style="color: #666; font-size: 10px; text-align: center; padding: 20px;">No imminent conjunctions detected</div>
             </div>
-            </div> <!-- End conjunction-content -->
-        </div>
+            </div>
+        </div> -->
         
         <!-- Near Miss Alert Panel - STAYS TOP RIGHT BUT SMALLER -->
         <div id="near-miss-panel" style="position: absolute; top: 20px; right: 20px; width: 300px; background: rgba(255,200,0,0.9); border: 2px solid #ffc800; border-radius: 10px; padding: 20px; backdrop-filter: blur(10px); box-shadow: 0 0 20px rgba(255,200,0,0.3); pointer-events: auto; display: none;">
@@ -365,8 +365,8 @@ function loadMissionControl() {
             </div>
         </div>
         
-        <!-- Statistics Panel -->
-        <div id="nominal-stats" style="position: absolute; bottom: 20px; left: 20px; width: 250px; background: rgba(0,0,0,0.95); border: 2px solid #666; border-radius: 10px; padding: 15px; backdrop-filter: blur(10px); pointer-events: auto;">
+        <!-- Statistics Panel - REMOVED - Now in Engineering Tabs -->
+        <!-- <div id="nominal-stats" style="position: absolute; bottom: 20px; left: 20px; width: 250px; background: rgba(0,0,0,0.95); border: 2px solid #666; border-radius: 10px; padding: 15px; backdrop-filter: blur(10px); pointer-events: auto;">
             <div style="color: #999; font-size: 11px; margin-bottom: 10px; text-transform: uppercase;">Nominal State Metrics</div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                 <div>
@@ -386,18 +386,20 @@ function loadMissionControl() {
                     <div id="risk-level" style="color: #00ff00; font-size: 14px; font-family: 'Orbitron', monospace;">LOW</div>
                 </div>
             </div>
-        </div>
+        </div> -->
     `;
     
     // Set up conjunction monitoring
     startConjunctionMonitoring();
     
-    // Add toggle functionality for conjunction panel
-    const toggleBtn = document.getElementById('toggle-conjunction');
-    const conjunctionPanel = document.getElementById('conjunction-analysis');
-    const conjunctionContent = document.getElementById('conjunction-content');
-    let isCollapsed = false;
+    // Toggle functionality removed - conjunction panel moved to Engineering Tabs
+    // const toggleBtn = document.getElementById('toggle-conjunction');
+    // const conjunctionPanel = document.getElementById('conjunction-analysis');
+    // const conjunctionContent = document.getElementById('conjunction-content');
+    // let isCollapsed = false;
     
+    // Removed - functionality moved to Engineering Tabs
+    /*
     if (toggleBtn && conjunctionPanel && conjunctionContent) {
         toggleBtn.addEventListener('click', () => {
             isCollapsed = !isCollapsed;
@@ -427,6 +429,7 @@ function loadMissionControl() {
             }
         });
     }
+    */
     
     // Update header stats to show mission control is active
     const statusElement = document.querySelector('#mission-stats div:last-child div:last-child');
@@ -532,11 +535,11 @@ function loadKesslerScenario() {
             <div id="cascade-message" style="color: #ff6600; font-size: 12px; margin-top: 10px;">${kesslerStatus.message || ''}</div>
         </div>
         
-        <!-- Conjunction Warning Panel -->
-        <div id="conjunction-panel" style="position: absolute; top: 20px; right: 20px; width: 250px; background: rgba(255,100,0,0.9); border: 2px solid #ff6600; border-radius: 8px; padding: 15px; display: none; pointer-events: none;">
+        <!-- Conjunction Warning Panel - REMOVED - Now in Engineering Tabs -->
+        <!-- <div id="conjunction-panel" style="position: absolute; top: 20px; right: 20px; width: 250px; background: rgba(255,100,0,0.9); border: 2px solid #ff6600; border-radius: 8px; padding: 15px; display: none; pointer-events: none;">
             <div style="color: #ff6600; font-size: 12px; font-weight: bold; margin-bottom: 10px; text-transform: uppercase;">Conjunction Warning</div>
             <div id="conjunction-list" style="color: #fff; font-size: 10px;"></div>
-        </div>
+        </div> -->
         
         <!-- Collision Countdown Panel -->
         <div id="countdown-panel" style="position: absolute; top: 100px; right: 20px; width: 250px; background: rgba(255,0,0,0.9); border: 2px solid #ff0000; border-radius: 8px; padding: 15px; display: none; pointer-events: none;">

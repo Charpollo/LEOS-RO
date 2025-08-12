@@ -38,8 +38,8 @@ import { createPhysicsEngine, PHYSICS_CONFIG } from './red-orbit/physics/physics
 import { AdvancedKesslerSystem } from './red-orbit/kessler-advanced.js';
 import { KesslerUI } from './red-orbit/kessler-ui.js';
 
-// Import engineering panel and conjunction history
-import { engineeringPanel } from './ui/engineering-panel.js';
+// Import new engineering tabs system and conjunction history
+import { initializeEngineeringTabs } from './ui/engineering-tabs.js';
 import { conjunctionHistory } from './ui/conjunction-history.js';
 
 // Globals
@@ -2966,9 +2966,10 @@ async function initializeHybridPhysics() {
         window.advancedKessler = advancedKessler;
         window.kesslerUI = kesslerUI;
         window.kesslerSystem = advancedKessler; // Alias for engineering panel
-        window.gpuPhysicsEngine = redOrbitPhysics; // Alias for engineering panel
+        window.gpuPhysicsEngine = redOrbitPhysics; // Alias for engineering tabs
         window.conjunctionHistory = conjunctionHistory;
-        window.engineeringPanel = engineeringPanel;
+        // Initialize new engineering tabs system
+        initializeEngineeringTabs();
         window.showNotification = showNotification; // Expose globally
         window.engine = engine; // Expose for FPS monitoring
         
