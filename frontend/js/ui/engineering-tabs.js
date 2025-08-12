@@ -5,11 +5,12 @@
  */
 
 // Import tab modules
+import MissionControlTab from './tabs/mission-control-tab.js';
 import ObjectsTab from './tabs/objects-tab.js';
 import ScenariosTab from './tabs/scenarios-tab.js';
-import PhysicsTab from './tabs/physics-tab.js';
 import ConjunctionsTab from './tabs/conjunctions-tab.js';
 import ExportTab from './tabs/export-tab.js';
+import SettingsTab from './tabs/settings-tab.js';
 
 export class EngineeringTabs {
     constructor() {
@@ -113,14 +114,77 @@ export class EngineeringTabs {
         this.container.appendChild(this.contentArea);
     }
     
+    addUserDisplay() {
+        // User display on left side of tab bar
+        const userDisplay = document.createElement('div');
+        userDisplay.id = 'user-display';
+        userDisplay.style.cssText = `
+            position: absolute;
+            left: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            height: 100%;
+        `;
+        
+        // Get user info from localStorage
+        const userName = localStorage.getItem('userName') || 'Mission Commander';
+        const userCallsign = localStorage.getItem('userCallsign') || 'FLIGHT';
+        const userRole = localStorage.getItem('userRole') || 'Operator';
+        
+        // Create avatar/icon
+        const avatarSvg = `<svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+            <path d="M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,14C16.42,14 20,15.79 20,18V20H4V18C4,15.79 7.58,14 12,14Z"/>
+        </svg>`;
+        
+        userDisplay.innerHTML = `
+            <div style="color: #00ff00; display: flex; align-items: center;">
+                ${avatarSvg}
+            </div>
+            <div style="display: flex; flex-direction: column; justify-content: center;">
+                <div style="color: #fff; font-size: 11px; font-weight: bold; text-transform: uppercase;">${userName}</div>
+                <div style="color: #666; font-size: 9px;">${userCallsign} | ${userRole}</div>
+            </div>
+        `;
+        
+        this.tabBar.appendChild(userDisplay);
+    }
+    
+    updateUserDisplay() {
+        const userDisplay = document.getElementById('user-display');
+        if (!userDisplay) return;
+        
+        const userName = localStorage.getItem('userName') || 'Mission Commander';
+        const userCallsign = localStorage.getItem('userCallsign') || 'FLIGHT';
+        const userRole = localStorage.getItem('userRole') || 'Operator';
+        
+        const avatarSvg = `<svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+            <path d="M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,14C16.42,14 20,15.79 20,18V20H4V18C4,15.79 7.58,14 12,14Z"/>
+        </svg>`;
+        
+        userDisplay.innerHTML = `
+            <div style="color: #00ff00; display: flex; align-items: center;">
+                ${avatarSvg}
+            </div>
+            <div style="display: flex; flex-direction: column; justify-content: center;">
+                <div style="color: #fff; font-size: 11px; font-weight: bold; text-transform: uppercase;">${userName}</div>
+                <div style="color: #666; font-size: 9px;">${userCallsign} | ${userRole}</div>
+            </div>
+        `;
+    }
+    
     async registerTabs() {
+        // Add user display first
+        this.addUserDisplay();
+        
         // Tab configurations with their classes and SVG icons
         const tabModules = [
+            { name: 'mission-control', label: 'Mission Control', icon: 'home', TabClass: MissionControlTab },
             { name: 'objects', label: 'Objects', icon: 'satellite', TabClass: ObjectsTab },
             { name: 'scenarios', label: 'Scenarios', icon: 'play', TabClass: ScenariosTab },
-            { name: 'physics', label: 'Physics', icon: 'settings', TabClass: PhysicsTab },
             { name: 'conjunctions', label: 'Conjunctions', icon: 'alert', TabClass: ConjunctionsTab },
-            { name: 'export', label: 'Export', icon: 'download', TabClass: ExportTab }
+            { name: 'export', label: 'Export', icon: 'download', TabClass: ExportTab },
+            { name: 'settings', label: 'Settings', icon: 'settings', TabClass: SettingsTab }
         ];
         
         for (const tabInfo of tabModules) {
@@ -197,6 +261,9 @@ export class EngineeringTabs {
     getSvgIcon(iconName) {
         // Simple inline SVG icons
         const icons = {
+            home: `<svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+                <path d="M10,20V14H14V20H19V12H22L12,3L2,12H5V20H10Z"/>
+            </svg>`,
             satellite: `<svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
                 <path d="M19,2L17,4V7L14,10L12,8L8,12L10,14L7,17L4,14L2,16L5,19L8,16L10,18L14,14L16,16L20,12L17,9H20L22,7L19,2Z"/>
             </svg>`,
@@ -320,11 +387,12 @@ export class EngineeringTabs {
             // Alt + number for tabs
             if (e.altKey && !e.ctrlKey && !e.metaKey) {
                 const tabMap = {
+                    '0': 'mission-control',
                     '1': 'objects',
-                    '2': 'scenarios', 
-                    '3': 'physics',
-                    '4': 'conjunctions',
-                    '5': 'export'
+                    '2': 'scenarios',
+                    '3': 'conjunctions',
+                    '4': 'export',
+                    '5': 'settings'
                 };
                 
                 if (tabMap[e.key]) {
@@ -369,9 +437,9 @@ export class EngineeringTabs {
             controlBtn.innerHTML = '▼ MINIMIZE';
         }
         
-        // Default to Objects tab if no tab is active
+        // Default to Mission Control tab if no tab is active
         if (!this.activeTab) {
-            this.switchTab('objects');
+            this.switchTab('mission-control');
         }
         
         this.adjustViewport();
@@ -420,7 +488,7 @@ export function initializeEngineeringTabs() {
         engineeringTabs = new EngineeringTabs();
         engineeringTabs.initialize();
         
-        // Expose globally for debugging
+        // Expose globally for debugging and settings update
         window.engineeringTabs = engineeringTabs;
     }
     return engineeringTabs;

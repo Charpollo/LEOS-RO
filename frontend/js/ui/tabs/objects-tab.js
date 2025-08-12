@@ -12,7 +12,8 @@ export default class ObjectsTab {
             { label: '30K', value: 30000, description: 'NORAD catalog' },
             { label: '100K', value: 100000, description: 'Large scale' },
             { label: '400K', value: 400000, description: 'Mega scale' },
-            { label: '1M', value: 1000000, description: 'Maximum' }
+            { label: '1M', value: 1000000, description: 'Million' },
+            { label: '8M', value: 8000000, description: 'Maximum' }
         ];
         this.updateInterval = null;
     }
@@ -53,7 +54,7 @@ export default class ObjectsTab {
         const presetsContainer = document.createElement('div');
         presetsContainer.style.cssText = `
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
+            grid-template-columns: repeat(6, 1fr);
             gap: 10px;
         `;
         
@@ -98,7 +99,7 @@ export default class ObjectsTab {
         const slider = document.createElement('input');
         slider.type = 'range';
         slider.min = '1000';
-        slider.max = '1000000';
+        slider.max = '8000000';
         slider.value = this.objectCount;
         slider.style.cssText = `
             flex: 1;
