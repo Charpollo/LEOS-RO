@@ -1,9 +1,9 @@
 /**
- * Export Tab - Data export and integration options
- * Handles telemetry export, Grafana integration, and state snapshots
+ * Data Tab - Data export, import, and integration options
+ * Handles telemetry export/import, Grafana integration, and state management
  */
 
-export default class ExportTab {
+export default class DataTab {
     constructor() {
         this.container = null;
         this.websocket = null;
@@ -28,7 +28,7 @@ export default class ExportTab {
             letter-spacing: 2px;
             margin: 0 0 20px 0;
         `;
-        title.textContent = 'DATA EXPORT & INTEGRATION';
+        title.textContent = 'DATA MANAGEMENT & INTEGRATION';
         this.container.appendChild(title);
         
         // Export options grid
@@ -387,8 +387,26 @@ export default class ExportTab {
         }, 3000);
     }
     
+    getDataIcon(iconType) {
+        const icons = {
+            file: `<svg viewBox="0 0 24 24" fill="#ff0000" width="32" height="32">
+                <path d="M13,9V3.5L18.5,9M6,2C4.89,2 4,2.89 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2H6Z"/>
+            </svg>`,
+            table: `<svg viewBox="0 0 24 24" fill="#ff0000" width="32" height="32">
+                <path d="M5,4H19A2,2 0 0,1 21,6V18A2,2 0 0,1 19,20H5A2,2 0 0,1 3,18V6A2,2 0 0,1 5,4M5,8V12H11V8H5M13,8V12H19V8H13M5,14V18H11V14H5M13,14V18H19V14H13Z"/>
+            </svg>`,
+            camera: `<svg viewBox="0 0 24 24" fill="#ff0000" width="32" height="32">
+                <path d="M4,4H7L9,2H15L17,4H20A2,2 0 0,1 22,6V18A2,2 0 0,1 20,20H4A2,2 0 0,1 2,18V6A2,2 0 0,1 4,4M12,7A5,5 0 0,0 7,12A5,5 0 0,0 12,17A5,5 0 0,0 17,12A5,5 0 0,0 12,7M12,9A3,3 0 0,1 15,12A3,3 0 0,1 12,15A3,3 0 0,1 9,12A3,3 0 0,1 12,9Z"/>
+            </svg>`,
+            video: `<svg viewBox="0 0 24 24" fill="#ff0000" width="32" height="32">
+                <path d="M17,10.5V7A1,1 0 0,0 16,6H4A1,1 0 0,0 3,7V17A1,1 0 0,0 4,18H16A1,1 0 0,0 17,17V13.5L21,17.5V6.5L17,10.5Z"/>
+            </svg>`
+        };
+        return icons[iconType] || icons.file;
+    }
+    
     onActivate() {
-        console.log('[EXPORT TAB] Activated');
+        console.log('[DATA TAB] Activated');
     }
     
     onDeactivate() {

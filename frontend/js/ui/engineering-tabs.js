@@ -9,7 +9,7 @@ import MissionControlTab from './tabs/mission-control-tab.js';
 import ObjectsTab from './tabs/objects-tab.js';
 import ScenariosTab from './tabs/scenarios-tab.js';
 import ConjunctionsTab from './tabs/conjunctions-tab.js';
-import ExportTab from './tabs/export-tab.js';
+import DataTab from './tabs/export-tab.js';
 import SettingsTab from './tabs/settings-tab.js';
 
 export class EngineeringTabs {
@@ -183,7 +183,7 @@ export class EngineeringTabs {
             { name: 'objects', label: 'Objects', icon: 'satellite', TabClass: ObjectsTab },
             { name: 'scenarios', label: 'Scenarios', icon: 'play', TabClass: ScenariosTab },
             { name: 'conjunctions', label: 'Conjunctions', icon: 'alert', TabClass: ConjunctionsTab },
-            { name: 'export', label: 'Export', icon: 'download', TabClass: ExportTab },
+            { name: 'data', label: 'Data', icon: 'download', TabClass: DataTab },
             { name: 'settings', label: 'Settings', icon: 'settings', TabClass: SettingsTab }
         ];
         
@@ -391,7 +391,7 @@ export class EngineeringTabs {
                     '1': 'objects',
                     '2': 'scenarios',
                     '3': 'conjunctions',
-                    '4': 'export',
+                    '4': 'data',
                     '5': 'settings'
                 };
                 

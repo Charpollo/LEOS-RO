@@ -41,21 +41,10 @@ export default class MissionControlTab {
             align-items: center;
             padding-bottom: 15px;
             border-bottom: 2px solid rgba(255, 0, 0, 0.3);
+            position: relative;
         `;
         
-        // Title and Status
-        const titleSection = document.createElement('div');
-        titleSection.innerHTML = `
-            <h2 style="color: #ff0000; font-size: 20px; margin: 0; font-family: 'Orbitron', monospace; text-transform: uppercase; letter-spacing: 3px;">
-                MISSION CONTROL CENTER
-            </h2>
-            <div style="color: #00ff00; font-size: 12px; margin-top: 5px;">
-                SYSTEM STATUS: <span style="font-weight: bold;">NOMINAL</span> | 
-                UTC: <span id="utc-time">${new Date().toUTCString()}</span>
-            </div>
-        `;
-        
-        // Mission Stats
+        // Stats on the left
         const statsSection = document.createElement('div');
         statsSection.style.cssText = `
             display: flex;
@@ -75,16 +64,33 @@ export default class MissionControlTab {
                     ${window.conjunctionHistory?.getActiveConjunctions()?.length || 0}
                 </div>
             </div>
-            <div style="text-align: center;">
-                <div style="color: #666; font-size: 10px;">FPS</div>
-                <div style="color: #00ffff; font-size: 24px; font-weight: bold; font-family: 'Orbitron', monospace;">
-                    ${Math.round(window.engine?.getFps() || 60)}
-                </div>
+        `;
+        
+        // Title and Status in center
+        const titleSection = document.createElement('div');
+        titleSection.style.cssText = `
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+        `;
+        titleSection.innerHTML = `
+            <h2 style="color: #ff0000; font-size: 20px; margin: 0; font-family: 'Orbitron', monospace; text-transform: uppercase; letter-spacing: 3px;">
+                MISSION CONTROL CENTER
+            </h2>
+            <div style="color: #00ff00; font-size: 12px; margin-top: 5px;">
+                SYSTEM STATUS: <span style="font-weight: bold;">NOMINAL</span> | 
+                UTC: <span id="utc-time">${new Date().toUTCString()}</span>
             </div>
         `;
         
-        header.appendChild(titleSection);
+        // Empty div for balance on right
+        const rightSection = document.createElement('div');
+        rightSection.style.width = '200px';
+        
         header.appendChild(statsSection);
+        header.appendChild(titleSection);
+        header.appendChild(rightSection);
         this.container.appendChild(header);
         
         // Dashboard Grid
