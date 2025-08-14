@@ -470,12 +470,7 @@ export async function initApp() {
             sceneLoaded = true;
             // Show help button now that simulation is loaded
             showHelpButton();
-            // Initialize keyboard controls once the scene is loaded
-            setupKeyboardControls(
-                camera,
-                (v) => { simState.lastTimeMultiplier = simState.timeMultiplier; simState.timeMultiplier = v; },
-                () => simState.timeMultiplier
-            );
+            // Keyboard controls will be initialized after camera is created
             
             
             // Red Orbit UI removed - using collision controls instead
@@ -861,6 +856,17 @@ async function createScene() {
     // Create camera with optimized settings first (before any rendering pipelines)
     camera = new BABYLON.ArcRotateCamera('camera', -Math.PI / 2, Math.PI / 2, 20, BABYLON.Vector3.Zero(), scene);
     camera.attachControl(canvas, true);
+    
+    // Disable Babylon's default keyboard controls to use our custom ones
+    camera.inputs.remove(camera.inputs.attached.keyboard);
+    
+    // Initialize our custom keyboard controls
+    setupKeyboardControls(
+        camera,
+        (v) => { simState.lastTimeMultiplier = simState.timeMultiplier; simState.timeMultiplier = v; },
+        () => simState.timeMultiplier
+    );
+    
     camera.minZ = 0.001; // Slightly larger to improve precision
     camera.maxZ = 100000; // Much larger far plane for distant viewing
     camera.useLogarithmicDepth = true; // Better depth precision for large scale differences

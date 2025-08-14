@@ -10,37 +10,61 @@ export function setupKeyboardControls(camera, setTimeMultiplier, getTimeMultipli
     // Track which keys are currently pressed
     const keysPressed = {};
     
-    // Camera movement speeds
-    const NORMAL_SPEED = 0.05;     // Normal camera movement speed
-    const CINEMATIC_SPEED = 0.008; // Slower speed for cinematic/scientific zoom (much slower)
+    // Camera movement speeds - continuous per-frame movement
+    const NORMAL_SPEED = 2.0;      // Normal camera movement speed (per second)
+    const CINEMATIC_SPEED = 0.3;   // Smooth cinematic speed (per second)
+    
+    // Camera animation state
+    let targetRadius = null;
+    let targetAlpha = null;
+    
+    // Smooth camera movement on each frame
+    const scene = camera.getScene();
+    scene.registerBeforeRender(() => {
+        const deltaTime = scene.getEngine().getDeltaTime() / 1000; // Convert to seconds
+        
+        // Handle continuous zoom
+        if (keysPressed['ArrowUp'] || keysPressed['ArrowDown']) {
+            const speed = keysPressed['Alt'] ? CINEMATIC_SPEED : NORMAL_SPEED;
+            const zoomFactor = 1 + (speed * deltaTime);
+            
+            if (keysPressed['ArrowUp']) {
+                // Zoom in smoothly
+                camera.radius = Math.max(camera.lowerRadiusLimit, camera.radius / zoomFactor);
+            } else if (keysPressed['ArrowDown']) {
+                // Zoom out smoothly
+                camera.radius = Math.min(camera.upperRadiusLimit, camera.radius * zoomFactor);
+            }
+        }
+        
+        // Handle continuous rotation
+        if (keysPressed['ArrowLeft'] || keysPressed['ArrowRight']) {
+            const speed = keysPressed['Alt'] ? CINEMATIC_SPEED : NORMAL_SPEED;
+            const rotationSpeed = speed * deltaTime;
+            
+            if (keysPressed['ArrowLeft']) {
+                camera.alpha -= rotationSpeed;
+            } else if (keysPressed['ArrowRight']) {
+                camera.alpha += rotationSpeed;
+            }
+        }
+    });
     
     window.addEventListener('keydown', (event) => {
-        keysPressed[event.key] = true;
+        // Track Alt key state
+        if (event.key === 'Alt') {
+            keysPressed['Alt'] = true;
+        }
         
         // Handle arrow keys for camera movement
-        if (event.key.startsWith('Arrow')) {
+        if (event.key.startsWith('Arrow') && camera) {
             event.preventDefault(); // Prevent page scrolling
+            keysPressed[event.key] = true;
             
-            // Determine movement speed based on Alt/Option key
-            const moveSpeed = event.altKey ? CINEMATIC_SPEED : NORMAL_SPEED;
-            
-            switch (event.key) {
-                case 'ArrowUp':
-                    // Move camera forward (zoom in)
-                    camera.radius *= (1 - moveSpeed);
-                    break;
-                case 'ArrowDown':
-                    // Move camera backward (zoom out)
-                    camera.radius *= (1 + moveSpeed);
-                    break;
-                case 'ArrowLeft':
-                    // Rotate camera left
-                    camera.alpha -= moveSpeed;
-                    break;
-                case 'ArrowRight':
-                    // Rotate camera right
-                    camera.alpha += moveSpeed;
-                    break;
+            // Log for debugging when using cinematic mode
+            if (event.altKey && !keysPressed['AltLogged']) {
+                console.log('[Camera] Cinematic mode activated');
+                keysPressed['AltLogged'] = true;
             }
             return; // Don't process other keys when arrow key is pressed
         }
@@ -118,5 +142,11 @@ export function setupKeyboardControls(camera, setTimeMultiplier, getTimeMultipli
     // Track key releases
     window.addEventListener('keyup', (event) => {
         keysPressed[event.key] = false;
+        
+        // Clear Alt state and logging flag
+        if (event.key === 'Alt') {
+            keysPressed['Alt'] = false;
+            keysPressed['AltLogged'] = false;
+        }
     });
 }
