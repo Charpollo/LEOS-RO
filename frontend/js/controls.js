@@ -7,7 +7,44 @@ import * as BABYLON from '@babylonjs/core';
  * @param {function():number} getTimeMultiplier - Getter for time multiplier.
  */
 export function setupKeyboardControls(camera, setTimeMultiplier, getTimeMultiplier) {
+    // Track which keys are currently pressed
+    const keysPressed = {};
+    
+    // Camera movement speeds
+    const NORMAL_SPEED = 0.05;     // Normal camera movement speed
+    const CINEMATIC_SPEED = 0.008; // Slower speed for cinematic/scientific zoom (much slower)
+    
     window.addEventListener('keydown', (event) => {
+        keysPressed[event.key] = true;
+        
+        // Handle arrow keys for camera movement
+        if (event.key.startsWith('Arrow')) {
+            event.preventDefault(); // Prevent page scrolling
+            
+            // Determine movement speed based on Alt/Option key
+            const moveSpeed = event.altKey ? CINEMATIC_SPEED : NORMAL_SPEED;
+            
+            switch (event.key) {
+                case 'ArrowUp':
+                    // Move camera forward (zoom in)
+                    camera.radius *= (1 - moveSpeed);
+                    break;
+                case 'ArrowDown':
+                    // Move camera backward (zoom out)
+                    camera.radius *= (1 + moveSpeed);
+                    break;
+                case 'ArrowLeft':
+                    // Rotate camera left
+                    camera.alpha -= moveSpeed;
+                    break;
+                case 'ArrowRight':
+                    // Rotate camera right
+                    camera.alpha += moveSpeed;
+                    break;
+            }
+            return; // Don't process other keys when arrow key is pressed
+        }
+        
         switch (event.key) {
             case 'r':
             case 'R':
@@ -76,5 +113,10 @@ export function setupKeyboardControls(camera, setTimeMultiplier, getTimeMultipli
                 break;
             // Add more controls as needed
         }
+    });
+    
+    // Track key releases
+    window.addEventListener('keyup', (event) => {
+        keysPressed[event.key] = false;
     });
 }
