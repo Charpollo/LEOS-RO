@@ -864,7 +864,7 @@ export class GPUPhysicsEngine {
         }
         
         // Create thin instances for massive performance with proper orbit type distribution
-        const renderCount = Math.min(count, 100000); // Render first 100K for performance
+        const renderCount = Math.min(count, 50000); // Render first 50K for performance
         
         // Calculate distribution based on orbit types
         const distribution = {
