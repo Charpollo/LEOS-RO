@@ -348,6 +348,11 @@ function smartSample(objects, renderCount) {
 
 ---
 
+## Related Documentation
+
+- **For mega-scale platform architecture (20-50M objects)**: See [MEGA-SCALE-PLATFORM-ARCHITECTURE.md](./MEGA-SCALE-PLATFORM-ARCHITECTURE.md)
+- **For operational flight rules**: See [/flight-rules/render-sim.md](/flight-rules/render-sim.md)
+
 ## Appendix B: Quick Reference
 
 ### Recommended Starting Configuration

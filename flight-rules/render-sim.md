@@ -168,4 +168,10 @@ A: The badge (counts + pinning) + tooltips + the Grafana view vs truth panels.
 ⸻
 
 Bottom line:
-Keep physics big, keep visuals curated. We don’t use 1:1 because it harms FPS, readability, and can actually increase “stillness.” Pin events, rotate background, label the view, and push the full truth to Grafana. That’s how we demo beautifully and operate credibly.
+Keep physics big, keep visuals curated. We don't use 1:1 because it harms FPS, readability, and can actually increase "stillness." Pin events, rotate background, label the view, and push the full truth to Grafana. That's how we demo beautifully and operate credibly.
+
+---
+
+Related Documentation:
+• Technical details: `/docs/TECHNICAL-LIMITATIONS-AND-TRADEOFFS.md`
+• Mega-scale platform (20-50M): `/docs/MEGA-SCALE-PLATFORM-ARCHITECTURE.md`
