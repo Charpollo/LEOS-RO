@@ -43,7 +43,7 @@ export class DebrisManager {
      * Create a pool of reusable debris meshes
      */
     createDebrisPool() {
-        console.log('Creating debris pool...');
+        // Creating debris pool...
         
         // Create different sizes of debris
         const sizes = [0.001, 0.002, 0.005, 0.01, 0.02]; // Different debris sizes
@@ -72,7 +72,7 @@ export class DebrisManager {
             });
         }
         
-        console.log(`Debris pool created with ${this.debrisPool.length} objects`);
+        // Debris pool created: ${this.debrisPool.length} objects
     }
 
     /**
@@ -131,7 +131,7 @@ export class DebrisManager {
      * Create a test debris cloud
      */
     createTestDebrisCloud(origin, particleCount = 100, spreadRadius = 0.5) {
-        console.log(`Creating test debris cloud with ${particleCount} particles`);
+        // Creating test debris cloud: ${particleCount} particles
         
         const particles = [];
         
@@ -169,7 +169,7 @@ export class DebrisManager {
      * Create debris from collision (NASA breakup model simplified)
      */
     createCollisionDebris(satellite1, satellite2, impactPoint) {
-        console.log('Creating collision debris from satellite impact');
+        // Creating collision debris from satellite impact
         
         // Calculate relative velocity
         const v1 = physicsEngine.getVelocity(satellite1.id) || { x: 0, y: 0, z: 0 };
@@ -196,7 +196,7 @@ export class DebrisManager {
             1000 // Cap for performance
         );
         
-        console.log(`Impact speed: ${impactSpeed.toFixed(3)} km/s, generating ${debrisCount} debris particles`);
+        // Impact speed: ${impactSpeed.toFixed(3)} km/s, generating ${debrisCount} debris
         
         const particles = [];
         

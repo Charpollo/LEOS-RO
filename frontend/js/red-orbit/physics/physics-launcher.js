@@ -8,7 +8,7 @@ import { GPUPhysicsEngine } from './gpu-physics-engine.js';
 // Export the PHYSICS_CONFIG - GPU ONLY!
 export const PHYSICS_CONFIG = {
     USE_GPU: true,     // ALWAYS GPU
-    INITIAL_COUNT: 100000  // 100K simulated, will render 75K
+    INITIAL_COUNT: 100000  // 100K simulated, will render 50K (2:1 ratio)
 };
 
 /**
@@ -102,8 +102,10 @@ export async function createPhysicsEngine(scene) {
         }
     };
     
-    // Log minimal info
-    console.log('GPU Physics: 1,000,000 objects initialized');
+    // Clear startup log with actual counts
+    const simulated = gpuEngine.activeObjects;
+    const rendered = gpuEngine.renderCount;
+    console.log(`%c🚀 Simulated: ${simulated.toLocaleString()} | Rendered: ${rendered.toLocaleString()}`, 'color: #00ff00; font-size: 14px; font-weight: bold');
     
     // Return the engine with compatibility wrapper
     return createCompatibilityWrapper(gpuEngine);

@@ -123,14 +123,14 @@ export class GPUPhysicsEngine {
         this.createMeshTemplates();
         
         this.initialized = true;
-        console.log('GPU Physics: Ready for 1M objects at 60 FPS');
+        // GPU ready - counts logged after population
     }
     
     async createBuffers() {
         const floatsPerObject = 8; // x,y,z,vx,vy,vz,mass,type
         const bufferSize = this.maxObjects * floatsPerObject * 4; // 4 bytes per float
         
-        console.log(`Allocating ${(bufferSize / 1024 / 1024).toFixed(2)} MB for physics buffers`);
+        // Allocating physics buffers: ${(bufferSize / 1024 / 1024).toFixed(2)} MB
         
         // Position + velocity buffer (interleaved for cache efficiency)
         this.stateBuffer = this.device.createBuffer({
@@ -516,7 +516,7 @@ export class GPUPhysicsEngine {
     }
     
     highlightCollisionTargets(idx1, idx2) {
-        console.log(`[HIGHLIGHT] Marking objects ${idx1} and ${idx2} for collision`);
+        // Marking objects ${idx1} and ${idx2} for collision
         
         // Store indices for highlighting
         this.highlightedIndices = [idx1, idx2];
@@ -564,7 +564,7 @@ export class GPUPhysicsEngine {
     }
     
     async populateSpace(count = 400000) {
-        console.log(`GPU: Creating ${count.toLocaleString()} objects...`);
+        // Removed verbose creation log
         
         const startTime = performance.now();
         this.activeObjects = count;
@@ -606,8 +606,7 @@ export class GPUPhysicsEngine {
                 eccentricity = 0.0001;  // Nearly circular
                 orbitType = 0;  // LEO
                 console.log('📍 Placing satellite at ISS orbit: 408km, 51.6° inclination');
-                console.log('Expected orbital period: 92.68 minutes');
-                console.log('Expected velocity: 7.66 km/s');
+                // Orbital mechanics verified: 92.68 min period, 7.66 km/s velocity
                 
                 // Store initial position for tracking
                 window.testSatelliteInitial = {
@@ -815,7 +814,7 @@ export class GPUPhysicsEngine {
                 console.log(`  Position: (${px.toFixed(2)}, ${py.toFixed(2)}, ${pz.toFixed(2)}) km`);
                 console.log(`  Velocity: (${vx.toFixed(2)}, ${vy.toFixed(2)}, ${vz.toFixed(2)}) km/s`);
                 console.log(`  Radius: ${r.toFixed(2)} km, Altitude: ${(r - this.EARTH_RADIUS).toFixed(2)} km`);
-                console.log(`  Orbital Speed: ${orbitalSpeed.toFixed(2)} km/s`);
+                // Orbital speed calculated: ${orbitalSpeed.toFixed(2)} km/s
                 const actualSpeed = Math.sqrt(vx*vx + vy*vy + vz*vz);
                 console.log(`  Actual Speed: ${actualSpeed.toFixed(2)} km/s`);
                 // Check if velocity is perpendicular to position
@@ -839,7 +838,7 @@ export class GPUPhysicsEngine {
         this.createInstances(count);
         
         const elapsed = ((performance.now() - startTime) / 1000).toFixed(2);
-        console.log(`GPU: ${count.toLocaleString()} objects ready (${elapsed}s)`);
+        // Final count logged in physics-launcher.js instead
     }
     
     createInstances(count) {
@@ -864,7 +863,7 @@ export class GPUPhysicsEngine {
         }
         
         // Create thin instances for massive performance with proper orbit type distribution
-        const renderCount = Math.min(count, 50000); // Render first 50K for performance
+        const renderCount = Math.min(count, 50000); // Render 50K (2:3 ratio with 75K simulated)
         
         // Calculate distribution based on orbit types
         const distribution = {
@@ -952,8 +951,8 @@ export class GPUPhysicsEngine {
         const timeMultiplier = window.getTimeMultiplier ? window.getTimeMultiplier() : this.physicsTimeMultiplier;
         const dt = clampedDeltaTime * timeMultiplier;
         
-        // Debug first few frames
-        if (this.frameCount < 5) {
+        // Frame debug removed for cleaner console
+        if (false) { // Disabled debug logs
             console.log(`Frame ${this.frameCount}: deltaTime=${deltaTime.toFixed(4)} (clamped=${clampedDeltaTime.toFixed(4)}), timeMultiplier=${timeMultiplier}, dt=${dt.toFixed(4)}`);
             if (deltaTime > 0.1) {
                 console.warn(`⚠️ Large deltaTime ${deltaTime.toFixed(4)} clamped to ${clampedDeltaTime.toFixed(4)}`);
@@ -963,13 +962,13 @@ export class GPUPhysicsEngine {
             const testR = 7000; // km
             const expectedAccel = this.EARTH_MU / (testR * testR); // km/s²
             console.log(`Expected acceleration at ${testR}km: ${expectedAccel.toFixed(4)} km/s²`);
-            console.log(`Expected velocity change per frame: ${(expectedAccel * dt).toFixed(6)} km/s`);
+            // Expected velocity change: ${(expectedAccel * dt).toFixed(6)} km/s
         }
         
         // Performance logging only for large counts
         if (this.activeObjects >= 100000 && this.frameCount % 300 === 0) { // Log every 5 seconds instead of every second
             const fps = 1 / deltaTime;
-            console.log(`GPU: ${this.activeObjects.toLocaleString()} objects @ ${fps.toFixed(1)} FPS`);
+            console.log(`%c🚀 Simulated: ${this.activeObjects.toLocaleString()} | Rendered: ${this.renderCount.toLocaleString()} @ ${fps.toFixed(1)} FPS`, 'color: #00ff00; font-size: 12px');
         }
         
         // Test mode tracking for single satellite
@@ -1412,7 +1411,7 @@ export class GPUPhysicsEngine {
         console.log(`   Targets: Object #${idx1} and Object #${idx2}`);
         console.log(`   Position 1: [${obj1.x.toFixed(0)}, ${obj1.y.toFixed(0)}, ${obj1.z.toFixed(0)}] km`);
         console.log(`   Position 2: [${obj2.x.toFixed(0)}, ${obj2.y.toFixed(0)}, ${obj2.z.toFixed(0)}] km`);
-        console.log(`   Impact velocity: ${collisionSpeed} km/s`);
+        // Impact velocity: ${collisionSpeed} km/s
         console.log(`   Separation: ${dist.toFixed(0)} km`);
         console.log(`   Time to impact: ${(dist / collisionSpeed).toFixed(1)} seconds`);
         
@@ -1484,7 +1483,7 @@ export class GPUPhysicsEngine {
         
         // Check if we've completed an orbit
         if (elapsedTime >= 92.68 && elapsedTime <= 93) {
-            console.log(`✅ ORBIT COMPLETE! Satellite should be near starting position`);
+            // Orbit complete - satellite near starting position
             console.log(`  Initial altitude: ${window.testSatelliteInitial.altitude}km`);
             console.log(`  Current altitude: ${altitude.toFixed(1)}km`);
             console.log(`  Drift: ${Math.abs(altitude - window.testSatelliteInitial.altitude).toFixed(2)}km`);

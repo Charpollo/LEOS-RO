@@ -44,7 +44,7 @@ function triggerTestCollision() {
             orb2 = sdaOrbs[(index + 1) % sdaOrbs.length];
         }
         
-        console.log(`Triggering catastrophic collision between SDA orbs!`);
+        // Triggering catastrophic collision between SDA orbs
         
         // Create massive explosion at collision point
         const collisionPos = {
@@ -71,7 +71,7 @@ function triggerTestCollision() {
     // Fallback to satellites
     const satellites = Array.from(system.satellites.keys());
     if (satellites.length < 2) {
-        console.log('Need at least 2 objects for collision!');
+        // Need at least 2 objects for collision
         return;
     }
     
