@@ -10,6 +10,7 @@
 import * as BABYLON from '@babylonjs/core';
 import { renderRatioManager } from './render-ratio-manager.js';
 import { scenarioManager } from './scenario-manager.js';
+import { renderingOptimizer } from './rendering-optimizer.js';
 
 export class GPUPhysicsEngine {
     constructor(scene) {
@@ -368,11 +369,11 @@ export class GPUPhysicsEngine {
         // Check if test mode - make satellite MUCH larger
         const urlParams = new URLSearchParams(window.location.search);
         const isTestMode = urlParams.get('mode') === 'test-single' || urlParams.get('mode') === 'test-collision';
-        const diameter = isTestMode ? 5.0 : 0.005; // 1000x larger in test mode - HUGE for visibility
+        const diameter = isTestMode ? 5.0 : 0.006; // Perfect size, ultra-smooth rendering
         
         this.meshTemplates.LEO = BABYLON.MeshBuilder.CreateSphere('gpuSatLEO', {
-            diameter: diameter, // Visible but not too large (5km at Earth scale, 50km in test)
-            segments: isTestMode ? 8 : 3 // Higher quality in test mode
+            diameter: diameter,
+            segments: 10 // Ultra-smooth spheres
         }, this.scene);
         this.materials.LEO = new BABYLON.StandardMaterial('gpuMatLEO', this.scene);
         // Make test satellite bright yellow for visibility
@@ -383,11 +384,13 @@ export class GPUPhysicsEngine {
         this.meshTemplates.LEO.material = this.materials.LEO;
         this.meshTemplates.LEO.thinInstanceEnablePicking = false;
         this.meshTemplates.LEO.isVisible = false;
+        this.meshTemplates.LEO.cullingStrategy = BABYLON.AbstractMesh.CULLINGSTRATEGY_BOUNDINGSPHERE_ONLY;
+        this.meshTemplates.LEO.doNotSyncBoundingInfo = true;
         
         // MEO - Yellow (25% of objects) - GPS/GLONASS
         this.meshTemplates.MEO = BABYLON.MeshBuilder.CreateSphere('gpuSatMEO', {
-            diameter: 0.005,
-            segments: 3
+            diameter: 0.006,  // Perfect size
+            segments: 10
         }, this.scene);
         this.materials.MEO = new BABYLON.StandardMaterial('gpuMatMEO', this.scene);
         this.materials.MEO.emissiveColor = new BABYLON.Color3(1, 1, 0); // YELLOW for MEO
@@ -395,11 +398,13 @@ export class GPUPhysicsEngine {
         this.meshTemplates.MEO.material = this.materials.MEO;
         this.meshTemplates.MEO.thinInstanceEnablePicking = false;
         this.meshTemplates.MEO.isVisible = false;
+        this.meshTemplates.MEO.cullingStrategy = BABYLON.AbstractMesh.CULLINGSTRATEGY_BOUNDINGSPHERE_ONLY;
+        this.meshTemplates.MEO.doNotSyncBoundingInfo = true;
         
         // GEO - Blue (10% of objects)
         this.meshTemplates.GEO = BABYLON.MeshBuilder.CreateSphere('gpuSatGEO', {
-            diameter: 0.005,
-            segments: 3
+            diameter: 0.006,  // Perfect size
+            segments: 10
         }, this.scene);
         this.materials.GEO = new BABYLON.StandardMaterial('gpuMatGEO', this.scene);
         this.materials.GEO.emissiveColor = new BABYLON.Color3(0, 0.5, 1); // Blue
@@ -407,11 +412,13 @@ export class GPUPhysicsEngine {
         this.meshTemplates.GEO.material = this.materials.GEO;
         this.meshTemplates.GEO.thinInstanceEnablePicking = false;
         this.meshTemplates.GEO.isVisible = false;
+        this.meshTemplates.GEO.cullingStrategy = BABYLON.AbstractMesh.CULLINGSTRATEGY_BOUNDINGSPHERE_ONLY;
+        this.meshTemplates.GEO.doNotSyncBoundingInfo = true;
         
         // HEO - Magenta (5% of objects)
         this.meshTemplates.HEO = BABYLON.MeshBuilder.CreateSphere('gpuSatHEO', {
-            diameter: 0.005,
-            segments: 3
+            diameter: 0.006,  // Perfect size
+            segments: 10
         }, this.scene);
         this.materials.HEO = new BABYLON.StandardMaterial('gpuMatHEO', this.scene);
         this.materials.HEO.emissiveColor = new BABYLON.Color3(1, 0, 1); // Magenta
@@ -419,11 +426,13 @@ export class GPUPhysicsEngine {
         this.meshTemplates.HEO.material = this.materials.HEO;
         this.meshTemplates.HEO.thinInstanceEnablePicking = false;
         this.meshTemplates.HEO.isVisible = false;
+        this.meshTemplates.HEO.cullingStrategy = BABYLON.AbstractMesh.CULLINGSTRATEGY_BOUNDINGSPHERE_ONLY;
+        this.meshTemplates.HEO.doNotSyncBoundingInfo = true;
         
         // Debris - Orange for normal space debris (not collision debris)
         this.meshTemplates.DEBRIS = BABYLON.MeshBuilder.CreateSphere('gpuDebris', {
-            diameter: 0.004, // Smaller than satellites
-            segments: 2
+            diameter: 0.005, // Perfect size
+            segments: 8
         }, this.scene);
         this.materials.DEBRIS = new BABYLON.StandardMaterial('gpuMatDebris', this.scene);
         this.materials.DEBRIS.emissiveColor = new BABYLON.Color3(1, 0.5, 0); // Orange for normal debris
@@ -431,11 +440,13 @@ export class GPUPhysicsEngine {
         this.meshTemplates.DEBRIS.material = this.materials.DEBRIS;
         this.meshTemplates.DEBRIS.thinInstanceEnablePicking = false;
         this.meshTemplates.DEBRIS.isVisible = false;
+        this.meshTemplates.DEBRIS.cullingStrategy = BABYLON.AbstractMesh.CULLINGSTRATEGY_BOUNDINGSPHERE_ONLY;
+        this.meshTemplates.DEBRIS.doNotSyncBoundingInfo = true;
         
         // Collision debris - Bright Red for Kessler cascade
         this.meshTemplates.COLLISION_DEBRIS = BABYLON.MeshBuilder.CreateSphere('gpuCollisionDebris', {
-            diameter: 0.008, // Larger for visibility during cascade
-            segments: 2
+            diameter: 0.009, // Perfect size for visibility
+            segments: 8
         }, this.scene);
         this.materials.COLLISION_DEBRIS = new BABYLON.StandardMaterial('gpuMatCollisionDebris', this.scene);
         this.materials.COLLISION_DEBRIS.emissiveColor = new BABYLON.Color3(1, 0, 0); // Bright RED for cascade
@@ -443,6 +454,8 @@ export class GPUPhysicsEngine {
         this.meshTemplates.COLLISION_DEBRIS.material = this.materials.COLLISION_DEBRIS;
         this.meshTemplates.COLLISION_DEBRIS.thinInstanceEnablePicking = false;
         this.meshTemplates.COLLISION_DEBRIS.isVisible = false;
+        this.meshTemplates.COLLISION_DEBRIS.cullingStrategy = BABYLON.AbstractMesh.CULLINGSTRATEGY_BOUNDINGSPHERE_ONLY;
+        this.meshTemplates.COLLISION_DEBRIS.doNotSyncBoundingInfo = true;
         
         // Default to LEO for backward compatibility
         this.instancedMesh = this.meshTemplates.LEO;

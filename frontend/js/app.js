@@ -840,6 +840,14 @@ async function createScene() {
     scene.autoClear = true; // Enable auto clear to prevent dark artifacts
     scene.autoClearDepthAndStencil = true;
     
+    // Enable logarithmic depth buffer for better precision at varying distances
+    scene.useLogarithmicDepth = true;
+    
+    // Optimize rendering for many objects
+    scene.useClonedMeshMap = true;
+    scene.useMaterialMeshMap = true;
+    scene.fogEnabled = false; // No fog in space
+    
     // Make scene and engine globally accessible for FPS counter and settings
     window.scene = scene;
     window.engine = engine;
