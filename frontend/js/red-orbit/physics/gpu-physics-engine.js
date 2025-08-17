@@ -8,6 +8,8 @@
  */
 
 import * as BABYLON from '@babylonjs/core';
+import { renderRatioManager } from './render-ratio-manager.js';
+import { scenarioManager } from './scenario-manager.js';
 
 export class GPUPhysicsEngine {
     constructor(scene) {
@@ -46,9 +48,10 @@ export class GPUPhysicsEngine {
         this.availableTimeMultipliers = [1, 10, 60, 100, 1000, 10000]; // Real-time to 10000x
         this.frameCount = 0;
         
-        // Rendering
+        // Rendering with ratio manager
         this.renderCount = 0;
         this.instanceMatrices = null;
+        this.renderManager = renderRatioManager;
         
         // Kessler tracking
         this.kesslerActive = false;
@@ -564,6 +567,12 @@ export class GPUPhysicsEngine {
     }
     
     async populateSpace(count = 400000) {
+        // Apply 2:1 minimum ratio (simulated:rendered)
+        const simulatedCount = count;
+        const renderedCount = Math.min(Math.floor(count / 2), 50000); // Cap at 50K for performance
+        
+        // Configure render ratio manager
+        this.renderManager.setObjectCounts(simulatedCount, renderedCount);
         // Removed verbose creation log
         
         const startTime = performance.now();
@@ -862,8 +871,9 @@ export class GPUPhysicsEngine {
             }
         }
         
-        // Create thin instances for massive performance with proper orbit type distribution
-        const renderCount = Math.min(count, 50000); // Render 50K (2:3 ratio with 75K simulated)
+        // Use render manager to determine what to render
+        const renderIndices = this.renderManager.getRenderIndices();
+        const renderCount = renderIndices.length;
         
         // Calculate distribution based on orbit types
         const distribution = {
@@ -942,6 +952,9 @@ export class GPUPhysicsEngine {
     
     async step(deltaTime) {
         if (!this.initialized || this.activeObjects === 0) return;
+        
+        // Update render swapping for dynamic visualization
+        this.renderManager.updateSwapping(deltaTime * 1000);
         
         // CRITICAL FIX: Clamp deltaTime to prevent huge jumps on first frame
         // Maximum 0.033 seconds (33ms) for smoother 30+ FPS minimum
@@ -1428,7 +1441,53 @@ export class GPUPhysicsEngine {
         };
     }
     
+    /**
+     * Set simulated and rendered object counts
+     * Called from Engineering Panel
+     */
+    async setObjectCounts(simulated, rendered) {
+        console.log(`[GPU Physics] Setting counts: ${simulated} simulated, ${rendered} rendered`);
+        
+        // Validate ratio
+        if (!this.renderManager.setObjectCounts(simulated, rendered)) {
+            console.error('[GPU Physics] Invalid ratio - must be at least 2:1');
+            return false;
+        }
+        
+        // Reinitialize with new counts
+        this.activeObjects = 0;
+        this.targetObjects = simulated;
+        await this.populateSpace(simulated);
+        
+        return true;
+    }
+    
+    /**
+     * Load a predefined scenario
+     * Called from Engineering Panel
+     */
+    async loadScenario(scenarioConfig) {
+        console.log(`[GPU Physics] Loading scenario: ${scenarioConfig.name}`);
+        
+        // Load scenario into manager
+        const scenario = scenarioManager.loadScenario(scenarioConfig.name);
+        if (!scenario) return false;
+        
+        // Calculate total objects
+        const totalObjects = scenario.satellites + scenario.debris;
+        const renderedObjects = Math.min(50000, Math.floor(totalObjects / 2)); // 2:1 minimum ratio
+        
+        // Set counts and reinitialize
+        await this.setObjectCounts(totalObjects, renderedObjects);
+        
+        // TODO: Apply scenario-specific orbital parameters during populateSpace
+        // This would require modifying populateSpace to use scenarioManager.generateOrbitalParams
+        
+        return true;
+    }
+    
     getStats() {
+        const renderStats = this.renderManager.getStats();
         return {
             totalObjects: this.activeObjects,
             maxCapacity: this.maxObjects,
@@ -1438,7 +1497,11 @@ export class GPUPhysicsEngine {
             timeMultiplier: this.physicsTimeMultiplier,
             kesslerActive: this.kesslerActive,
             collisionCount: this.collisionCount,
-            debrisGenerated: this.debrisGenerated
+            debrisGenerated: this.debrisGenerated,
+            simulated: renderStats.simulated,
+            rendered: renderStats.rendered,
+            ratio: renderStats.ratio,
+            pinnedObjects: renderStats.pinned
         };
     }
     

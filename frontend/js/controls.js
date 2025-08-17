@@ -72,70 +72,18 @@ export function setupKeyboardControls(camera, setTimeMultiplier, getTimeMultipli
         switch (event.key) {
             case 'r':
             case 'R':
-                if (camera) {
-                    camera.setTarget(BABYLON.Vector3.Zero());
-                    camera.setPosition(new BABYLON.Vector3(
-                        camera.radius * Math.sin(camera.alpha) * Math.cos(camera.beta),
-                        camera.radius * Math.sin(camera.beta),
-                        camera.radius * Math.cos(camera.alpha) * Math.cos(camera.beta)
-                    ));
-                }
+                // R key: Real-time speed (1x)
+                setTimeMultiplier(1.0);
+                console.log('[Controls] Real-time speed (1x)');
                 break;
-            case '+':
-            case '=': // Allow both + and = for easier access
-                {
-                    let tm = getTimeMultiplier();
-                    tm = Math.min(tm * 2, 100); // Cap max speed
-                    setTimeMultiplier(tm);
-                }
+            case 'f':
+            case 'F':
+                // F key: Fast speed (60x)
+                setTimeMultiplier(60.0);
+                console.log('[Controls] Fast speed (60x)');
                 break;
-            case '-':
-            case '_':
-                {
-                    let tm = getTimeMultiplier();
-                    tm = Math.max(tm / 2, 0.0001); // Cap min speed
-                    setTimeMultiplier(tm);
-                }
-                break;
-            case ' ':
-                // Spacebar: Pause/resume simulation (toggle timeMultiplier)
-                const tm = getTimeMultiplier();
-                setTimeMultiplier(tm !== 0 ? 0 : 0.1);
-                break;
-            case 'k':
-            case 'K':
-                // K key: Trigger Kessler Syndrome
-                if (window.redOrbitPhysics && window.redOrbitPhysics.triggerKesslerSyndrome) {
-                    console.log('[KESSLER] Syndrome triggered via hotkey');
-                    window.redOrbitPhysics.triggerKesslerSyndrome();
-                    
-                    // Show notification
-                    const notification = document.createElement('div');
-                    notification.style.cssText = `
-                        position: fixed;
-                        top: 50%;
-                        left: 50%;
-                        transform: translate(-50%, -50%);
-                        background: linear-gradient(135deg, #ff0000, #ff6600);
-                        color: white;
-                        padding: 20px 40px;
-                        border-radius: 10px;
-                        font-size: 18px;
-                        font-weight: bold;
-                        font-family: 'Orbitron', monospace;
-                        z-index: 10000;
-                        box-shadow: 0 0 50px rgba(255,0,0,0.8);
-                        animation: kesslerPulse 0.5s ease-out;
-                        text-transform: uppercase;
-                        letter-spacing: 2px;
-                    `;
-                    notification.textContent = 'KESSLER CASCADE INITIATED';
-                    document.body.appendChild(notification);
-                    
-                    setTimeout(() => notification.remove(), 3000);
-                }
-                break;
-            // Add more controls as needed
+            // O key handled by Engineering Panel
+            // Arrow keys handled above for camera movement
         }
     });
     

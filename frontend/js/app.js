@@ -3,18 +3,14 @@ import '@babylonjs/loaders';
 import { AdvancedDynamicTexture, TextBlock, Rectangle } from '@babylonjs/gui';
 import { GlowLayer } from '@babylonjs/core/Layers/glowLayer';
 
-// Import UI components and manager
-import './components/telemetry-card.js';
-import './components/telemetry-item.js';
-import { uiManager } from './ui/manager.js';
+// Import UI components
 import { initBrandUI, hideLoadingScreen, showHelpButton } from './ui/brand-ui.js';
-import { createTelemetryItem } from './ui/template-manager.js';
 
 // Import frontend-only data loader
 import { dataLoader } from './data-loader.js';
 
-// Import navigation controller
-import { initNavigationController } from './navigation-controller.js';
+// Import new Engineering Control Panel
+import { engineeringPanel } from './ui/engineering-control-panel.js';
 
 // Import our modular components
 import { EARTH_RADIUS_KM, EARTH_SCALE, MIN_LEO_ALTITUDE_KM, MOON_DISTANCE, MOON_SCALE, LOS_DEFAULT_KM, LOS_DEFAULT_BABYLON, calculateHorizonDistance } from './constants.js';
@@ -38,8 +34,7 @@ import { createPhysicsEngine, PHYSICS_CONFIG } from './red-orbit/physics/physics
 import { AdvancedKesslerSystem } from './red-orbit/kessler-advanced.js';
 import { KesslerUI } from './red-orbit/kessler-ui.js';
 
-// Import new engineering tabs system and conjunction history
-import { initializeEngineeringTabs } from './ui/engineering-tabs.js';
+// Import conjunction history for data tracking
 import { conjunctionHistory } from './ui/conjunction-history.js';
 
 // Globals
@@ -481,8 +476,7 @@ export async function initApp() {
             // Red Orbit physics initialized after satellites are loaded
             
             
-            // Initialize Navigation Controller
-            initNavigationController();
+            // Navigation controller removed - using Engineering Panel instead
             
             // Add event listener for the Add TLE button
             const addTleBtn = document.getElementById('add-tle-button');
@@ -2974,8 +2968,7 @@ async function initializeHybridPhysics() {
         window.kesslerSystem = advancedKessler; // Alias for engineering panel
         window.gpuPhysicsEngine = redOrbitPhysics; // Alias for engineering tabs
         window.conjunctionHistory = conjunctionHistory;
-        // Initialize new engineering tabs system
-        initializeEngineeringTabs();
+        // Engineering Panel is auto-initialized via its module
         window.showNotification = showNotification; // Expose globally
         window.engine = engine; // Expose for FPS monitoring
         
