@@ -184,6 +184,15 @@ function createCompatibilityWrapper(gpuEngine) {
             return this._physicsTimeMultiplier || 1;
         },
         
+        // Add setObjectCounts and loadScenario methods for Engineering Panel
+        async setObjectCounts(simulated, rendered) {
+            return await gpuEngine.setObjectCounts(simulated, rendered);
+        },
+        
+        async loadScenario(scenarioConfig) {
+            return await gpuEngine.loadScenario(scenarioConfig);
+        },
+        
         // Add scaling capability
         async scaleToTarget(count) {
             // Re-populate with new count

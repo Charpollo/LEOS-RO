@@ -582,7 +582,8 @@ export class GPUPhysicsEngine {
     async populateSpace(count = 400000) {
         // Apply 2:1 minimum ratio (simulated:rendered)
         const simulatedCount = count;
-        const renderedCount = Math.min(Math.floor(count / 2), 50000); // Cap at 50K for performance
+        // Use render manager's configured count, don't override
+        const renderedCount = this.renderManager.config.rendered || Math.min(Math.floor(count / 2), 50000);
         
         // Configure render ratio manager
         this.renderManager.setObjectCounts(simulatedCount, renderedCount);
@@ -1467,6 +1468,9 @@ export class GPUPhysicsEngine {
             return false;
         }
         
+        // Update render count
+        this.renderCount = rendered;
+        
         // Reinitialize with new counts
         this.activeObjects = 0;
         this.targetObjects = simulated;
@@ -1488,7 +1492,7 @@ export class GPUPhysicsEngine {
         
         // Calculate total objects
         const totalObjects = scenario.satellites + scenario.debris;
-        const renderedObjects = Math.min(50000, Math.floor(totalObjects / 2)); // 2:1 minimum ratio
+        const renderedObjects = Math.min(100000, Math.floor(totalObjects / 2)); // Allow up to 100K rendered
         
         // Set counts and reinitialize
         await this.setObjectCounts(totalObjects, renderedObjects);

@@ -1173,7 +1173,7 @@ function setOrbitDisplayMode(mode) {
 // Export function to update comet trails from simulation loop
 export function updateCometTrails() {
     if (orbitDisplayMode === 1) { // Only update when in comet trail mode
-        console.log(`DEBUG: updateCometTrails called, mode=${orbitDisplayMode}, satellites=${Object.keys(satelliteMeshes).length}`);
+        // Debug logging removed for cleaner console
         Object.entries(satelliteMeshes).forEach(([satName, mesh]) => {
             updateCometTrail(satName, mesh);
         });
@@ -1185,7 +1185,7 @@ window.addEventListener('keydown', (e) => {
     if (e.key === 'o' || e.key === 'O') {
         // Cycle through states: 0 -> 1 -> 2 -> 0
         orbitDisplayMode = (orbitDisplayMode + 1) % 3;
-        console.log(`DEBUG: Switching to mode ${orbitDisplayMode}, satelliteMeshes count: ${Object.keys(satelliteMeshes).length}`);
+        // Mode switching - removed debug log
         setOrbitDisplayMode(orbitDisplayMode);
         
         // Optional: Show a brief status message
