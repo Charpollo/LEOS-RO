@@ -6,69 +6,21 @@
 
 export class ScenarioManager {
     constructor() {
-        // Scenario definitions with realistic distributions
+        // Simplified - only collision demo scenario
         this.scenarios = {
-            'Current (2025)': {
-                name: 'Current (2025)',
-                satellites: 9500,
-                debris: 34000,
-                distribution: {
-                    LEO: { satellites: 7500, debris: 30000, altRange: [200, 2000] },
-                    MEO: { satellites: 1500, debris: 3000, altRange: [2000, 35786] },
-                    GEO: { satellites: 450, debris: 900, altRange: [35786, 35786] },
-                    HEO: { satellites: 50, debris: 100, altRange: [35786, 100000] }
-                }
-            },
-            'Projected 2035': {
-                name: 'Projected 2035',
-                satellites: 100000,
-                debris: 500000,
-                distribution: {
-                    LEO: { satellites: 85000, debris: 450000, altRange: [200, 2000] },
-                    MEO: { satellites: 10000, debris: 35000, altRange: [2000, 35786] },
-                    GEO: { satellites: 4500, debris: 12000, altRange: [35786, 35786] },
-                    HEO: { satellites: 500, debris: 3000, altRange: [35786, 100000] }
-                }
-            },
-            'Starlink Full': {
-                name: 'Starlink Full',
-                satellites: 42000,
+            'Collision Demo': {
+                name: 'Collision Demo',
+                satellites: 15000,
                 debris: 0,
+                enableCollisions: true,
+                collisionSetup: 'crossing', // Special flag for collision scenario
                 distribution: {
-                    LEO: { satellites: 42000, debris: 0, altRange: [540, 570] }, // Starlink shells
-                    MEO: { satellites: 0, debris: 0, altRange: [2000, 35786] },
-                    GEO: { satellites: 0, debris: 0, altRange: [35786, 35786] },
-                    HEO: { satellites: 0, debris: 0, altRange: [35786, 100000] }
-                }
-            },
-            'Chinese ASAT Test': {
-                name: 'Chinese ASAT Test',
-                satellites: 9500,
-                debris: 3000000,
-                distribution: {
-                    LEO: { satellites: 7500, debris: 2800000, altRange: [800, 900] }, // ASAT debris cloud
-                    MEO: { satellites: 1500, debris: 150000, altRange: [2000, 35786] },
-                    GEO: { satellites: 450, debris: 40000, altRange: [35786, 35786] },
-                    HEO: { satellites: 50, debris: 10000, altRange: [35786, 100000] }
-                }
-            },
-            'Kessler Cascade': {
-                name: 'Kessler Cascade',
-                satellites: 5000,
-                debris: 8000000,
-                distribution: {
-                    LEO: { satellites: 3000, debris: 7500000, altRange: [200, 2000] },
-                    MEO: { satellites: 1500, debris: 400000, altRange: [2000, 35786] },
-                    GEO: { satellites: 450, debris: 90000, altRange: [35786, 35786] },
-                    HEO: { satellites: 50, debris: 10000, altRange: [35786, 100000] }
-                }
-            },
-            'Blue Origin Kuiper': {
-                name: 'Blue Origin Kuiper',
-                satellites: 3236,
-                debris: 0,
-                distribution: {
-                    LEO: { satellites: 3236, debris: 0, altRange: [590, 630] }, // Kuiper shells
+                    LEO: { 
+                        satellites: 15000, 
+                        debris: 0, 
+                        altRange: [550, 570], // Tight altitude band for higher collision probability
+                        crossingOrbits: true  // Flag to create intersecting orbital planes
+                    },
                     MEO: { satellites: 0, debris: 0, altRange: [2000, 35786] },
                     GEO: { satellites: 0, debris: 0, altRange: [35786, 35786] },
                     HEO: { satellites: 0, debris: 0, altRange: [35786, 100000] }
@@ -135,12 +87,32 @@ export class ScenarioManager {
         const altitude = minAlt + Math.random() * (maxAlt - minAlt);
         const semiMajorAxis = 6371 + altitude; // Earth radius + altitude
         
-        // Random orbital elements
-        const inclination = this.getInclinationForOrbitClass(orbitClass);
-        const eccentricity = this.getEccentricityForOrbitClass(orbitClass);
-        const argumentOfPeriapsis = Math.random() * 360;
-        const rightAscension = Math.random() * 360;
-        const meanAnomaly = Math.random() * 360;
+        // Special handling for collision demo scenario
+        let inclination, eccentricity, argumentOfPeriapsis, rightAscension, meanAnomaly;
+        
+        if (scenario.collisionSetup === 'crossing' && classData.crossingOrbits) {
+            // Create two groups of orbits that will intersect
+            const group = objectIndex % 2;
+            if (group === 0) {
+                // Group 1: Polar orbits
+                inclination = 90 + (Math.random() - 0.5) * 5; // Near-polar
+                rightAscension = Math.random() * 30; // Clustered RAAN
+            } else {
+                // Group 2: Equatorial orbits  
+                inclination = 0 + (Math.random() - 0.5) * 5; // Near-equatorial
+                rightAscension = Math.random() * 30 + 90; // Different RAAN cluster
+            }
+            eccentricity = 0.001 + Math.random() * 0.01; // Nearly circular
+            argumentOfPeriapsis = Math.random() * 360;
+            meanAnomaly = Math.random() * 360;
+        } else {
+            // Normal orbital element generation
+            inclination = this.getInclinationForOrbitClass(orbitClass);
+            eccentricity = this.getEccentricityForOrbitClass(orbitClass);
+            argumentOfPeriapsis = Math.random() * 360;
+            rightAscension = Math.random() * 360;
+            meanAnomaly = Math.random() * 360;
+        }
         
         return {
             semiMajorAxis,

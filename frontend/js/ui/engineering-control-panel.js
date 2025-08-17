@@ -347,32 +347,6 @@ export class EngineeringControlPanel {
                 
                 <div>
                     <h3 style="color: #00ffff; margin: 0 0 15px 0; font-size: 14px; text-transform: uppercase;">
-                        Simulation Presets (Simulated:Rendered Ratio)
-                    </h3>
-                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
-                        ${this.simulationPresets.map(preset => `
-                            <button class="preset-btn" data-sim="${preset.simulated}" data-ren="${preset.rendered}" style="
-                                padding: 12px;
-                                background: rgba(0, 255, 255, 0.05);
-                                border: 1px solid rgba(0, 255, 255, 0.3);
-                                color: #00ffff;
-                                cursor: pointer;
-                                border-radius: 4px;
-                                text-align: left;
-                                transition: all 0.3s;
-                            ">
-                                <div style="font-weight: bold; margin-bottom: 5px;">${preset.name}</div>
-                                <div style="font-size: 11px; color: #888;">
-                                    ${preset.simulated.toLocaleString()} / ${preset.rendered.toLocaleString()}
-                                </div>
-                                <div style="font-size: 10px; color: #ff6600;">Ratio: ${preset.ratio}</div>
-                            </button>
-                        `).join('')}
-                    </div>
-                </div>
-                
-                <div>
-                    <h3 style="color: #00ffff; margin: 0 0 15px 0; font-size: 14px; text-transform: uppercase;">
                         Custom Configuration
                     </h3>
                     <div style="display: flex; gap: 20px;">
@@ -641,6 +615,31 @@ export class EngineeringControlPanel {
                         </div>
                     `;
                 }).join('')}
+                
+                <!-- Simulation Presets Section -->
+                <h3 style="color: #00ffff; margin: 20px 0 15px 0; font-size: 14px; text-transform: uppercase;">
+                    SIMULATION PRESETS (Simulated:Rendered Ratio)
+                </h3>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                    ${this.simulationPresets.map(preset => `
+                        <button class="sim-preset-btn" data-sim="${preset.simulated}" data-ren="${preset.rendered}" style="
+                            padding: 12px;
+                            background: rgba(0, 255, 255, 0.05);
+                            border: 1px solid rgba(0, 255, 255, 0.3);
+                            color: #00ffff;
+                            cursor: pointer;
+                            border-radius: 4px;
+                            text-align: left;
+                            transition: all 0.3s;
+                        ">
+                            <div style="font-weight: bold; margin-bottom: 5px;">${preset.name}</div>
+                            <div style="font-size: 11px; color: #888;">
+                                ${preset.simulated.toLocaleString()} / ${preset.rendered.toLocaleString()}
+                            </div>
+                            <div style="font-size: 10px; color: #ff6600;">Ratio: ${preset.ratio}</div>
+                        </button>
+                    `).join('')}
+                </div>
                 
                 <!-- Quick reference legend -->
                 <div style="padding: 12px; background: rgba(0, 0, 0, 0.5); border: 1px solid rgba(0, 255, 255, 0.2); border-radius: 4px; margin-top: 10px;">
@@ -1050,6 +1049,23 @@ export class EngineeringControlPanel {
                         await this.loadScenario(scenario);
                     }
                 }
+            });
+        });
+        
+        // Handle simulation preset buttons
+        document.querySelectorAll('.sim-preset-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const simulated = parseInt(e.currentTarget.dataset.sim);
+                const rendered = parseInt(e.currentTarget.dataset.ren);
+                this.applySimulationConfig(simulated, rendered);
+                
+                // Highlight selected preset
+                document.querySelectorAll('.sim-preset-btn').forEach(b => {
+                    b.style.border = '1px solid rgba(0, 255, 255, 0.3)';
+                    b.style.background = 'rgba(0, 255, 255, 0.05)';
+                });
+                e.currentTarget.style.border = '2px solid #00ffff';
+                e.currentTarget.style.background = 'rgba(0, 255, 255, 0.15)';
             });
         });
         
