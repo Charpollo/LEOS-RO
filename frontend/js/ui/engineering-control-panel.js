@@ -296,6 +296,62 @@ export class EngineeringControlPanel {
                         </div>
                     </div>
                     
+                    <!-- Scale Control -->
+                    <div style="margin-bottom: 15px; padding: 10px; background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(0, 255, 255, 0.2); border-radius: 4px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <div style="color: #00ffff; font-size: 12px; font-weight: bold;">
+                                OBJECT SCALE MODE
+                            </div>
+                            <div style="display: flex; gap: 10px;">
+                                <button id="scale-visualization" style="
+                                padding: 8px 16px;
+                                background: rgba(0, 255, 255, 0.2);
+                                border: 2px solid #00ffff;
+                                color: #00ffff;
+                                cursor: pointer;
+                                border-radius: 4px;
+                                font-size: 11px;
+                                font-weight: bold;
+                                transition: all 0.3s;
+                            ">
+                                VISUALIZATION
+                            </button>
+                            <button id="scale-real" style="
+                                padding: 8px 16px;
+                                background: transparent;
+                                border: 1px solid rgba(0, 255, 255, 0.3);
+                                color: rgba(0, 255, 255, 0.6);
+                                cursor: pointer;
+                                border-radius: 4px;
+                                font-size: 11px;
+                                font-weight: bold;
+                                transition: all 0.3s;
+                            ">
+                                REAL SCALE
+                            </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Scale Information -->
+                        <div id="scale-info" style="padding: 8px; background: rgba(0, 0, 0, 0.5); border: 1px solid rgba(0, 255, 255, 0.1); border-radius: 4px; font-size: 10px;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; color: #888;">
+                                <div><strong style="color: #00ffff;">Current Scale:</strong> <span id="scale-value">0.008 (800x)</span></div>
+                                <div><strong style="color: #00ffff;">Mode:</strong> <span id="scale-mode">Visualization</span></div>
+                                <div><strong style="color: #00ffff;">Satellite Size:</strong> <span id="sat-size">~51km visual</span></div>
+                                <div><strong style="color: #00ffff;">Real Size:</strong> 1-10m actual</div>
+                            </div>
+                            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(0, 255, 255, 0.1);">
+                                <div style="color: #ff6600; font-size: 9px; margin-bottom: 4px;">SCALE COMPARISON:</div>
+                                <div style="color: #666; font-size: 9px; line-height: 1.4;">
+                                    • <strong>Real Scale:</strong> 1 pixel ≈ 10m satellite (nearly invisible)
+                                    • <strong>Minimum Visible:</strong> 0.0001 scale (100x larger than real)
+                                    • <strong>Visualization:</strong> 0.008 scale (8000x larger than real)
+                                    • <strong>Earth Diameter:</strong> 12,742 km (reference)
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <!-- Secondary metrics -->
                     <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px;">
                         <div style="padding: 8px; background: rgba(0, 255, 255, 0.05); border: 1px solid rgba(0, 255, 255, 0.2); border-radius: 4px; text-align: center;">
@@ -343,60 +399,6 @@ export class EngineeringControlPanel {
                         </div>
                     </div>
                     ` : ''}
-                </div>
-                
-                <div>
-                    <h3 style="color: #00ffff; margin: 0 0 15px 0; font-size: 14px; text-transform: uppercase;">
-                        Custom Configuration
-                    </h3>
-                    <div style="display: flex; gap: 20px;">
-                        <div style="flex: 1;">
-                            <label style="color: #888; font-size: 11px; display: block; margin-bottom: 5px;">
-                                SIMULATED OBJECTS
-                            </label>
-                            <input type="number" id="custom-simulated" value="${this.currentSimulation.simulated}" style="
-                                width: 100%;
-                                padding: 8px;
-                                background: rgba(0, 255, 255, 0.05);
-                                border: 1px solid rgba(0, 255, 255, 0.3);
-                                color: #00ffff;
-                                border-radius: 4px;
-                            ">
-                        </div>
-                        <div style="flex: 1;">
-                            <label style="color: #888; font-size: 11px; display: block; margin-bottom: 5px;">
-                                RENDERED OBJECTS
-                            </label>
-                            <input type="number" id="custom-rendered" value="${this.currentSimulation.rendered}" style="
-                                width: 100%;
-                                padding: 8px;
-                                background: rgba(0, 255, 255, 0.05);
-                                border: 1px solid rgba(0, 255, 255, 0.3);
-                                color: #00ffff;
-                                border-radius: 4px;
-                            ">
-                        </div>
-                    </div>
-                    <div style="margin-top: 10px; padding: 10px; background: rgba(255, 102, 0, 0.1); border: 1px solid rgba(255, 102, 0, 0.3); border-radius: 4px;">
-                        <div style="color: #ff6600; font-size: 11px;">
-                            ⚠️ Minimum ratio must be 2:1 (simulated:rendered)
-                        </div>
-                        <div id="ratio-display" style="color: #00ffff; font-size: 12px; margin-top: 5px;">
-                            Current ratio: 2:1
-                        </div>
-                    </div>
-                    <button id="apply-custom" style="
-                        margin-top: 10px;
-                        width: 100%;
-                        padding: 10px;
-                        background: rgba(0, 255, 255, 0.1);
-                        border: 1px solid #00ffff;
-                        color: #00ffff;
-                        cursor: pointer;
-                        border-radius: 4px;
-                        font-weight: bold;
-                        text-transform: uppercase;
-                    ">Apply Configuration</button>
                 </div>
             </div>
         `;
@@ -960,48 +962,33 @@ export class EngineeringControlPanel {
     }
     
     attachSimulationHandlers() {
-        // Preset buttons
-        document.querySelectorAll('.preset-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const simulated = parseInt(e.currentTarget.dataset.sim);
-                const rendered = parseInt(e.currentTarget.dataset.ren);
-                this.applySimulationConfig(simulated, rendered);
+        // Scale mode toggle buttons
+        const scaleVizBtn = document.getElementById('scale-visualization');
+        const scaleRealBtn = document.getElementById('scale-real');
+        
+        if (scaleVizBtn && scaleRealBtn) {
+            scaleVizBtn.addEventListener('click', () => {
+                this.setScaleMode('visualization');
+                // Update button styles
+                scaleVizBtn.style.background = 'rgba(0, 255, 255, 0.2)';
+                scaleVizBtn.style.border = '2px solid #00ffff';
+                scaleVizBtn.style.color = '#00ffff';
+                scaleRealBtn.style.background = 'transparent';
+                scaleRealBtn.style.border = '1px solid rgba(0, 255, 255, 0.3)';
+                scaleRealBtn.style.color = 'rgba(0, 255, 255, 0.6)';
             });
-        });
-        
-        // Custom configuration
-        const simInput = document.getElementById('custom-simulated');
-        const renInput = document.getElementById('custom-rendered');
-        const ratioDisplay = document.getElementById('ratio-display');
-        
-        const updateRatio = () => {
-            const sim = parseInt(simInput.value) || 0;
-            const ren = parseInt(renInput.value) || 1;
-            const ratio = sim / ren;
-            ratioDisplay.textContent = `Current ratio: ${ratio.toFixed(1)}:1`;
             
-            if (ratio < 2) {
-                ratioDisplay.style.color = '#ff0000';
-                ratioDisplay.innerHTML += ' ⚠️ Below minimum!';
-            } else {
-                ratioDisplay.style.color = '#00ffff';
-            }
-        };
-        
-        simInput.addEventListener('input', updateRatio);
-        renInput.addEventListener('input', updateRatio);
-        
-        document.getElementById('apply-custom').addEventListener('click', () => {
-            const sim = parseInt(simInput.value);
-            const ren = parseInt(renInput.value);
-            
-            if (sim / ren < 2) {
-                alert('Ratio must be at least 2:1 (simulated:rendered)');
-                return;
-            }
-            
-            this.applySimulationConfig(sim, ren);
-        });
+            scaleRealBtn.addEventListener('click', () => {
+                this.setScaleMode('real');
+                // Update button styles
+                scaleRealBtn.style.background = 'rgba(0, 255, 255, 0.2)';
+                scaleRealBtn.style.border = '2px solid #00ffff';
+                scaleRealBtn.style.color = '#00ffff';
+                scaleVizBtn.style.background = 'transparent';
+                scaleVizBtn.style.border = '1px solid rgba(0, 255, 255, 0.3)';
+                scaleVizBtn.style.color = 'rgba(0, 255, 255, 0.6)';
+            });
+        }
     }
     
     attachSettingsHandlers() {
@@ -1076,6 +1063,56 @@ export class EngineeringControlPanel {
                 this.setClassificationBanner(e.target.value);
             });
         }
+    }
+    
+    setScaleMode(mode) {
+        // Calculate scale based on mode
+        let scale, scaleMultiplier, visualSize, modeText;
+        
+        if (mode === 'real') {
+            // Real scale: satellites are 1-10m, Earth radius is 6371km
+            // At true scale, a 10m satellite would be 10/6371000 = 0.0000015 of Earth's radius
+            // But that would be invisible, so we'll use minimum visible scale
+            scale = 0.0001; // Smallest visible size - still 100x larger than reality
+            scaleMultiplier = 100; // 100x larger than real
+            visualSize = '~0.6km'; // Visual size on screen
+            modeText = 'Real Scale (Minimum Visible)';
+            this.showNotification('Real Scale Mode: Objects at minimum visible size');
+        } else {
+            // Visualization scale - current default
+            scale = 0.008; // Current visualization scale
+            scaleMultiplier = 8000; // 8000x larger than real
+            visualSize = '~51km'; // Visual size on screen
+            modeText = 'Visualization';
+            this.showNotification('Visualization Mode: Objects scaled for visibility');
+        }
+        
+        // Update scale information display
+        const scaleValue = document.getElementById('scale-value');
+        const scaleMode = document.getElementById('scale-mode');
+        const satSize = document.getElementById('sat-size');
+        
+        if (scaleValue) scaleValue.textContent = `${scale} (${scaleMultiplier}x)`;
+        if (scaleMode) scaleMode.textContent = modeText;
+        if (satSize) satSize.textContent = `${visualSize} visual`;
+        
+        // Update all rendered objects
+        if (window.redOrbitPhysics && window.redOrbitPhysics.updateObjectScale) {
+            window.redOrbitPhysics.updateObjectScale(scale);
+        } else if (window.scene && window.scene.meshes) {
+            // Fallback: directly update mesh scales
+            window.scene.meshes.forEach(mesh => {
+                if (mesh.name && (mesh.name.includes('satellite') || mesh.name.includes('debris'))) {
+                    mesh.scaling.setAll(scale);
+                }
+            });
+        }
+        
+        // Store current scale mode
+        this.currentScaleMode = mode;
+        this.currentScale = scale;
+        
+        console.log(`[Engineering Panel] Scale mode set to: ${mode} (${scale}, ${scaleMultiplier}x real size)`);
     }
     
     async applySimulationConfig(simulated, rendered) {

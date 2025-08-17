@@ -369,7 +369,8 @@ export class GPUPhysicsEngine {
         // Check if test mode - make satellite MUCH larger
         const urlParams = new URLSearchParams(window.location.search);
         const isTestMode = urlParams.get('mode') === 'test-single' || urlParams.get('mode') === 'test-collision';
-        const diameter = isTestMode ? 5.0 : 0.006; // Perfect size, ultra-smooth rendering
+        const diameter = isTestMode ? 5.0 : 0.008; // Default visualization scale
+        this.currentScale = diameter; // Store current scale
         
         this.meshTemplates.LEO = BABYLON.MeshBuilder.CreateSphere('gpuSatLEO', {
             diameter: diameter,
@@ -389,7 +390,7 @@ export class GPUPhysicsEngine {
         
         // MEO - Yellow (25% of objects) - GPS/GLONASS
         this.meshTemplates.MEO = BABYLON.MeshBuilder.CreateSphere('gpuSatMEO', {
-            diameter: 0.006,  // Perfect size
+            diameter: this.currentScale,  // Use current scale
             segments: 10
         }, this.scene);
         this.materials.MEO = new BABYLON.StandardMaterial('gpuMatMEO', this.scene);
@@ -403,7 +404,7 @@ export class GPUPhysicsEngine {
         
         // GEO - Blue (10% of objects)
         this.meshTemplates.GEO = BABYLON.MeshBuilder.CreateSphere('gpuSatGEO', {
-            diameter: 0.006,  // Perfect size
+            diameter: this.currentScale,  // Use current scale
             segments: 10
         }, this.scene);
         this.materials.GEO = new BABYLON.StandardMaterial('gpuMatGEO', this.scene);
@@ -417,7 +418,7 @@ export class GPUPhysicsEngine {
         
         // HEO - Magenta (5% of objects)
         this.meshTemplates.HEO = BABYLON.MeshBuilder.CreateSphere('gpuSatHEO', {
-            diameter: 0.006,  // Perfect size
+            diameter: this.currentScale,  // Use current scale
             segments: 10
         }, this.scene);
         this.materials.HEO = new BABYLON.StandardMaterial('gpuMatHEO', this.scene);
@@ -431,7 +432,7 @@ export class GPUPhysicsEngine {
         
         // Debris - Orange for normal space debris (not collision debris)
         this.meshTemplates.DEBRIS = BABYLON.MeshBuilder.CreateSphere('gpuDebris', {
-            diameter: 0.005, // Perfect size
+            diameter: this.currentScale * 0.8, // Slightly smaller than satellites
             segments: 8
         }, this.scene);
         this.materials.DEBRIS = new BABYLON.StandardMaterial('gpuMatDebris', this.scene);
@@ -445,7 +446,7 @@ export class GPUPhysicsEngine {
         
         // Collision debris - Bright Red for Kessler cascade
         this.meshTemplates.COLLISION_DEBRIS = BABYLON.MeshBuilder.CreateSphere('gpuCollisionDebris', {
-            diameter: 0.009, // Perfect size for visibility
+            diameter: this.currentScale * 1.5, // Larger for visibility during cascade
             segments: 8
         }, this.scene);
         this.materials.COLLISION_DEBRIS = new BABYLON.StandardMaterial('gpuMatCollisionDebris', this.scene);
@@ -1580,5 +1581,22 @@ export class GPUPhysicsEngine {
         } else {
             console.warn(`Invalid time multiplier ${multiplier}. Available: ${this.availableTimeMultipliers.join(', ')}`)
         }
+    }
+    
+    updateObjectScale(scale) {
+        // Update the scale of all mesh templates
+        const oldScale = this.currentScale || 0.008;
+        this.currentScale = scale;
+        const scaleFactor = scale / oldScale;
+        
+        // Update each mesh template's scaling directly
+        for (const [type, mesh] of Object.entries(this.meshTemplates)) {
+            if (mesh) {
+                // Apply scale factor to existing mesh
+                mesh.scaling.scaleInPlace(scaleFactor);
+            }
+        }
+        
+        console.log(`[GPU Physics] Object scale updated from ${oldScale} to ${scale} (factor: ${scaleFactor})`);
     }
 }
