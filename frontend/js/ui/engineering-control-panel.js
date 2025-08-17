@@ -120,7 +120,7 @@ export class EngineeringControlPanel {
         const tabs = [
             { id: 'simulation', label: 'LIVE MONITOR' },
             { id: 'scenarios', label: 'SCENARIOS' },
-            { id: 'grafana', label: 'GRAFANA' },
+            { id: 'export', label: 'EXPORT' },
             { id: 'export', label: 'EXPORT' },
             { id: 'settings', label: 'SETTINGS' }
         ];
@@ -241,8 +241,9 @@ export class EngineeringControlPanel {
                 content.innerHTML = this.getScenariosContent();
                 this.attachScenarioHandlers();
                 break;
-            case 'grafana':
-                content.innerHTML = this.getGrafanaContent();
+            case 'export':
+                content.innerHTML = this.getExportContent();
+                this.attachExportHandlers();
                 break;
             case 'export':
                 content.innerHTML = this.getExportContent();
@@ -705,7 +706,7 @@ export class EngineeringControlPanel {
                         <li><strong>Rendered:</strong> Only ${this.currentSimulation.rendered.toLocaleString()} of ${this.currentSimulation.simulated.toLocaleString()} objects visible</li>
                         <li><strong>Conjunction Analysis:</strong> Limited to rendered objects (~${conjunctionAccuracy} coverage)</li>
                         <li><strong>Visual Accuracy:</strong> ${ratio > 10 ? 'Sampling mode - not all objects shown' : 'Most objects visible'}</li>
-                        <li><strong>Truth Data:</strong> Full ${this.currentSimulation.simulated.toLocaleString()} object physics streamed to Grafana</li>
+                        <li><strong>Truth Data:</strong> Full ${this.currentSimulation.simulated.toLocaleString()} object physics exported via telemetry</li>
                         <li><strong>Collision Detection:</strong> ${this.currentSimulation.simulated > 100000 ? 'Spatial hashing on GPU' : 'Full N² comparison'}</li>
                     </ul>
                 </div>
@@ -724,32 +725,18 @@ export class EngineeringControlPanel {
         `;
     }
     
-    getGrafanaContent() {
+    getExportContent() {
         return `
             <div style="display: flex; flex-direction: column; gap: 20px;">
                 <h3 style="color: #00ffff; margin: 0; font-size: 14px; text-transform: uppercase;">
-                    Grafana Connection
+                    Telemetry Export
                 </h3>
                 
                 <div>
                     <label style="color: #888; font-size: 11px; display: block; margin-bottom: 5px;">
-                        GRAFANA URL
+                        TELEMETRY ENDPOINT
                     </label>
-                    <input type="text" id="grafana-url" value="http://localhost:3000" style="
-                        width: 100%;
-                        padding: 8px;
-                        background: rgba(0, 255, 255, 0.05);
-                        border: 1px solid rgba(0, 255, 255, 0.3);
-                        color: #00ffff;
-                        border-radius: 4px;
-                    ">
-                </div>
-                
-                <div>
-                    <label style="color: #888; font-size: 11px; display: block; margin-bottom: 5px;">
-                        STREAM KEY
-                    </label>
-                    <input type="text" id="grafana-key" value="leos-ro-stream" style="
+                    <input type="text" id="telemetry-url" value="ws://localhost:3001" style="
                         width: 100%;
                         padding: 8px;
                         background: rgba(0, 255, 255, 0.05);
@@ -763,7 +750,7 @@ export class EngineeringControlPanel {
                     <label style="color: #888; font-size: 11px; display: block; margin-bottom: 5px;">
                         UPDATE INTERVAL (ms)
                     </label>
-                    <input type="number" id="grafana-interval" value="1000" style="
+                    <input type="number" id="telemetry-interval" value="1000" style="
                         width: 100%;
                         padding: 8px;
                         background: rgba(0, 255, 255, 0.05);
@@ -774,7 +761,7 @@ export class EngineeringControlPanel {
                 </div>
                 
                 <div style="display: flex; gap: 10px;">
-                    <button id="grafana-connect" style="
+                    <button id="telemetry-connect" style="
                         flex: 1;
                         padding: 10px;
                         background: rgba(0, 255, 255, 0.1);
@@ -784,7 +771,7 @@ export class EngineeringControlPanel {
                         border-radius: 4px;
                         font-weight: bold;
                     ">Connect</button>
-                    <button id="grafana-test" style="
+                    <button id="telemetry-disconnect" style="
                         flex: 1;
                         padding: 10px;
                         background: rgba(255, 102, 0, 0.1);
@@ -793,10 +780,10 @@ export class EngineeringControlPanel {
                         cursor: pointer;
                         border-radius: 4px;
                         font-weight: bold;
-                    ">Test Connection</button>
+                    ">Disconnect</button>
                 </div>
                 
-                <div id="grafana-status" style="
+                <div id="telemetry-status" style="
                     padding: 10px;
                     background: rgba(0, 0, 0, 0.5);
                     border: 1px solid rgba(0, 255, 255, 0.2);
@@ -804,61 +791,11 @@ export class EngineeringControlPanel {
                     color: #888;
                     font-size: 11px;
                 ">
-                    Status: Not connected
-                </div>
-            </div>
-        `;
-    }
-    
-    getExportContent() {
-        return `
-            <div style="display: flex; flex-direction: column; gap: 20px;">
-                <h3 style="color: #00ffff; margin: 0; font-size: 14px; text-transform: uppercase;">
-                    Data Export
-                </h3>
-                
-                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
-                    <button class="export-btn" data-format="json" style="
-                        padding: 15px;
-                        background: rgba(0, 255, 255, 0.05);
-                        border: 1px solid rgba(0, 255, 255, 0.3);
-                        color: #00ffff;
-                        cursor: pointer;
-                        border-radius: 4px;
-                        text-align: center;
-                    ">
-                        <div style="font-size: 12px; font-weight: bold; margin-bottom: 5px; color: #00ffff;">JSON</div>
-                        <div>Export JSON</div>
-                    </button>
-                    <button class="export-btn" data-format="csv" style="
-                        padding: 15px;
-                        background: rgba(0, 255, 255, 0.05);
-                        border: 1px solid rgba(0, 255, 255, 0.3);
-                        color: #00ffff;
-                        cursor: pointer;
-                        border-radius: 4px;
-                        text-align: center;
-                    ">
-                        <div style="font-size: 12px; font-weight: bold; margin-bottom: 5px; color: #00ffff;">CSV</div>
-                        <div>Export CSV</div>
-                    </button>
-                </div>
-                
-                <div>
-                    <h4 style="color: #ff6600; margin: 0 0 10px 0; font-size: 12px;">Export Options</h4>
-                    <div style="display: flex; flex-direction: column; gap: 8px;">
-                        <label style="color: #888; font-size: 11px;">
-                            <input type="checkbox" checked> Include telemetry data
-                        </label>
-                        <label style="color: #888; font-size: 11px;">
-                            <input type="checkbox" checked> Include conjunction history
-                        </label>
-                        <label style="color: #888; font-size: 11px;">
-                            <input type="checkbox"> Include orbital elements
-                        </label>
-                        <label style="color: #888; font-size: 11px;">
-                            <input type="checkbox"> Include performance metrics
-                        </label>
+                    <div id="telemetry-status-text">Status: Not connected</div>
+                    <div id="telemetry-stats" style="margin-top: 10px; display: none;">
+                        <div>Packets sent: <span id="packets-sent">0</span></div>
+                        <div>Errors: <span id="packet-errors">0</span></div>
+                        <div>Uptime: <span id="stream-uptime">0s</span></div>
                     </div>
                 </div>
             </div>
@@ -1065,6 +1002,94 @@ export class EngineeringControlPanel {
         }
     }
     
+    attachExportHandlers() {
+        const connectBtn = document.getElementById('telemetry-connect');
+        const disconnectBtn = document.getElementById('telemetry-disconnect');
+        const statusDiv = document.getElementById('telemetry-status-text');
+        const statsDiv = document.getElementById('telemetry-stats');
+        
+        if (connectBtn) {
+            connectBtn.addEventListener('click', async () => {
+                const url = document.getElementById('telemetry-url')?.value || 'ws://localhost:3001';
+                const interval = parseInt(document.getElementById('telemetry-interval')?.value || '1000');
+                
+                // Update telemetry streamer config
+                if (window.telemetryStreamer) {
+                    window.telemetryStreamer.updateConfig({
+                        serverUrl: url,
+                        interval: interval
+                    });
+                    
+                    // Start streaming
+                    const success = await window.telemetryStreamer.startStreaming();
+                    
+                    if (success) {
+                        this.showNotification('Connected! Exporting telemetry...', 'success');
+                        if (statusDiv) {
+                            statusDiv.innerHTML = `<span style="color: #00ff00;">✓ Connected to ${url}</span>`;
+                        }
+                        if (statsDiv) {
+                            statsDiv.style.display = 'block';
+                        }
+                    } else {
+                        this.showNotification('Failed to connect to telemetry server', 'error');
+                        if (statusDiv) {
+                            statusDiv.innerHTML = `<span style="color: #ff0000;">✗ Connection failed</span>`;
+                        }
+                    }
+                }
+            });
+        }
+        
+        if (disconnectBtn) {
+            disconnectBtn.addEventListener('click', () => {
+                if (window.telemetryStreamer) {
+                    window.telemetryStreamer.stopStreaming();
+                    this.showNotification('Telemetry disconnected', 'info');
+                    if (statusDiv) {
+                        statusDiv.innerHTML = `<span style="color: #888;">Status: Disconnected</span>`;
+                    }
+                    if (statsDiv) {
+                        statsDiv.style.display = 'none';
+                    }
+                }
+            });
+        }
+        
+        if (testBtn) {
+            testBtn.addEventListener('click', async () => {
+                const url = document.getElementById('grafana-url').value;
+                
+                // Test connection
+                try {
+                    const response = await fetch(`${url}/api/health`);
+                    if (response.ok) {
+                        this.showNotification('Telemetry endpoint is reachable!', 'success');
+                        if (statusDiv) {
+                            statusDiv.innerHTML = `
+                                <div style="color: #00ff00; font-size: 11px;">
+                                    ✓ Telemetry endpoint is available at ${url}
+                                </div>
+                            `;
+                        }
+                    } else {
+                        throw new Error('Health check failed');
+                    }
+                } catch (error) {
+                    this.showNotification('Cannot reach telemetry endpoint - is server running?', 'error');
+                    if (statusDiv) {
+                        statusDiv.innerHTML = `
+                            <div style="color: #ff6600; font-size: 11px;">
+                                ⚠ Cannot reach telemetry endpoint at ${url}
+                                <br>Run: docker-compose up -d
+                            </div>
+                        `;
+                    }
+                }
+            });
+        }
+    }
+    
     setScaleMode(mode) {
         // Calculate scale based on mode
         let scale, scaleMultiplier, visualSize, modeText;
@@ -1117,6 +1142,12 @@ export class EngineeringControlPanel {
     
     async applySimulationConfig(simulated, rendered) {
         console.log(`[Engineering Panel] Applying config: ${simulated} simulated, ${rendered} rendered`);
+        
+        // Notify telemetry of configuration change
+        if (window.telemetryStreamer) {
+            const configName = `${(simulated/1000).toFixed(0)}K:${(rendered/1000).toFixed(0)}K`;
+            window.telemetryStreamer.resetForScenario(configName);
+        }
         
         // Check if physics engine is ready (might need to wait for it)
         if (!window.redOrbitPhysics) {

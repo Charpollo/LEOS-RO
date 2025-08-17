@@ -12,6 +12,9 @@ import { dataLoader } from './data-loader.js';
 // Import new Engineering Control Panel
 import { engineeringPanel } from './ui/engineering-control-panel.js';
 
+// Import Telemetry Streamer for Grafana integration
+import { telemetryStreamer } from './telemetry/telemetry-streamer.js';
+
 // Import our modular components
 import { EARTH_RADIUS_KM, EARTH_SCALE, MIN_LEO_ALTITUDE_KM, MOON_DISTANCE, MOON_SCALE, LOS_DEFAULT_KM, LOS_DEFAULT_BABYLON, calculateHorizonDistance } from './constants.js';
 import { createSkybox } from './skybox.js';
@@ -88,6 +91,20 @@ export async function initApp() {
     setTimeout(() => {
         initAuroraBackground();
     }, 300);
+    
+    // Initialize and auto-start telemetry streaming to Grafana
+    console.log('[App] Initializing telemetry streaming to Grafana...');
+    setTimeout(async () => {
+        // Auto-start telemetry streaming
+        if (window.telemetryStreamer) {
+            const success = await window.telemetryStreamer.startStreaming();
+            if (success) {
+                console.log('[App] ✅ Telemetry streaming to Grafana started automatically');
+            } else {
+                console.log('[App] ⚠️ Grafana not reachable - start Grafana and refresh page');
+            }
+        }
+    }, 2000); // Wait 2 seconds for everything to initialize
     
     // Initialize 3D model viewer panel
     initModelViewer();
