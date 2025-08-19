@@ -100,7 +100,7 @@ export class DataLoader {
             const response = await fetch(`/data/telemetry/${filename}`);
             
             if (!response.ok) {
-                console.warn(`Telemetry file not found: ${filename}`);
+                // Silently return null for missing telemetry files (expected behavior)
                 return null;
             }
 

@@ -11,8 +11,8 @@ export class RenderRatioManager {
         
         // Current configuration
         this.config = {
-            simulated: 100000,
-            rendered: 50000,
+            simulated: 30000,  // Updated default for telemetry optimization
+            rendered: 15000,   // Updated default for telemetry optimization
             ratio: 2.0
         };
         
@@ -23,6 +23,9 @@ export class RenderRatioManager {
         this.minDwell = 3000; // Minimum 3 seconds before swap
         this.lastSwapTime = 0;
         this.objectDwellTimes = new Map();
+        
+        // Initialize default render indices
+        this.buildRenderIndices();
     }
     
     /**
@@ -34,9 +37,15 @@ export class RenderRatioManager {
     setObjectCounts(simulated, rendered) {
         const ratio = simulated / rendered;
         
+        // Allow exact 2:1 ratio (>= instead of >)
         if (ratio < this.MIN_RATIO) {
-            console.warn(`[RenderRatio] Invalid ratio ${ratio.toFixed(1)}:1, minimum is ${this.MIN_RATIO}:1`);
-            return false;
+            // For exact 2:1 ratio, allow it
+            if (Math.abs(ratio - this.MIN_RATIO) < 0.01) {
+                // Close enough to 2:1, accept it
+            } else {
+                console.warn(`[RenderRatio] Invalid ratio ${ratio.toFixed(1)}:1, minimum is ${this.MIN_RATIO}:1`);
+                return false;
+            }
         }
         
         this.config.simulated = simulated;

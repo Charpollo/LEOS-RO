@@ -8,7 +8,7 @@ import { GPUPhysicsEngine } from './gpu-physics-engine.js';
 // Export the PHYSICS_CONFIG - GPU ONLY!
 export const PHYSICS_CONFIG = {
     USE_GPU: true,     // ALWAYS GPU
-    INITIAL_COUNT: 100000  // 100K simulated, will render 50K (2:1 ratio)
+    INITIAL_COUNT: 30000  // 30K simulated, will render 15K (2:1 ratio) - optimized for real-time telemetry
 };
 
 /**
@@ -125,16 +125,31 @@ function createCompatibilityWrapper(gpuEngine) {
         debrisGenerated: 0,
         workgroupSize: 256,
         
+        // Expose GPU data properties for telemetry
+        get instanceMatrices() {
+            return gpuEngine.instanceMatrices;
+        },
+        
+        get renderCount() {
+            return gpuEngine.renderCount;
+        },
+        
         // Direct methods to GPU engine
         step(deltaTime) {
             gpuEngine.step(deltaTime);
             // Update our activeObjects count
             this.activeObjects = gpuEngine.activeObjects;
             this.debrisGenerated = gpuEngine.debrisGenerated || 0;
+            // Note: instanceMatrices and renderCount are accessed via getters, no need to update
         },
         
         update(deltaTime) {
             this.step(deltaTime);
+        },
+        
+        // Export object data for telemetry
+        async exportObjectData(maxObjects = 1000) {
+            return gpuEngine.exportObjectData(maxObjects);
         },
         
         triggerKesslerSyndrome() {

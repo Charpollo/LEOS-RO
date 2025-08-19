@@ -92,6 +92,13 @@ export async function initApp() {
         initAuroraBackground();
     }, 300);
     
+    // Initialize centralized data collector (Flight Rule: Centralized data management)
+    import('./telemetry/data-collector.js').then(module => {
+        console.log('[App] Data collector loaded and will auto-start when physics is ready');
+    }).catch(err => {
+        console.error('[App] Failed to load data collector:', err);
+    });
+    
     // Initialize and auto-start telemetry streaming to Grafana
     console.log('[App] Initializing telemetry streaming to Grafana...');
     setTimeout(async () => {

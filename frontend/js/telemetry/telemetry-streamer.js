@@ -123,7 +123,10 @@ export class TelemetryStreamer {
                 // Handle any messages from server if needed
                 try {
                     const data = JSON.parse(event.data);
-                    console.log('[TelemetryStreamer] Server message:', data);
+                    // Only log errors or important messages
+                    if (data.error || data.warning || data.alert) {
+                        console.log('[TelemetryStreamer] Server message:', data);
+                    }
                 } catch (e) {
                     // Ignore non-JSON messages
                 }

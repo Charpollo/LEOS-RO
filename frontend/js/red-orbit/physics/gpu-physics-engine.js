@@ -888,6 +888,13 @@ export class GPUPhysicsEngine {
         
         // Use render manager to determine what to render
         const renderIndices = this.renderManager.getRenderIndices();
+        
+        // Handle case where renderIndices might be null initially
+        if (!renderIndices || renderIndices.length === 0) {
+            console.warn('[GPU Physics] No render indices available yet, skipping instance creation');
+            return;
+        }
+        
         const renderCount = renderIndices.length;
         
         // Calculate distribution based on orbit types
@@ -1598,5 +1605,105 @@ export class GPUPhysicsEngine {
         }
         
         console.log(`[GPU Physics] Object scale updated from ${oldScale} to ${scale} (factor: ${scaleFactor})`);
+    }
+    
+    /**
+     * Export object data for telemetry streaming
+     * Returns array of object positions and velocities
+     */
+    async exportObjectData(maxObjects = 1000) {
+        if (!this.device || this.activeObjects === 0) return [];
+        
+        // Limit the number of objects to export
+        const exportCount = Math.min(this.activeObjects, maxObjects);
+        const readSize = exportCount * 32; // 8 floats × 4 bytes per object
+        
+        // Create read buffer
+        const readBuffer = this.device.createBuffer({
+            size: readSize,
+            usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
+        });
+        
+        // Copy from GPU
+        const commandEncoder = this.device.createCommandEncoder();
+        commandEncoder.copyBufferToBuffer(this.stateBuffer, 0, readBuffer, 0, readSize);
+        this.device.queue.submit([commandEncoder.finish()]);
+        
+        // Wait for GPU to finish and map buffer
+        await readBuffer.mapAsync(GPUMapMode.READ);
+        const data = new Float32Array(readBuffer.getMappedRange());
+        
+        // Convert to object array for telemetry with full orbital parameters
+        const objects = [];
+        for (let i = 0; i < exportCount; i++) {
+            const offset = i * 8;
+            const type = data[offset + 7]; // 0=satellite, 1=debris, 2=special
+            
+            // Position and velocity in km and km/s
+            const px = data[offset + 0];
+            const py = data[offset + 1];
+            const pz = data[offset + 2];
+            const vx = data[offset + 3];
+            const vy = data[offset + 4];
+            const vz = data[offset + 5];
+            
+            // Calculate orbital parameters
+            const r = Math.sqrt(px * px + py * py + pz * pz); // radius in km
+            const v = Math.sqrt(vx * vx + vy * vy + vz * vz); // speed in km/s
+            const altitude = r - this.EARTH_RADIUS; // altitude in km
+            
+            // Calculate orbital elements
+            const mu = this.EARTH_MU; // km³/s²
+            const specificEnergy = (v * v / 2) - (mu / r); // vis-viva equation
+            const semiMajorAxis = -mu / (2 * specificEnergy); // km
+            const eccentricity = Math.sqrt(1 + (2 * specificEnergy * (px * vy - py * vx) * (px * vy - py * vx)) / (mu * mu));
+            const orbitalPeriod = 2 * Math.PI * Math.sqrt(Math.pow(semiMajorAxis, 3) / mu) / 60; // minutes
+            const apogee = semiMajorAxis * (1 + eccentricity) - this.EARTH_RADIUS; // km
+            const perigee = semiMajorAxis * (1 - eccentricity) - this.EARTH_RADIUS; // km
+            
+            // Calculate inclination (angle between orbital plane and equator)
+            const h = [py * vz - pz * vy, pz * vx - px * vz, px * vy - py * vx]; // angular momentum
+            const inclination = Math.acos(h[2] / Math.sqrt(h[0] * h[0] + h[1] * h[1] + h[2] * h[2])) * 180 / Math.PI; // degrees
+            
+            // Risk assessment based on altitude and eccentricity
+            let risk = 25; // base risk
+            if (altitude < 600) risk = 75; // high collision risk in LEO
+            else if (altitude < 2000) risk = 50; // medium risk
+            if (eccentricity > 0.1) risk += 10; // eccentric orbits are riskier
+            
+            objects.push({
+                id: `OBJ-${i}`,
+                name: type === 1 ? `Debris-${i}` : `Satellite-${i}`,
+                type: type === 1 ? 'debris' : 'satellite',
+                position: {
+                    x: px * 1000, // Convert km to meters for Red Watch
+                    y: py * 1000,
+                    z: pz * 1000
+                },
+                velocity: {
+                    x: vx * 1000, // Convert km/s to m/s
+                    y: vy * 1000,
+                    z: vz * 1000
+                },
+                orbital_elements: {
+                    altitude: altitude.toFixed(1), // km
+                    speed: (v * 1000).toFixed(1), // m/s
+                    semi_major_axis: semiMajorAxis.toFixed(1), // km
+                    eccentricity: eccentricity.toFixed(4),
+                    inclination: inclination.toFixed(2), // degrees
+                    apogee: apogee.toFixed(1), // km
+                    perigee: perigee.toFixed(1), // km
+                    period: orbitalPeriod.toFixed(1) // minutes
+                },
+                mass: data[offset + 6],
+                altitude: altitude, // Keep for backward compatibility
+                risk: Math.min(100, Math.max(0, risk)), // 0-100 scale
+                status: 'active',
+                last_updated: new Date().toISOString()
+            });
+        }
+        
+        readBuffer.unmap();
+        return objects;
     }
 }

@@ -179,6 +179,150 @@ export default class DataTab {
         
         this.container.appendChild(streamSection);
         
+        // Universal Telemetry Streaming section
+        const telemetrySection = document.createElement('div');
+        telemetrySection.style.cssText = `
+            margin-top: 20px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+        `;
+        
+        const telemetryTitle = document.createElement('h4');
+        telemetryTitle.style.cssText = `
+            color: #00ffff;
+            font-size: 13px;
+            text-transform: uppercase;
+            margin: 0 0 15px 0;
+        `;
+        telemetryTitle.textContent = 'UNIVERSAL TELEMETRY STREAMING';
+        telemetrySection.appendChild(telemetryTitle);
+        
+        // Endpoint selection
+        const endpointSelect = document.createElement('select');
+        endpointSelect.id = 'telemetry-endpoint-select';
+        endpointSelect.style.cssText = `
+            width: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            color: #00ffff;
+            padding: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin-bottom: 10px;
+        `;
+        
+        const endpoints = [
+            { value: 'redwatch', text: 'RED WATCH - ws://localhost:8000/ws/ingest' },
+            { value: 'grafana', text: 'Grafana Live - ws://localhost:3000/api/live/push' },
+            { value: 'prometheus', text: 'Prometheus - ws://localhost:9090/api/v1/write' },
+            { value: 'influxdb', text: 'InfluxDB - ws://localhost:8086/api/v2/write' },
+            { value: 'custom', text: 'Custom Endpoint...' }
+        ];
+        
+        endpoints.forEach(ep => {
+            const option = document.createElement('option');
+            option.value = ep.value;
+            option.textContent = ep.text;
+            endpointSelect.appendChild(option);
+        });
+        
+        telemetrySection.appendChild(endpointSelect);
+        
+        // Custom endpoint input (hidden by default)
+        const customEndpointInput = document.createElement('input');
+        customEndpointInput.type = 'text';
+        customEndpointInput.id = 'custom-telemetry-endpoint';
+        customEndpointInput.placeholder = 'ws://your-endpoint:port/path';
+        customEndpointInput.style.cssText = `
+            width: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            color: #00ffff;
+            padding: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin-bottom: 10px;
+            display: none;
+        `;
+        telemetrySection.appendChild(customEndpointInput);
+        
+        // Show custom input when selected
+        endpointSelect.addEventListener('change', (e) => {
+            customEndpointInput.style.display = e.target.value === 'custom' ? 'block' : 'none';
+        });
+        
+        // Telemetry controls
+        const telemetryControls = document.createElement('div');
+        telemetryControls.style.cssText = `
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        `;
+        
+        const telemetryToggle = document.createElement('button');
+        telemetryToggle.id = 'telemetry-toggle';
+        telemetryToggle.textContent = 'START TELEMETRY';
+        telemetryToggle.style.cssText = `
+            flex: 1;
+            background: rgba(0, 255, 255, 0.1);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            color: #00ffff;
+            padding: 10px;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-weight: bold;
+            font-size: 11px;
+            transition: all 0.3s;
+        `;
+        
+        telemetryToggle.addEventListener('click', () => this.toggleTelemetry());
+        telemetryControls.appendChild(telemetryToggle);
+        
+        // Configure button
+        const configBtn = document.createElement('button');
+        configBtn.textContent = 'CONFIGURE';
+        configBtn.style.cssText = `
+            background: rgba(255, 165, 0, 0.1);
+            border: 1px solid rgba(255, 165, 0, 0.3);
+            color: #ffa500;
+            padding: 10px 20px;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-weight: bold;
+            font-size: 11px;
+            transition: all 0.3s;
+        `;
+        
+        configBtn.addEventListener('click', () => this.showTelemetryConfig());
+        telemetryControls.appendChild(configBtn);
+        
+        telemetrySection.appendChild(telemetryControls);
+        
+        // Status display
+        const telemetryStatus = document.createElement('div');
+        telemetryStatus.id = 'telemetry-status';
+        telemetryStatus.style.cssText = `
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            color: #666;
+        `;
+        telemetryStatus.innerHTML = `
+            <div>Status: <span id="telemetry-status-text" style="color: #666;">DISCONNECTED</span></div>
+            <div>Messages: <span id="telemetry-msg-count">0</span></div>
+            <div>Data Rate: <span id="telemetry-data-rate">0 KB/s</span></div>
+            <div>Objects: <span id="telemetry-object-count">0</span></div>
+        `;
+        telemetrySection.appendChild(telemetryStatus);
+        
+        this.container.appendChild(telemetrySection);
+        
+        // Update status periodically
+        setInterval(() => this.updateTelemetryStatus(), 1000);
+        
         return this.container;
     }
     
@@ -414,5 +558,127 @@ export default class DataTab {
         if (this.isStreaming) {
             this.stopStreaming();
         }
+    }
+    
+    toggleTelemetry() {
+        // Load the telemetry connector if not already loaded
+        if (!window.telemetryConnector) {
+            import('../telemetry/universal-telemetry-connector.js').then(() => {
+                this.toggleTelemetryConnection();
+            }).catch(err => {
+                console.error('[EXPORT TAB] Failed to load telemetry connector:', err);
+                this.showNotification('Failed to load telemetry module', 'error');
+            });
+        } else {
+            this.toggleTelemetryConnection();
+        }
+    }
+    
+    toggleTelemetryConnection() {
+        const connector = window.telemetryConnector;
+        const select = document.getElementById('telemetry-endpoint-select');
+        const customInput = document.getElementById('custom-telemetry-endpoint');
+        const button = document.getElementById('telemetry-toggle');
+        
+        if (connector.connected) {
+            // Disconnect
+            connector.disable();
+            button.textContent = 'START TELEMETRY';
+            button.style.background = 'rgba(0, 255, 255, 0.1)';
+            button.style.borderColor = 'rgba(0, 255, 255, 0.3)';
+            button.style.color = '#00ffff';
+        } else {
+            // Configure endpoint based on selection
+            let endpoint, name, format;
+            
+            switch (select.value) {
+                case 'redwatch':
+                    endpoint = 'ws://localhost:8000/ws/ingest';
+                    name = 'RED WATCH';
+                    format = 'redwatch';
+                    break;
+                case 'grafana':
+                    endpoint = 'ws://localhost:3000/api/live/push';
+                    name = 'Grafana';
+                    format = 'grafana';
+                    break;
+                case 'prometheus':
+                    endpoint = 'ws://localhost:9090/api/v1/write';
+                    name = 'Prometheus';
+                    format = 'prometheus';
+                    break;
+                case 'influxdb':
+                    endpoint = 'ws://localhost:8086/api/v2/write';
+                    name = 'InfluxDB';
+                    format = 'influxdb';
+                    break;
+                case 'custom':
+                    endpoint = customInput.value;
+                    name = 'Custom';
+                    format = 'raw';
+                    break;
+            }
+            
+            if (!endpoint) {
+                this.showNotification('Please enter a custom endpoint', 'warning');
+                return;
+            }
+            
+            // Set endpoint and format
+            connector.setEndpoint(endpoint, name);
+            connector.updateConfig({ dataConfig: { format: format } });
+            
+            // Connect
+            connector.enable();
+            
+            // Update button
+            button.textContent = 'STOP TELEMETRY';
+            button.style.background = 'rgba(255, 0, 0, 0.1)';
+            button.style.borderColor = 'rgba(255, 0, 0, 0.3)';
+            button.style.color = '#ff0000';
+        }
+    }
+    
+    updateTelemetryStatus() {
+        if (!window.telemetryConnector) return;
+        
+        const connector = window.telemetryConnector;
+        const status = connector.getStatus();
+        
+        // Update status text
+        const statusText = document.getElementById('telemetry-status-text');
+        if (statusText) {
+            if (status.connected) {
+                statusText.textContent = 'CONNECTED';
+                statusText.style.color = '#00ff00';
+            } else if (status.enabled) {
+                statusText.textContent = 'CONNECTING...';
+                statusText.style.color = '#ffff00';
+            } else {
+                statusText.textContent = 'DISCONNECTED';
+                statusText.style.color = '#666';
+            }
+        }
+        
+        // Update metrics
+        const msgCount = document.getElementById('telemetry-msg-count');
+        if (msgCount) msgCount.textContent = status.messagesSent || 0;
+        
+        const dataRate = document.getElementById('telemetry-data-rate');
+        if (dataRate) {
+            const kbps = status.bytesSent ? (status.bytesSent / 1024) / (Date.now() / 1000) : 0;
+            dataRate.textContent = `${kbps.toFixed(2)} KB/s`;
+        }
+        
+        const objectCount = document.getElementById('telemetry-object-count');
+        if (objectCount) {
+            const physics = window.redOrbitPhysics;
+            objectCount.textContent = physics?.activeObjects || 0;
+        }
+    }
+    
+    showTelemetryConfig() {
+        // TODO: Show configuration modal
+        this.showNotification('Configuration dialog coming soon', 'info');
     }
 }

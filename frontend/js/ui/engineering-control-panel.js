@@ -121,7 +121,6 @@ export class EngineeringControlPanel {
             { id: 'simulation', label: 'LIVE MONITOR' },
             { id: 'scenarios', label: 'SCENARIOS' },
             { id: 'export', label: 'EXPORT' },
-            { id: 'export', label: 'EXPORT' },
             { id: 'settings', label: 'SETTINGS' }
         ];
         
@@ -244,9 +243,6 @@ export class EngineeringControlPanel {
             case 'export':
                 content.innerHTML = this.getExportContent();
                 this.attachExportHandlers();
-                break;
-            case 'export':
-                content.innerHTML = this.getExportContent();
                 break;
             case 'settings':
                 content.innerHTML = this.getSettingsContent();
@@ -798,6 +794,79 @@ export class EngineeringControlPanel {
                         <div>Uptime: <span id="stream-uptime">0s</span></div>
                     </div>
                 </div>
+                
+                <!-- Universal Telemetry Streaming Section -->
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid rgba(0, 255, 255, 0.2);">
+                    <h3 style="color: #00ffff; margin: 0 0 15px 0; font-size: 14px; text-transform: uppercase;">
+                        Universal Telemetry Streaming (Red Watch / Grafana / Custom)
+                    </h3>
+                    
+                    <div>
+                        <label style="color: #888; font-size: 11px; display: block; margin-bottom: 5px;">
+                            SELECT ENDPOINT
+                        </label>
+                        <select id="telemetry-endpoint-select" style="
+                            width: 100%;
+                            padding: 8px;
+                            background: rgba(0, 255, 255, 0.05);
+                            border: 1px solid rgba(0, 255, 255, 0.3);
+                            color: #00ffff;
+                            border-radius: 4px;
+                            font-size: 12px;
+                        ">
+                            <option value="redwatch">RED WATCH - ws://localhost:8000/ws/ingest</option>
+                            <option value="grafana">Grafana Live - ws://localhost:3000/api/live/push</option>
+                            <option value="prometheus">Prometheus - ws://localhost:9090/api/v1/write</option>
+                            <option value="influxdb">InfluxDB - ws://localhost:8086/api/v2/write</option>
+                            <option value="custom">Custom Endpoint...</option>
+                        </select>
+                    </div>
+                    
+                    <div id="custom-endpoint-container" style="display: none; margin-top: 10px;">
+                        <label style="color: #888; font-size: 11px; display: block; margin-bottom: 5px;">
+                            CUSTOM ENDPOINT URL
+                        </label>
+                        <input type="text" id="custom-telemetry-endpoint" placeholder="ws://your-endpoint:port/path" style="
+                            width: 100%;
+                            padding: 8px;
+                            background: rgba(0, 255, 255, 0.05);
+                            border: 1px solid rgba(0, 255, 255, 0.3);
+                            color: #00ffff;
+                            border-radius: 4px;
+                        ">
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; margin-top: 15px;">
+                        <button id="universal-telemetry-toggle" style="
+                            flex: 1;
+                            padding: 10px;
+                            background: rgba(0, 255, 255, 0.1);
+                            border: 1px solid #00ffff;
+                            color: #00ffff;
+                            cursor: pointer;
+                            border-radius: 4px;
+                            font-weight: bold;
+                            text-transform: uppercase;
+                        ">Start Telemetry</button>
+                    </div>
+                    
+                    <div id="universal-telemetry-status" style="
+                        margin-top: 15px;
+                        padding: 10px;
+                        background: rgba(0, 0, 0, 0.5);
+                        border-radius: 4px;
+                        border: 1px solid rgba(0, 255, 255, 0.2);
+                        font-family: 'Courier New', monospace;
+                        font-size: 11px;
+                        color: #888;
+                    ">
+                        <div>Status: <span id="universal-status-text" style="color: #666;">DISCONNECTED</span></div>
+                        <div>Endpoint: <span id="universal-endpoint-text">RED WATCH</span></div>
+                        <div>Messages: <span id="universal-msg-count">0</span></div>
+                        <div>Data Rate: <span id="universal-data-rate">0 KB/s</span></div>
+                        <div>Objects: <span id="universal-object-count">0</span></div>
+                    </div>
+                </div>
             </div>
         `;
     }
@@ -1003,6 +1072,33 @@ export class EngineeringControlPanel {
     }
     
     attachExportHandlers() {
+        // Universal Telemetry Handlers
+        const endpointSelect = document.getElementById('telemetry-endpoint-select');
+        const customContainer = document.getElementById('custom-endpoint-container');
+        const toggleBtn = document.getElementById('universal-telemetry-toggle');
+        
+        // Show/hide custom endpoint input
+        if (endpointSelect) {
+            endpointSelect.addEventListener('change', (e) => {
+                if (customContainer) {
+                    customContainer.style.display = e.target.value === 'custom' ? 'block' : 'none';
+                }
+                document.getElementById('universal-endpoint-text').textContent = 
+                    e.target.value === 'custom' ? 'Custom' : e.target.options[e.target.selectedIndex].text.split(' - ')[0];
+            });
+        }
+        
+        // Toggle telemetry connection
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', () => {
+                this.toggleUniversalTelemetry();
+            });
+        }
+        
+        // Update status periodically
+        setInterval(() => this.updateUniversalTelemetryStatus(), 1000);
+        
+        // Original export handlers below
         const connectBtn = document.getElementById('telemetry-connect');
         const disconnectBtn = document.getElementById('telemetry-disconnect');
         const statusDiv = document.getElementById('telemetry-status-text');
@@ -1056,7 +1152,8 @@ export class EngineeringControlPanel {
             });
         }
         
-        if (testBtn) {
+        // Comment out testBtn code as it's not defined anywhere
+        /* if (testBtn) {
             testBtn.addEventListener('click', async () => {
                 const url = document.getElementById('grafana-url').value;
                 
@@ -1087,7 +1184,7 @@ export class EngineeringControlPanel {
                     }
                 }
             });
-        }
+        } */
     }
     
     setScaleMode(mode) {
@@ -1441,6 +1538,123 @@ export class EngineeringControlPanel {
                 default:
                     banner.style.background = '#00ff00';
             }
+        }
+    }
+    
+    toggleUniversalTelemetry() {
+        // Load the telemetry connector if not already loaded
+        if (!window.telemetryConnector) {
+            import('../telemetry/universal-telemetry-connector.js').then(() => {
+                this.toggleTelemetryConnection();
+            }).catch(err => {
+                console.error('[Engineering Panel] Failed to load telemetry connector:', err);
+                this.showNotification('Failed to load telemetry module', 'error');
+            });
+        } else {
+            this.toggleTelemetryConnection();
+        }
+    }
+    
+    toggleTelemetryConnection() {
+        const connector = window.telemetryConnector;
+        const select = document.getElementById('telemetry-endpoint-select');
+        const customInput = document.getElementById('custom-telemetry-endpoint');
+        const button = document.getElementById('universal-telemetry-toggle');
+        
+        if (connector.connected) {
+            // Disconnect
+            connector.disable();
+            button.textContent = 'Start Telemetry';
+            button.style.background = 'rgba(0, 255, 255, 0.1)';
+            button.style.borderColor = '#00ffff';
+            button.style.color = '#00ffff';
+        } else {
+            // Configure endpoint based on selection
+            let endpoint, name, format;
+            
+            switch (select.value) {
+                case 'redwatch':
+                    endpoint = 'ws://localhost:8000/ws/ingest';
+                    name = 'RED WATCH';
+                    format = 'redwatch';
+                    break;
+                case 'grafana':
+                    endpoint = 'ws://localhost:3000/api/live/push';
+                    name = 'Grafana';
+                    format = 'grafana';
+                    break;
+                case 'prometheus':
+                    endpoint = 'ws://localhost:9090/api/v1/write';
+                    name = 'Prometheus';
+                    format = 'prometheus';
+                    break;
+                case 'influxdb':
+                    endpoint = 'ws://localhost:8086/api/v2/write';
+                    name = 'InfluxDB';
+                    format = 'influxdb';
+                    break;
+                case 'custom':
+                    endpoint = customInput.value;
+                    name = 'Custom';
+                    format = 'raw';
+                    break;
+            }
+            
+            if (!endpoint) {
+                this.showNotification('Please enter a custom endpoint', 'warning');
+                return;
+            }
+            
+            // Set endpoint and format
+            connector.setEndpoint(endpoint, name);
+            connector.updateConfig({ dataConfig: { format: format } });
+            
+            // Connect
+            connector.enable();
+            
+            // Update button
+            button.textContent = 'Stop Telemetry';
+            button.style.background = 'rgba(255, 0, 0, 0.1)';
+            button.style.borderColor = '#ff0000';
+            button.style.color = '#ff0000';
+        }
+    }
+    
+    updateUniversalTelemetryStatus() {
+        if (!window.telemetryConnector) return;
+        
+        const connector = window.telemetryConnector;
+        const status = connector.getStatus();
+        
+        // Update status text
+        const statusText = document.getElementById('universal-status-text');
+        if (statusText) {
+            if (status.connected) {
+                statusText.textContent = 'CONNECTED';
+                statusText.style.color = '#00ff00';
+            } else if (status.enabled) {
+                statusText.textContent = 'CONNECTING...';
+                statusText.style.color = '#ffff00';
+            } else {
+                statusText.textContent = 'DISCONNECTED';
+                statusText.style.color = '#666';
+            }
+        }
+        
+        // Update metrics
+        const msgCount = document.getElementById('universal-msg-count');
+        if (msgCount) msgCount.textContent = status.messagesSent || 0;
+        
+        const dataRate = document.getElementById('universal-data-rate');
+        if (dataRate) {
+            const kbps = status.bytesSent ? (status.bytesSent / 1024) / (Date.now() / 1000) : 0;
+            dataRate.textContent = `${kbps.toFixed(2)} KB/s`;
+        }
+        
+        const objectCount = document.getElementById('universal-object-count');
+        if (objectCount) {
+            const physics = window.redOrbitPhysics || window.gpuPhysicsEngine;
+            objectCount.textContent = physics?.activeObjects || 0;
         }
     }
     
