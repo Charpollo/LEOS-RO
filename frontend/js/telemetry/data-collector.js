@@ -17,9 +17,9 @@ class DataCollector {
         
         // Configuration - optimized for 30K real-time streaming
         this.config = {
-            updateInterval: 100,      // Update cache every 100ms (10Hz) 
+            updateInterval: 1000,     // Update cache every 1 second (1Hz) - practical balance
             maxObjectsToCache: 30000, // Cache all 30K objects for real-time
-            cacheExpiry: 1000        // Cache valid for 1 second
+            cacheExpiry: 2000        // Cache valid for 2 seconds
         };
         
         // Stats

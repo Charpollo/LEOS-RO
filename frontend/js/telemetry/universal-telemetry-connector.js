@@ -28,7 +28,7 @@ class UniversalTelemetryConnector {
         this.maxReconnectAttempts = config.maxReconnects || 10;
         this.reconnectDelay = config.reconnectDelay || 1000;
         this.updateInterval = null;
-        this.updateRate = config.updateRate || 100; // 10 Hz default (100ms)
+        this.updateRate = config.updateRate || 1000; // 1 Hz (1 second) - practical balance
         
         // Data collection configuration - SEND EVERYTHING for real-time
         this.dataConfig = Object.assign({
