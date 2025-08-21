@@ -37,6 +37,7 @@ import { calculateSatellitePosition, toBabylonPosition, generateRealTimeTelemetr
 import { createPhysicsEngine, PHYSICS_CONFIG } from './red-orbit/physics/physics-selector.js';
 import { AdvancedKesslerSystem } from './red-orbit/kessler-advanced.js';
 import { KesslerUI } from './red-orbit/kessler-ui.js';
+import { initEngineeringPanel } from './red-orbit/engineering-panel.js';
 
 // Globals
 let engine;

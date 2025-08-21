@@ -1172,16 +1172,4 @@ export function updateCometTrails() {
     }
 }
 
-// Three-state toggle for orbit display with the 'O' key
-window.addEventListener('keydown', (e) => {
-    if (e.key === 'o' || e.key === 'O') {
-        // Cycle through states: 0 -> 1 -> 2 -> 0
-        orbitDisplayMode = (orbitDisplayMode + 1) % 3;
-        console.log(`DEBUG: Switching to mode ${orbitDisplayMode}, satelliteMeshes count: ${Object.keys(satelliteMeshes).length}`);
-        setOrbitDisplayMode(orbitDisplayMode);
-        
-        // Optional: Show a brief status message
-        const modeNames = ['Solid Orbit Lines', 'Historical 3D Trails', 'Off'];
-        console.log(`Orbit Display: ${modeNames[orbitDisplayMode]}`);
-    }
-});
+// Orbital display removed - 'O' key now opens Engineering Panel

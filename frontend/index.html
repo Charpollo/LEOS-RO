@@ -6,6 +6,7 @@
     <title>Red Orbit - Space Disaster Simulation</title>
     <link rel="stylesheet" href="css/brand-ui.css">
     <link rel="stylesheet" href="css/sda-styles.css">
+    <link rel="stylesheet" href="css/engineering-panel.css">
     <!-- Webpack will inject the correct script tags automatically -->
     <style>
       /* Aurora background animation */
@@ -145,137 +146,25 @@
             </div>
         </div>
         
-        <!-- Red Orbit Dashboard Layout -->
-        <div id="red-orbit-dashboard" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 100;">
-            <!-- Top Header Bar -->
-            <div id="top-header" style="position: absolute; top: 0; left: 0; right: 0; height: 50px; background: rgba(0,0,0,0.95); border-bottom: 1px solid rgba(255,0,0,0.2); pointer-events: auto; backdrop-filter: blur(10px); display: flex; align-items: center; padding: 0 20px; transition: all 0.3s;">
-                <!-- Logos on left -->
-                <div style="display: flex; align-items: center; gap: 15px;">
-                    <img src="assets/CyberRTS-Simple-Logo.svg" alt="CyberRTS" style="height: 35px; opacity: 0.8;">
-                    <div style="width: 1px; height: 25px; background: rgba(255,255,255,0.2);"></div>
-                    <h1 style="color: #ff0000; font-size: 16px; font-weight: bold; margin: 0; font-family: 'Orbitron', monospace; letter-spacing: 2px;">RED ORBIT</h1>
-                </div>
-                
-                <!-- Mission Stats Banner -->
-                <div id="mission-stats" style="margin-left: auto; display: flex; gap: 30px; align-items: center;">
-                    <div style="text-align: center;">
-                        <div style="color: #666; font-size: 9px; text-transform: uppercase;">Objects</div>
-                        <div id="objects-tracked-count" style="color: #ff0000; font-size: 16px; font-weight: bold; font-family: 'Orbitron', monospace;">2500</div>
-                    </div>
-                    <div style="text-align: center;">
-                        <div style="color: #666; font-size: 9px; text-transform: uppercase;">Debris</div>
-                        <div style="color: #ff6600; font-size: 16px; font-weight: bold; font-family: 'Orbitron', monospace;" id="debris-count-header">0</div>
-                    </div>
-                    <div style="text-align: center;">
-                        <div style="color: #666; font-size: 9px; text-transform: uppercase;">Risk</div>
-                        <div style="color: #ffc800; font-size: 16px; font-weight: bold; font-family: 'Orbitron', monospace;">LOW</div>
-                    </div>
-                    <div style="text-align: center;">
-                        <div style="color: #666; font-size: 9px; text-transform: uppercase;">Status</div>
-                        <div style="color: #00ff00; font-size: 16px; font-weight: bold; font-family: 'Orbitron', monospace;">READY</div>
-                    </div>
-                    <div style="width: 1px; height: 25px; background: rgba(255,255,255,0.2); margin: 0 10px;"></div>
-                    <div style="color: #ff0000; font-size: 10px; font-family: 'Orbitron', monospace; text-transform: uppercase; letter-spacing: 1px;">
-                        <span id="live-indicator" style="display: inline-block; width: 6px; height: 6px; background: #ff0000; border-radius: 50%; margin-right: 5px; animation: pulse 2s infinite;"></span>
-                        LIVE
-                    </div>
-                </div>
+        <!-- Floating UI Elements (no black banner) -->
+        <div id="red-orbit-ui" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 100;">
+            <!-- Logo and RED ORBIT text (top left - floating) -->
+            <div id="logo-container" style="position: fixed; top: 20px; left: 20px; display: flex; align-items: center; gap: 15px; pointer-events: auto; z-index: 1000;">
+                <img src="assets/CyberRTS-Simple-Logo.svg" alt="CyberRTS" style="height: 35px; opacity: 0.9;">
+                <h1 style="color: #ff0000; font-size: 18px; font-weight: bold; margin: 0; font-family: 'Orbitron', monospace; letter-spacing: 3px; text-shadow: 0 2px 10px rgba(255,0,0,0.5);">RED ORBIT</h1>
             </div>
             
-            <!-- Left Navigation Sidebar -->
-            <div id="nav-sidebar" style="position: absolute; top: 50px; left: 0; width: 280px; bottom: 0; background: rgba(0,0,0,0.95); border-right: 1px solid rgba(255,0,0,0.2); pointer-events: auto; overflow: hidden; backdrop-filter: blur(10px); transition: all 0.3s;">
-                <button id="nav-collapse-btn" style="position: fixed; left: 280px; top: 50%; transform: translateY(-50%); width: 20px; height: 60px; background: rgba(0,0,0,0.9); border: 1px solid rgba(255,0,0,0.3); border-left: none; border-radius: 0 10px 10px 0; color: #ff0000; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; z-index: 1000; transition: left 0.3s;">◀</button>
-                
-                <!-- User Profile Section -->
-                <div class="user-profile" style="padding: 20px; border-bottom: 1px solid rgba(255,0,0,0.2); display: flex; align-items: center; gap: 15px; cursor: pointer; position: relative;" onclick="window.toggleUserProfile(event)">
-                    <div style="width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, #ff0000, #ff6600); display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; font-size: 18px;">
-                        KJ
-                    </div>
-                    <div class="nav-label">
-                        <div style="color: #ff0000; font-size: 14px; font-family: 'Orbitron', monospace;">Kelly Johnson</div>
-                        <div style="color: #666; font-size: 11px;">Mission Commander</div>
-                    </div>
-                    
-                    <!-- User Profile Dropdown Panel -->
-                    <div id="user-profile-dropdown" style="position: absolute; top: 100%; left: 0; right: 0; background: rgba(0,0,0,0.98); border: 1px solid rgba(255,0,0,0.3); border-top: none; padding: 20px; display: none; z-index: 100;">
-                        <div style="color: #999; font-size: 12px; line-height: 1.8;">
-                            <div style="margin-bottom: 10px; display: flex; justify-content: space-between;">
-                                <span style="color: #666;">Status:</span>
-                                <span style="color: #00ff00;">● ONLINE</span>
-                            </div>
-                            <div style="margin-bottom: 10px; display: flex; justify-content: space-between;">
-                                <span style="color: #666;">Session:</span>
-                                <span style="color: #ff6600;">2h 14m</span>
-                            </div>
-                            <div style="margin-bottom: 10px; display: flex; justify-content: space-between;">
-                                <span style="color: #666;">Last Login:</span>
-                                <span style="color: #999;">Today, 08:45</span>
-                            </div>
-                            <div style="margin-bottom: 10px; display: flex; justify-content: space-between;">
-                                <span style="color: #666;">System Access:</span>
-                                <span style="color: #ff0000;">FULL</span>
-                            </div>
-                            <button onclick="event.stopPropagation(); window.logoutUser();" style="width: 100%; margin-top: 15px; padding: 8px; background: rgba(255,0,0,0.2); border: 1px solid rgba(255,0,0,0.5); color: #ff0000; cursor: pointer; border-radius: 4px; font-size: 12px;">LOGOUT</button>
-                        </div>
-                    </div>
+            <!-- Object count and LIVE status (top right - floating) -->
+            <div id="status-container" style="position: fixed; top: 20px; right: 20px; display: flex; align-items: center; gap: 20px; pointer-events: auto; z-index: 1000;">
+                <div style="background: rgba(0,0,0,0.7); backdrop-filter: blur(10px); padding: 8px 16px; border-radius: 8px; border: 1px solid rgba(255,0,0,0.3);">
+                    <span style="color: #666; font-size: 10px; text-transform: uppercase; margin-right: 8px;">OBJECTS:</span>
+                    <span id="objects-tracked-count" style="color: #ff0000; font-size: 14px; font-weight: bold; font-family: 'Orbitron', monospace;">15000</span>
                 </div>
-                
-                <!-- Navigation Items -->
-                <div class="nav-section" style="padding: 20px 0;">
-                    <div class="nav-section-header" style="padding: 0 20px; margin-bottom: 10px; color: #666; font-size: 10px; text-transform: uppercase; letter-spacing: 1px;">Operations</div>
-                    
-                    <div class="nav-item active" data-content="mission-control" style="display: flex; align-items: center; padding: 12px 20px; cursor: pointer; transition: all 0.2s; border-left: 3px solid #ff0000;">
-                        <img src="assets/sat.svg" style="width: 20px; height: 20px; filter: brightness(0) saturate(100%) invert(27%) sepia(95%) saturate(6932%) hue-rotate(358deg) brightness(100%) contrast(107%); margin-right: 15px;">
-                        <span class="nav-label" style="color: #ff0000; font-size: 13px; font-family: 'Orbitron', monospace;">Mission Control</span>
-                    </div>
-                    
-                    <div class="nav-section-header" style="padding: 0 20px; margin: 20px 0 10px; color: #666; font-size: 10px; text-transform: uppercase; letter-spacing: 1px;">Scenarios</div>
-                    
-                    <div class="nav-item" data-content="kessler" style="display: flex; align-items: center; padding: 12px 20px; cursor: pointer; transition: all 0.2s; border-left: 3px solid transparent;">
-                        <img src="assets/rocket.svg" style="width: 20px; height: 20px; filter: brightness(0) saturate(100%) invert(56%) sepia(99%) saturate(2490%) hue-rotate(359deg) brightness(101%) contrast(104%); margin-right: 15px;">
-                        <span class="nav-label" style="color: #999; font-size: 13px; font-family: 'Orbitron', monospace;">Kessler Syndrome</span>
-                    </div>
-                    
-                    <div class="nav-item" data-content="solar" style="display: flex; align-items: center; padding: 12px 20px; cursor: pointer; transition: all 0.2s; border-left: 3px solid transparent;">
-                        <svg style="width: 20px; height: 20px; fill: #ffc800; margin-right: 15px;" viewBox="0 0 24 24">
-                            <path d="M12,7A5,5 0 0,1 17,12A5,5 0 0,1 12,17A5,5 0 0,1 7,12A5,5 0 0,1 12,7M12,9A3,3 0 0,0 9,12A3,3 0 0,0 12,15A3,3 0 0,0 15,12A3,3 0 0,0 12,9M12,2L14.39,5.42C13.65,5.15 12.84,5 12,5C11.16,5 10.35,5.15 9.61,5.42L12,2M3.34,7L7.5,6.65C6.9,7.16 6.36,7.78 5.94,8.5C5.5,9.24 5.25,10 5.11,10.79L3.34,7M3.36,17L5.12,13.23C5.26,14 5.53,14.78 5.95,15.5C6.37,16.24 6.91,16.86 7.5,17.37L3.36,17M20.65,7L18.88,10.79C18.74,10 18.47,9.23 18.05,8.5C17.63,7.78 17.1,7.15 16.5,6.64L20.65,7M20.64,17L16.5,17.36C17.09,16.85 17.62,16.22 18.04,15.5C18.46,14.77 18.73,14 18.87,13.21L20.64,17M12,22L9.59,18.56C10.33,18.83 11.14,19 12,19C12.82,19 13.63,18.83 14.37,18.56L12,22Z"/>
-                        </svg>
-                        <span class="nav-label" style="color: #999; font-size: 13px; font-family: 'Orbitron', monospace;">Solar Storm</span>
-                    </div>
-                    
-                    <div class="nav-item" data-content="launch" style="display: flex; align-items: center; padding: 12px 20px; cursor: pointer; transition: all 0.2s; border-left: 3px solid transparent;">
-                        <img src="assets/rocket.svg" style="width: 20px; height: 20px; filter: brightness(0) saturate(100%) invert(68%) sepia(97%) saturate(1265%) hue-rotate(81deg) brightness(119%) contrast(119%); margin-right: 15px;">
-                        <span class="nav-label" style="color: #999; font-size: 13px; font-family: 'Orbitron', monospace;">Unexpected Launch</span>
-                    </div>
-                    
-                    <div class="nav-section-header" style="padding: 0 20px; margin: 20px 0 10px; color: #666; font-size: 10px; text-transform: uppercase; letter-spacing: 1px;">Data</div>
-                    
-                    <div class="nav-item" data-content="telemetry" style="display: flex; align-items: center; padding: 12px 20px; cursor: pointer; transition: all 0.2s; border-left: 3px solid transparent;">
-                        <img src="assets/telem.svg" style="width: 20px; height: 20px; filter: brightness(0) saturate(100%) invert(69%) sepia(97%) saturate(1401%) hue-rotate(162deg) brightness(102%) contrast(101%); margin-right: 15px;">
-                        <span class="nav-label" style="color: #999; font-size: 13px; font-family: 'Orbitron', monospace;">Telemetry</span>
-                    </div>
-                    
-                    <div class="nav-item" data-content="reports" style="display: flex; align-items: center; padding: 12px 20px; cursor: pointer; transition: all 0.2s; border-left: 3px solid transparent;">
-                        <img src="assets/3d.svg" style="width: 20px; height: 20px; filter: brightness(0) saturate(100%) invert(48%) sepia(79%) saturate(1673%) hue-rotate(226deg) brightness(100%) contrast(101%); margin-right: 15px;">
-                        <span class="nav-label" style="color: #999; font-size: 13px; font-family: 'Orbitron', monospace;">Reports</span>
-                    </div>
-                    
-                    <div class="nav-section-header" style="padding: 0 20px; margin: 20px 0 10px; color: #666; font-size: 10px; text-transform: uppercase; letter-spacing: 1px;">System</div>
-                    
-                    <div class="nav-item" data-content="settings" style="display: flex; align-items: center; padding: 12px 20px; cursor: pointer; transition: all 0.2s; border-left: 3px solid transparent;">
-                        <svg style="width: 20px; height: 20px; fill: #666; margin-right: 15px;" viewBox="0 0 24 24">
-                            <path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/>
-                        </svg>
-                        <span class="nav-label" style="color: #999; font-size: 13px; font-family: 'Orbitron', monospace;">Settings</span>
-                    </div>
+                <div style="background: rgba(0,0,0,0.7); backdrop-filter: blur(10px); padding: 8px 16px; border-radius: 8px; border: 1px solid rgba(255,0,0,0.3); display: flex; align-items: center;">
+                    <span id="live-indicator" style="display: inline-block; width: 8px; height: 8px; background: #ff0000; border-radius: 50%; margin-right: 8px; animation: pulse 2s infinite;"></span>
+                    <span style="color: #ff0000; font-size: 12px; font-family: 'Orbitron', monospace; text-transform: uppercase; letter-spacing: 1px;">LIVE</span>
                 </div>
             </div>
-            
-            <!-- Main Content Area -->
-            <div id="main-content" style="position: absolute; top: 50px; left: 280px; right: 0; bottom: 0; pointer-events: none; overflow: visible; transition: all 0.3s;">
-                <!-- Content will be loaded here by navigation controller -->
-            </div>
-            
             <!-- Orbital Legend Removed -->
         </div>
         
@@ -379,6 +268,11 @@
             
             // Navigation and profile functionality initialized in app.js
         });
+    </script>
+    <!-- Initialize Clean UI and Engineering Panel -->
+    <script type="module">
+        import { initCleanUI } from './js/red-orbit/init-clean-ui.js';
+        // Clean UI will auto-initialize when DOM is ready
     </script>
     <!-- SDA button click binding now handled in app.js -->
   </body>
