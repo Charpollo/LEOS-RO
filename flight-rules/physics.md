@@ -3,7 +3,7 @@
 
 ## Core Physics Engine
 
-RED ORBIT uses a **pure Newtonian physics simulation** powered by Ammo.js (Bullet Physics) to accurately model orbital mechanics and collisions in real-time.
+RED ORBIT uses a **pure Newtonian physics simulation** powered by Havok Physics (via Babylon.js WebAssembly integration) to accurately model orbital mechanics and collisions in real-time.
 
 ### Key Features
 - Real gravitational dynamics (no cheating!)
@@ -100,9 +100,10 @@ F_drag = -velocity * dragFactor
 ## Collision System
 
 ### Detection
-- Continuous collision detection using Bullet Physics
+- Continuous collision detection using Havok Physics
 - Sphere-sphere collision shapes for efficiency
-- Real-time processing at 60 FPS
+- Real-time processing at 30-60 FPS
+- O(n log n) spatial partitioning for broad phase
 
 ### Debris Generation
 Based on **NASA Standard Breakup Model**:
@@ -266,8 +267,10 @@ This simulation uses **REAL PHYSICS ONLY**:
 
 ### Initialization
 ```javascript
-const redOrbitPhysics = new RedOrbitPhysics(scene);
+// Using Havok Physics implementation
+const redOrbitPhysics = new RedOrbitHavokPhysics(scene);
 await redOrbitPhysics.initialize();
+// Havok WASM module loads automatically (~2MB)
 ```
 
 ### Update Loop
