@@ -375,13 +375,6 @@ export class EngineeringPanel {
                         <span id="max-render-value">5,000</span>
                     </div>
                     
-                    <div class="control-group">
-                        <label>Enable GPU Instancing</label>
-                        <label class="switch">
-                            <input type="checkbox" id="gpu-instancing" checked>
-                            <span class="slider"></span>
-                        </label>
-                    </div>
                 </div>
             </div>
         `;
@@ -487,6 +480,55 @@ export class EngineeringPanel {
         objectScale.addEventListener('input', (e) => {
             objectScaleValue.textContent = `${e.target.value}x`;
         });
+        
+        // Classification banner handler
+        const classificationSelect = document.getElementById('classification-banner');
+        classificationSelect.addEventListener('change', (e) => {
+            this.updateClassificationBanner(e.target.value);
+        });
+    }
+    
+    updateClassificationBanner(classification) {
+        // Remove existing banner
+        const existingBanner = document.querySelector('.classification-banner');
+        if (existingBanner) {
+            existingBanner.remove();
+        }
+        
+        // Add new banner if not "none"
+        if (classification !== 'none') {
+            const banner = document.createElement('div');
+            banner.className = `classification-banner ${classification}`;
+            
+            // Set text based on classification
+            const texts = {
+                'unclassified': 'UNCLASSIFIED',
+                'cui': 'CONTROLLED UNCLASSIFIED INFORMATION',
+                'secret': 'SECRET',
+                'topsecret': 'TOP SECRET'
+            };
+            
+            banner.textContent = texts[classification] || 'UNCLASSIFIED';
+            document.body.appendChild(banner);
+            
+            // Adjust UI elements to account for banner
+            const logoContainer = document.getElementById('logo-container');
+            const statusContainer = document.getElementById('status-container');
+            const timeDisplay = document.getElementById('time-display');
+            
+            if (logoContainer) logoContainer.style.top = '45px';
+            if (statusContainer) statusContainer.style.top = '45px';
+            if (timeDisplay) timeDisplay.style.top = '49px';
+        } else {
+            // Reset positions
+            const logoContainer = document.getElementById('logo-container');
+            const statusContainer = document.getElementById('status-container');
+            const timeDisplay = document.getElementById('time-display');
+            
+            if (logoContainer) logoContainer.style.top = '20px';
+            if (statusContainer) statusContainer.style.top = '20px';
+            if (timeDisplay) timeDisplay.style.top = '24px';
+        }
     }
 
     initDataControls() {
@@ -524,8 +566,223 @@ export class EngineeringPanel {
     loadScenario(scenario) {
         console.log(`Loading scenario: ${scenario}`);
         
-        // Show confirmation dialog
-        if (confirm(`Load "${scenario}" scenario? This will reset the current simulation.`)) {
+        // Show detailed scenario information popup
+        this.showScenarioDetails(scenario);
+    }
+    
+    showScenarioDetails(scenario) {
+        // Create scenario details popup
+        const popup = document.createElement('div');
+        popup.className = 'scenario-popup';
+        popup.innerHTML = `
+            <div class="popup-content">
+                <button class="popup-close" onclick="this.parentElement.parentElement.remove()">×</button>
+                ${this.getScenarioContent(scenario)}
+                <div class="popup-actions">
+                    <button class="btn btn-secondary" onclick="this.parentElement.parentElement.parentElement.remove()">Cancel</button>
+                    <button class="btn btn-primary" id="load-scenario-btn">Load Scenario</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(popup);
+        
+        // Add load button handler
+        document.getElementById('load-scenario-btn').addEventListener('click', () => {
+            popup.remove();
+            this.executeScenario(scenario);
+        });
+    }
+    
+    getScenarioContent(scenario) {
+        const scenarios = {
+            showcase: {
+                title: 'Beautiful Math Mode',
+                description: 'Experience the natural beauty of orbital mechanics with randomly distributed objects creating mesmerizing patterns.',
+                details: [
+                    '15,000 objects in random orbits',
+                    'Natural collision patterns emerge',
+                    'Demonstrates N-body physics at scale',
+                    'Objects decay and collide over time',
+                    'Perfect for demonstrations'
+                ],
+                metrics: {
+                    'Initial Objects': '15,000',
+                    'Altitude Range': '200-2000 km',
+                    'Physics Rate': '240 Hz',
+                    'Collision Detection': 'Enabled'
+                }
+            },
+            nominal: {
+                title: 'Nominal Operations',
+                description: 'Clean space environment with only operational satellites. No debris or collision risks.',
+                details: [
+                    'Only active satellites',
+                    'No space debris',
+                    'Stable orbits maintained',
+                    'Represents ideal conditions',
+                    'Baseline for comparisons'
+                ],
+                metrics: {
+                    'Active Satellites': '3,000',
+                    'Debris Objects': '0',
+                    'Collision Risk': 'None',
+                    'Environment': 'Pristine'
+                }
+            },
+            starlink: {
+                title: 'Starlink Constellation',
+                description: 'Full deployment of SpaceX Starlink mega-constellation across multiple orbital shells.',
+                details: [
+                    'Multiple orbital shells at 550km',
+                    'Phased array deployment',
+                    'Inter-satellite links visualized',
+                    'Realistic orbital spacing',
+                    'Ground coverage patterns'
+                ],
+                metrics: {
+                    'Satellites': '5,000+',
+                    'Orbital Shells': '5',
+                    'Altitude': '550 km',
+                    'Inclination': '53°'
+                }
+            },
+            kessler: {
+                title: 'Kessler Syndrome',
+                description: 'Cascading collision scenario demonstrating runaway debris generation.',
+                details: [
+                    'Initial trigger collision',
+                    'Debris cloud expansion',
+                    'Secondary collisions cascade',
+                    'Exponential debris growth',
+                    'Orbital environment degradation'
+                ],
+                metrics: {
+                    'Initial Event': 'Collision at 800km',
+                    'Debris Generation': '2x multiplier',
+                    'Cascade Time': '~6 hours',
+                    'Final Debris Count': '25,000+'
+                }
+            },
+            asat: {
+                title: 'ASAT Weapon Test',
+                description: 'Anti-satellite weapon demonstration creating instant debris field.',
+                details: [
+                    'Kinetic kill vehicle impact',
+                    'Instant fragmentation',
+                    'High-velocity debris cloud',
+                    'Long-term orbital pollution',
+                    'Cross-orbit threat assessment'
+                ],
+                metrics: {
+                    'Target Altitude': '500 km',
+                    'Initial Fragments': '10,000+',
+                    'Velocity Spread': '±3 km/s',
+                    'Threat Duration': 'Years'
+                }
+            },
+            catastrophic: {
+                title: 'Catastrophic Collision',
+                description: 'Major collision event between two large satellites creating extreme debris field.',
+                details: [
+                    'High-mass satellite collision',
+                    'Complete fragmentation',
+                    'Maximum debris generation',
+                    'Multiple orbit contamination',
+                    'Worst-case scenario'
+                ],
+                metrics: {
+                    'Collision Mass': '10,000 kg total',
+                    'Fragment Count': '25,000+',
+                    'Affected Orbits': 'LEO-wide',
+                    'Recovery Time': 'Decades'
+                }
+            },
+            'leo-all': {
+                title: 'All LEO Assets',
+                description: 'Complete Low Earth Orbit environment including all satellites, debris, and space stations.',
+                details: [
+                    'All operational satellites',
+                    'Tracked debris objects',
+                    'International Space Station',
+                    'Chinese Space Station',
+                    'Full LEO population'
+                ],
+                metrics: {
+                    'Total Objects': '8,000+',
+                    'Altitude Range': '200-2000 km',
+                    'Active Satellites': '4,500',
+                    'Debris Objects': '3,500+'
+                }
+            },
+            'meo-all': {
+                title: 'MEO Navigation Constellations',
+                description: 'All Medium Earth Orbit navigation satellite constellations for global positioning.',
+                details: [
+                    'GPS (USA) - 31 satellites',
+                    'GLONASS (Russia) - 24 satellites',
+                    'Galileo (EU) - 28 satellites',
+                    'BeiDou (China) - 35 satellites',
+                    'Precise orbital mechanics'
+                ],
+                metrics: {
+                    'Total Satellites': '120+',
+                    'Altitude': '~20,200 km',
+                    'Orbital Period': '12 hours',
+                    'Coverage': 'Global'
+                }
+            },
+            'geo-all': {
+                title: 'Geostationary Belt',
+                description: 'All geostationary satellites maintaining fixed positions above Earth\'s equator.',
+                details: [
+                    'Communication satellites',
+                    'Weather monitoring',
+                    'TV broadcast satellites',
+                    'Military surveillance',
+                    'Fixed ground footprints'
+                ],
+                metrics: {
+                    'Active Satellites': '500+',
+                    'Altitude': '35,786 km',
+                    'Orbital Period': '24 hours',
+                    'Coverage': '40% of Earth'
+                }
+            }
+        };
+        
+        const data = scenarios[scenario] || scenarios.showcase;
+        
+        return `
+            <h2>${data.title}</h2>
+            <p class="scenario-description">${data.description}</p>
+            
+            <div class="scenario-details">
+                <h3>What Will Happen:</h3>
+                <ul>
+                    ${data.details.map(detail => `<li>${detail}</li>`).join('')}
+                </ul>
+            </div>
+            
+            <div class="scenario-metrics">
+                <h3>Key Metrics:</h3>
+                <div class="metrics-grid">
+                    ${Object.entries(data.metrics).map(([key, value]) => `
+                        <div class="metric">
+                            <span class="metric-label">${key}:</span>
+                            <span class="metric-value">${value}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+    
+    executeScenario(scenario) {
+        console.log(`Executing scenario: ${scenario}`);
+        
+        // Show confirmation that scenario is loading
+        if (true) {
             // Reset simulation
             this.resetSimulation();
             

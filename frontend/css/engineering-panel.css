@@ -494,3 +494,198 @@ input:checked + .slider:before {
     color: rgba(255, 255, 255, 0.5);
     font-size: 11px;
 }
+
+/* Scenario Popup */
+.scenario-popup {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(5px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 20000;
+    animation: fadeIn 0.3s;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.popup-content {
+    background: rgba(10, 10, 15, 0.98);
+    border: 1px solid rgba(255, 51, 51, 0.3);
+    border-radius: 12px;
+    padding: 40px;
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    position: relative;
+    box-shadow: 0 10px 50px rgba(0, 0, 0, 0.5);
+}
+
+.popup-close {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 32px;
+    cursor: pointer;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s;
+}
+
+.popup-close:hover {
+    background: rgba(255, 51, 51, 0.2);
+    color: #ff3333;
+}
+
+.popup-content h2 {
+    color: #ff3333;
+    font-size: 28px;
+    margin: 0 0 16px 0;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+.scenario-description {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 15px;
+    line-height: 1.6;
+    margin-bottom: 30px;
+}
+
+.scenario-details {
+    margin-bottom: 30px;
+}
+
+.scenario-details h3 {
+    color: #ff6666;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 16px;
+}
+
+.scenario-details ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.scenario-details li {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 14px;
+    padding: 8px 0;
+    padding-left: 20px;
+    position: relative;
+}
+
+.scenario-details li:before {
+    content: '▸';
+    position: absolute;
+    left: 0;
+    color: #ff3333;
+}
+
+.scenario-metrics {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 30px;
+}
+
+.scenario-metrics h3 {
+    color: #ff6666;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin: 0 0 16px 0;
+}
+
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+}
+
+.metric {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+}
+
+.metric-label {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 13px;
+}
+
+.metric-value {
+    color: #ff6666;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.popup-actions {
+    display: flex;
+    gap: 16px;
+    justify-content: flex-end;
+    margin-top: 30px;
+}
+
+.popup-actions .btn {
+    min-width: 120px;
+}
+
+/* Classification Banners */
+.classification-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 25px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+    font-size: 14px;
+    letter-spacing: 3px;
+    z-index: 30000;
+    text-transform: uppercase;
+}
+
+.classification-banner.unclassified {
+    background: #00b050;
+    color: #000;
+}
+
+.classification-banner.cui {
+    background: #7030a0;
+    color: #fff;
+}
+
+.classification-banner.secret {
+    background: #ff0000;
+    color: #fff;
+}
+
+.classification-banner.topsecret {
+    background: #ffc000;
+    color: #000;
+}

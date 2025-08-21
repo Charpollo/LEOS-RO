@@ -74,10 +74,5 @@ export function initCleanUI() {
     console.log('RED ORBIT Clean UI initialized - Press "O" to open Engineering Panel');
 }
 
-// Auto-initialize when DOM is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initCleanUI);
-} else {
-    // DOM already loaded
-    setTimeout(initCleanUI, 100);
-}
+// Export for manual initialization
+export { initCleanUI };
