@@ -1,7 +1,7 @@
 # CRTS2: Hardware-in-the-Loop CubeSat for RED ORBIT
 
 ## Executive Summary
-**CRTS2** (CyberRTS Satellite 2) is a physical Hardware-in-the-Loop (HIL) satellite simulator that connects directly to RED ORBIT, demonstrating the platform's capability to integrate real hardware with 8 million object space simulations. This creates the world's first browser-to-spacecraft testing environment.
+**CRTS2** (CyberRTS Satellite 2) is a physical Hardware-in-the-Loop (HIL) satellite simulator that connects directly to RED ORBIT, demonstrating the platform's capability to integrate real hardware with live space simulations. Whether running 15,000 objects with Havok physics, 50,000 with optimizations, or 8 million with GPU acceleration - CRTS2 pulls real telemetry from the active simulation. This creates the world's first browser-to-spacecraft testing environment.
 
 ---
 
@@ -13,7 +13,7 @@ CRTS2 is a desktop CubeSat simulator built with Arduino and common sensors that:
 - Processes sensor inputs and calculates maneuvers
 - Sends commands back to update its trajectory in the simulation
 - Physically demonstrates satellite behavior with reaction wheels and indicators
-- Tests flight software against 8 million debris objects
+- Tests flight software against whatever RED ORBIT is simulating (15K-8M objects)
 
 ### Why This Matters
 - **Proves RED ORBIT is more than visualization** - It's a complete testing platform
@@ -30,9 +30,9 @@ CRTS2 is a desktop CubeSat simulator built with Arduino and common sensors that:
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                    RED ORBIT (Browser)                   │
-│                   8 Million Objects                      │
+│              15K / 50K / 8M Objects                      │
 │                   Real Physics @ 240Hz                   │
-│                  "Space Truth Data"                      │
+│                  "Live Telemetry Stream"                 │
 └────────────────────┬───────────────────┬────────────────┘
                      │                   │
                 WebSerial               WebSocket
@@ -364,7 +364,7 @@ class CRTS2Interface {
     setInterval(async () => {
       if (!this.connected) return;
       
-      // Get satellite data from RED ORBIT
+      // Get satellite data from RED ORBIT - works with ANY simulation scale
       const satellite = getSatelliteById('CRTS2');
       const debris = getNearbyDebris(satellite.position, 100); // 100km radius
       
@@ -485,7 +485,7 @@ if (measured.vibration || truth.debrisDistance < 1.0) {
 1. **Real Physics Testing**: Your control algorithms work with space data
 2. **Physical Feedback**: Feel thrust, see reactions, hear warnings
 3. **Sensor Fusion**: Practice handling noisy/failed sensors
-4. **Mission Scenarios**: Test against 8 million real debris objects
+4. **Mission Scenarios**: Test against live simulation (15K Havok, 50K optimized, or 8M GPU)
 5. **Educational Value**: Understand difference between truth and measured
 
 ---
@@ -493,14 +493,14 @@ if (measured.vibration || truth.debrisDistance < 1.0) {
 ## Demonstration Scenarios
 
 ### 1. Debris Field Survival (Showcasing All Systems)
-**Setup**: CRTS2 orbiting through dense debris field
+**Setup**: CRTS2 orbiting through active debris field (scales with simulation)
 **Physical Response**:
 - Vibration sensor triggers on "impacts"
 - Pressure drops (hull breach simulation)
 - Fan activates (emergency thrust)
 - NEMA17 spins up (stabilization)
 - Servos adjust solar panels (need more power)
-**Visual**: RED ORBIT shows spacecraft maneuvering through thousands of debris
+**Visual**: RED ORBIT shows spacecraft maneuvering through live debris field
 **Wow Factor**: Audience FEELS the fan thrust and HEARS the impact alerts
 
 ### 2. ISS Docking with Precision Control
@@ -541,8 +541,9 @@ if (measured.vibration || truth.debrisDistance < 1.0) {
 - **Research Platform**: Test new algorithms against realistic debris fields
 
 ### For Commercial Space
-- **Risk-Free Testing**: Validate flight software before launch
+- **Risk-Free Testing**: Validate flight software with real telemetry before launch
 - **Rapid Prototyping**: Test control algorithms in hours, not months
+- **Live Integration**: Pull actual telemetry from any RED ORBIT simulation
 - **Cost Savings**: Find bugs on Earth, not in space
 
 ### For Defense/Government
@@ -551,10 +552,11 @@ if (measured.vibration || truth.debrisDistance < 1.0) {
 - **Training Tool**: Operators learn with physical feedback
 
 ### For RED ORBIT Marketing
-- **Differentiator**: "The only platform with real hardware integration"
-- **Tangible Demo**: Physical satellite responding to virtual threats
+- **Differentiator**: "The only platform with live telemetry to real hardware"
+- **Tangible Demo**: Physical satellite responding to actual simulation data
+- **Scalable Integration**: Works with 15K Havok or 8M GPU - same telemetry stream
 - **Proof of Concept**: Shows RED ORBIT is a complete testing ecosystem
-- **Viral Potential**: Videos of servos spinning during near-misses
+- **Viral Potential**: Videos of hardware reacting to live space events
 
 ---
 
@@ -629,7 +631,7 @@ if (measured.vibration || truth.debrisDistance < 1.0) {
 
 ## Conclusion
 
-CRTS2 transforms RED ORBIT from a visualization platform into a complete spacecraft development environment. By connecting real hardware to 8 million simulated objects, we create unprecedented testing capabilities that are:
+CRTS2 transforms RED ORBIT from a visualization platform into a complete spacecraft development environment. By connecting real hardware to live telemetry from any simulation scale, we create unprecedented testing capabilities that are:
 
 - **Accessible**: $50 hardware vs $500,000 test facilities
 - **Realistic**: Actual debris fields and collision scenarios
@@ -638,4 +640,4 @@ CRTS2 transforms RED ORBIT from a visualization platform into a complete spacecr
 
 This positions RED ORBIT as not just the best visualization platform, but the future of spacecraft development and testing.
 
-**"Test your spacecraft against 8 million objects before it faces one."**
+**"Real hardware. Real telemetry. Real testing. Before real space."**
