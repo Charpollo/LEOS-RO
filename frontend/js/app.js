@@ -20,7 +20,7 @@ import { createSkybox } from './skybox.js';
 import { createEarth } from './earth.js';
 import { createMoon } from './moon.js';
 import { Sun } from './sun.js';
-import { createSatellites, getSatelliteMeshes, getTelemetryData, getDetailedTelemetryForSatellite, createManualSolarPanelAnimation } from './satellites.js';
+// Satellite creation now handled by RO-Engine
 import { updateTelemetryUI } from './telemetry.js';
 import { startSimulationLoop, updateTimeDisplay, getCurrentSimTime } from './simulation.js';
 import { setupKeyboardControls } from './controls.js';
@@ -158,7 +158,8 @@ export async function initApp() {
       let totalSatsInRange = 0;
       let totalSatsVisible = 0;
       
-      const satelliteMeshes = getSatelliteMeshes();
+      // Satellite tracking removed - handled by RO-Engine
+      const satelliteMeshes = {};
       const inView = Object.entries(satelliteMeshes)
          .filter(([satName, mesh]) => {
            // Determine satellite absolute position
@@ -275,7 +276,7 @@ export async function initApp() {
         `;
         satelliteDetails.forEach(sat => {
           const signalStrength = Math.max(0, Math.min(100, 100 - (sat.distance / horizonKm) * 50 + sat.elevation));
-          const telemetry = getTelemetryData()[sat.name];
+          const telemetry = {}; // RO-Engine handles telemetry
           
           // Calculate data rate based on signal strength and elevation
           const baseDataRate = 2.048; // Mbps base rate
@@ -354,7 +355,7 @@ export async function initApp() {
       }
       
       // disable satellite picking to prevent conflicts when ground-station UI is open
-      const satMeshes = getSatelliteMeshes();
+      const satMeshes = {}; // RO-Engine handles meshes
       Object.values(satMeshes).forEach(mesh => mesh.isPickable = false);
       // add close button to panel
       const closeBtn = document.createElement('button');
@@ -365,7 +366,7 @@ export async function initApp() {
         stopDashboardAutoRefresh(); // Stop auto-refresh
         groundDash.classList.remove('visible');
         groundDash.classList.add('hidden');
-        Object.values(getSatelliteMeshes()).forEach(mesh => mesh.isPickable = true);
+        // RO-Engine handles pickable meshes
         // Clear dashboard LOS lines
         currentLOS.forEach(line => {
           scene.onBeforeRenderObservable.remove(line.pulseObserver);
@@ -380,7 +381,7 @@ export async function initApp() {
       if (e.key === 'Escape' && groundDash.classList.contains('visible')) {
         groundStationDashboardOpen = false; // Re-enable automatic LOS beams
         stopDashboardAutoRefresh(); // Stop auto-refresh
-        Object.values(getSatelliteMeshes()).forEach(mesh => mesh.isPickable = true);
+        // RO-Engine handles pickable meshes
         groundDash.classList.remove('visible');
         groundDash.classList.add('hidden');
         // Clear dashboard LOS lines
@@ -538,7 +539,7 @@ export async function initApp() {
         }
 
         activeSatellite = event.detail.name;
-        updateTelemetryUI(activeSatellite, getTelemetryData());
+        updateTelemetryUI(activeSatellite, {});
         
         // Restore any previously minimized panels when reopening satellite viewer
         restoreAllMinimizedPanels();
@@ -546,7 +547,7 @@ export async function initApp() {
         // Setup panel minimize functionality
         setupPanelMinimizeControls();
         // Focus camera on selected satellite
-        const satMesh = getSatelliteMeshes()[activeSatellite];
+        const satMesh = null; // RO-Engine handles meshes
         if (camera && satMesh) {
             // Allow very close zoom to satellite
             camera.lowerRadiusLimit = 0.0001; // Very close zoom
@@ -2734,10 +2735,12 @@ async function loadSatelliteData() {
         
         console.log('Creating satellites in scene...');
         // Create satellites using the imported module
-        await createSatellites(scene, satelliteData, orbitalElements, activeSatellite, advancedTexture, simulationTime);
+        // Satellite creation now handled by RO-Engine
+        // await createSatellites(scene, satelliteData, orbitalElements, activeSatellite, advancedTexture, simulationTime);
         
         console.log('Starting simulation loop with time:', simulationStartTime);
-        simulationTime = startSimulationLoop(scene, satelliteData, orbitalElements, simulationStartTime, () => simState.timeMultiplier, advancedTexture, activeSatellite, getTelemetryData());
+        // RO-Engine handles all simulation
+        simulationTime = startSimulationLoop(scene, satelliteData, orbitalElements, simulationStartTime, () => simState.timeMultiplier, advancedTexture, activeSatellite, {});
         
         // Ensure simulationTime is not null after starting the loop
         if (!simulationTime) {
@@ -2762,8 +2765,9 @@ async function loadSatelliteData() {
       // RED ORBIT physics is handled in the render loop, not here
       // This prevents double physics updates
       
-      const meshes = getSatelliteMeshes();
-      const telemetryObj = getTelemetryData();
+      // RO-Engine handles all meshes and telemetry
+      const meshes = {};
+      const telemetryObj = {};
       
       // If RED ORBIT physics is active, skip TLE updates
       if (redOrbitPhysics && redOrbitPhysics.initialized) {
@@ -2954,7 +2958,8 @@ async function initializeHybridPhysics() {
         window.kesslerUI = kesslerUI;
         
         // Create satellites with REAL orbital parameters
-        const meshes = getSatelliteMeshes();
+        // RO-Engine handles all meshes
+        const meshes = {};
         let satIndex = 0;
         
         // Various realistic LEO altitudes and inclinations

@@ -1,6 +1,6 @@
 import { TIME_ACCELERATION } from './constants.js';
 import { updateTelemetryUI } from './telemetry.js';
-import { updateCometTrails } from './satellites.js';
+// RO-Engine handles all satellite updates
 import { getSun } from './app.js';
 
 let currentSimTime = null;
@@ -73,7 +73,7 @@ export function startSimulationLoop(scene, satelliteData, orbitalElements, simul
         }
         
         // Update comet trails if in comet trail mode
-        updateCometTrails();
+        // RO-Engine handles trail updates
         
         // Update sun if it exists - DISABLED for simple sun
         // const sun = getSun();

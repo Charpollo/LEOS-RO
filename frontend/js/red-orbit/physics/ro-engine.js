@@ -19,6 +19,12 @@ export class ROEngine {
         // Mesh templates for instancing
         this.meshTemplates = {};
         
+        // Detailed models (ISS, Hubble, etc.)
+        this.detailedModels = new Map();
+        
+        // All satellites (both simple and detailed)
+        this.allSatellites = new Map();
+        
         // Real Earth parameters - NO CHEATING!
         this.EARTH_RADIUS = 6371; // km
         this.EARTH_MU = 398600.4418; // km³/s² - Earth's gravitational parameter
@@ -66,8 +72,8 @@ export class ROEngine {
             // Create mesh templates for instancing
             this.createMeshTemplates();
             
-            // Populate space with 10,000 objects
-            await this.populateSpace();
+            // Don't auto-populate - wait for scenario or manual creation
+            // await this.populateSpace();
             
             // Force scene to refresh all instance buffers
             this.scene.render();
