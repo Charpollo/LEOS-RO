@@ -72,6 +72,10 @@ export class ROEngine {
             // Create mesh templates for instancing
             this.createMeshTemplates();
             
+            // Initialize conjunction detection system
+            const { ConjunctionSystem } = await import('./conjunction-system.js');
+            this.conjunctionSystem = new ConjunctionSystem(this);
+            
             // Don't auto-populate - wait for scenario or manual creation
             // await this.populateSpace();
             
@@ -108,6 +112,22 @@ export class ROEngine {
             window.addEventListener('reset-simulation', () => {
                 console.log('RO-ENGINE: Resetting simulation');
                 this.clearAll();
+            });
+            
+            // Listen for ALOHA trajectory loading
+            window.addEventListener('load-aloha', async (event) => {
+                const { data } = event.detail;
+                console.log('RO-ENGINE: Loading ALOHA trajectory');
+                
+                // Import and create ALOHA handler
+                const { ALOHAHandler } = await import('../../aloha/aloha-handler.js');
+                this.alohaHandler = new ALOHAHandler(this);
+                
+                // Load trajectory
+                await this.alohaHandler.loadTrajectory(data);
+                
+                // Start playback
+                this.alohaHandler.start();
             });
             
             // Force scene to refresh all instance buffers
@@ -848,6 +868,64 @@ export class ROEngine {
             physicsTimeMultiplier: this.physicsTimeMultiplier,
             frameCount: this.frameCount
         };
+    }
+    
+    /**
+     * Get all objects (for conjunction checking)
+     */
+    getAllObjects() {
+        const objects = [];
+        
+        // Add all satellites
+        this.bodies.forEach((body, id) => {
+            objects.push({
+                id: id,
+                mesh: body.mesh,
+                position: body.position,
+                velocity: body.velocity,
+                physicsImpostor: body.mesh?.physicsImpostor
+            });
+        });
+        
+        // Add all debris
+        this.debris.forEach((deb, id) => {
+            objects.push({
+                id: id,
+                mesh: deb.mesh,
+                position: deb.position,
+                velocity: deb.velocity,
+                physicsImpostor: deb.mesh?.physicsImpostor
+            });
+        });
+        
+        return objects;
+    }
+    
+    /**
+     * Register a trajectory object (like ASAT)
+     */
+    registerTrajectoryObject(obj) {
+        // Store reference for conjunction checking
+        if (!this.trajectoryObjects) {
+            this.trajectoryObjects = new Map();
+        }
+        this.trajectoryObjects.set(obj.id, obj);
+        console.log(`RO-ENGINE: Registered trajectory object ${obj.id}`);
+    }
+    
+    /**
+     * Trigger impact at position
+     */
+    triggerImpact(target, position, velocity) {
+        // Use impact system if available
+        if (!this.impactSystem) {
+            import('./impact-system.js').then(module => {
+                this.impactSystem = new module.ImpactSimulator(this.scene);
+                this.impactSystem.simulateImpact(target, position, velocity);
+            });
+        } else {
+            this.impactSystem.simulateImpact(target, position, velocity);
+        }
     }
     
     /**

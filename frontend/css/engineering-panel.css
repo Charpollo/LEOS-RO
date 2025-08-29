@@ -222,6 +222,24 @@
     font-weight: 600;
 }
 
+/* ALOHA Configuration Button */
+.aloha-config-btn {
+    margin-top: 10px;
+    padding: 5px 10px;
+    background: linear-gradient(135deg, #ff6600, #ff0000);
+    border: 1px solid #ff3300;
+    border-radius: 4px;
+    color: white;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.aloha-config-btn:hover {
+    background: linear-gradient(135deg, #ff8800, #ff3300);
+    box-shadow: 0 0 10px rgba(255, 102, 0, 0.5);
+}
+
 /* Control Groups */
 .control-group {
     margin-bottom: 20px;

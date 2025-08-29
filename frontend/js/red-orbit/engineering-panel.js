@@ -125,6 +125,27 @@ export class EngineeringPanel {
                             <span class="object-count">10,000+ debris</span>
                         </div>
                         
+                        <div class="scenario-tile" data-scenario="aloha">
+                            <svg class="scenario-icon" viewBox="0 0 100 100">
+                                <!-- Launch point -->
+                                <circle cx="50" cy="80" r="3" fill="#ff6600"/>
+                                <!-- Trajectory path -->
+                                <path d="M 50,80 Q 30,50 50,20" fill="none" stroke="#ff0000" stroke-width="2" stroke-dasharray="3,1"/>
+                                <!-- Target -->
+                                <circle cx="50" cy="20" r="5" fill="none" stroke="#ffff00" stroke-width="2"/>
+                                <line x1="45" y1="20" x2="55" y2="20" stroke="#ffff00" stroke-width="1"/>
+                                <line x1="50" y1="15" x2="50" y2="25" stroke="#ffff00" stroke-width="1"/>
+                                <!-- Warning indicators -->
+                                <circle cx="35" cy="50" r="2" fill="#ffff00"/>
+                                <circle cx="40" cy="35" r="2" fill="#ff9900"/>
+                            </svg>
+                            <h4>ALOHA ASAT</h4>
+                            <p>Load ASAT trajectory with conjunction analysis and impact simulation.</p>
+                            <span class="object-count">Custom trajectory</span>
+                            <input type="file" id="aloha-file-input" accept=".json" style="display: none;">
+                            <button class="aloha-config-btn" onclick="document.getElementById('aloha-file-input').click()">📁 Load</button>
+                        </div>
+                        
                         <div class="scenario-tile" data-scenario="kessler">
                             <svg class="scenario-icon" viewBox="0 0 100 100">
                                 <g stroke="#ff0000" fill="none" stroke-width="1.5">
@@ -438,6 +459,75 @@ export class EngineeringPanel {
                 this.loadScenario(scenario);
             });
         });
+        
+        // ALOHA file input handler
+        const alohaInput = document.getElementById('aloha-file-input');
+        if (alohaInput) {
+            alohaInput.addEventListener('change', async (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    await this.loadALOHAFile(file);
+                }
+            });
+        }
+    }
+    
+    async loadALOHAFile(file) {
+        try {
+            console.log('Loading ALOHA trajectory file:', file.name);
+            
+            // Read file
+            const text = await file.text();
+            const alohaData = JSON.parse(text);
+            
+            // Validate it's ALOHA data
+            if (!alohaData.trajectory || !alohaData.epoch) {
+                throw new Error('Invalid ALOHA trajectory file');
+            }
+            
+            // Reset simulation first
+            this.resetSimulation();
+            
+            // Load background environment (5000 objects)
+            window.dispatchEvent(new CustomEvent('load-scenario', { 
+                detail: { type: 'mixed', count: 5000 } 
+            }));
+            
+            // Load ALOHA trajectory
+            window.dispatchEvent(new CustomEvent('load-aloha', { 
+                detail: { data: alohaData } 
+            }));
+            
+            // Show success
+            this.showNotification('ALOHA trajectory loaded successfully', 'success');
+            
+        } catch (error) {
+            console.error('Failed to load ALOHA file:', error);
+            this.showNotification('Failed to load ALOHA file: ' + error.message, 'error');
+        }
+    }
+    
+    showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.textContent = message;
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            background: ${type === 'error' ? '#ff3333' : type === 'success' ? '#00ff00' : '#ffaa00'};
+            color: white;
+            border-radius: 5px;
+            z-index: 10000;
+            animation: slideIn 0.3s ease;
+        `;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.remove();
+        }, 3000);
     }
 
     initSimulationControls() {
@@ -664,6 +754,23 @@ export class EngineeringPanel {
                     'Final Debris Count': '25,000+'
                 }
             },
+            aloha: {
+                title: 'ALOHA ASAT Trajectory',
+                description: 'Load and visualize ASAT trajectory with real-time conjunction analysis and impact simulation.',
+                details: [
+                    'Upload custom trajectory JSON',
+                    'Real-time conjunction warnings',
+                    'Visual warning indicators (red <1km, yellow <5km)',
+                    'Automatic target detection',
+                    'Impact and debris generation'
+                ],
+                metrics: {
+                    'Launch Location': '21.2°N, 46.7°E',
+                    'Flight Duration': '206 seconds',
+                    'Target Altitude': '398 km',
+                    'Warning Threshold': '5 km'
+                }
+            },
             asat: {
                 title: 'ASAT Weapon Test',
                 description: 'Anti-satellite weapon demonstration creating instant debris field.',
@@ -800,6 +907,9 @@ export class EngineeringPanel {
                 case 'kessler':
                     this.applyKesslerSettings();
                     break;
+                case 'aloha':
+                    this.applyALOHASettings();
+                    break;
                 case 'asat':
                     this.applyASATSettings();
                     break;
@@ -855,6 +965,12 @@ export class EngineeringPanel {
         window.dispatchEvent(new CustomEvent('load-scenario', { 
             detail: { type: 'kessler' } 
         }));
+    }
+
+    applyALOHASettings() {
+        // ALOHA needs file upload first
+        console.log('ALOHA scenario - waiting for file upload');
+        // The file input will trigger the actual loading
     }
 
     applyASATSettings() {
