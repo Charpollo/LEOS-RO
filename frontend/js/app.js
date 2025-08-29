@@ -4,8 +4,6 @@ import { AdvancedDynamicTexture, TextBlock, Rectangle } from '@babylonjs/gui';
 import { GlowLayer } from '@babylonjs/core/Layers/glowLayer';
 
 // Import UI components and manager
-import './components/telemetry-card.js';
-import './components/telemetry-item.js';
 import { uiManager } from './ui/manager.js';
 import { initBrandUI, hideLoadingScreen, showHelpButton } from './ui/brand-ui.js';
 import { createTelemetryItem } from './ui/template-manager.js';
@@ -34,7 +32,7 @@ import { initAuroraBackground, cleanupAuroraBackground } from './aurora-backgrou
 import { calculateSatellitePosition, toBabylonPosition, generateRealTimeTelemetry } from './orbital-mechanics.js';
 
 // Import Red Orbit physics - PURE PHYSICS ENGINE
-import { createPhysicsEngine, PHYSICS_CONFIG } from './red-orbit/physics/physics-selector.js';
+import { ROEngine } from './red-orbit/physics/ro-engine.js';
 import { AdvancedKesslerSystem } from './red-orbit/kessler-advanced.js';
 import { KesslerUI } from './red-orbit/kessler-ui.js';
 import './red-orbit/setup-engineering-panel.js'; // Auto-initializes Engineering Panel
@@ -2937,9 +2935,9 @@ async function initializeHybridPhysics() {
     try {
         console.log('RED ORBIT: Initializing PURE physics engine - no more hybrid bullshit!');
         
-        // Use Havok for 10,000 objects!
-        // createPhysicsEngine already calls initialize() internally
-        redOrbitPhysics = await createPhysicsEngine(scene, PHYSICS_CONFIG.USE_HAVOK);
+        // Use RO-Engine for 10,000 objects!
+        redOrbitPhysics = new ROEngine(scene);
+        await redOrbitPhysics.initialize();
         
         // Set initial 1x speed for physics engine (debugging ghost positions)
         redOrbitPhysics.physicsTimeMultiplier = 1;

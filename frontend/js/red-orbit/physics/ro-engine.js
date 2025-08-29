@@ -1,5 +1,5 @@
 /**
- * RED ORBIT 10K HAVOK PHYSICS ENGINE
+ * RED ORBIT PHYSICS ENGINE (RO-ENGINE)
  * Pure physics simulation - no hybrid bullshit
  * Real gravity, real orbits, real collisions
  * Following all flight rules for physics accuracy
@@ -8,7 +8,7 @@
 import * as BABYLON from '@babylonjs/core';
 import HavokPhysics from '@babylonjs/havok';
 
-export class HavokPhysics10K {
+export class ROEngine {
     constructor(scene) {
         this.scene = scene;
         this.plugin = null;
@@ -73,7 +73,7 @@ export class HavokPhysics10K {
             this.scene.render();
             
         } catch (error) {
-            console.error('RED ORBIT 10K: Failed to initialize:', error);
+            console.error('RO-ENGINE: Failed to initialize:', error);
             throw error;
         }
     }
