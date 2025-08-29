@@ -75,6 +75,41 @@ export class ROEngine {
             // Don't auto-populate - wait for scenario or manual creation
             // await this.populateSpace();
             
+            // Listen for scenario loading events from Engineering Panel
+            window.addEventListener('load-scenario', async (event) => {
+                const { type, count, targetId } = event.detail;
+                console.log(`RO-ENGINE: Loading scenario ${type} with ${count || 'default'} objects`);
+                
+                // Clear existing objects first
+                this.clearAll();
+                
+                // Load the requested scenario
+                if (type === 'showcase') {
+                    await this.populateSpace(count || 15000, 'random');
+                } else if (type === 'nominal') {
+                    await this.populateSpace(count || 3000, 'leo-clean');
+                } else if (type === 'starlink') {
+                    await this.populateSpace(count || 5000, 'leo-constellation');
+                } else if (type === 'kessler') {
+                    await this.populateSpace(10000, 'leo-dense');
+                    this.kesslerActive = true;
+                } else if (type === 'asat') {
+                    await this.populateSpace(5000, 'mixed');
+                    // ASAT scenario would target specific satellite
+                    if (targetId) {
+                        console.log(`RO-ENGINE: ASAT targeting ${targetId}`);
+                    }
+                }
+                
+                console.log(`RO-ENGINE: Scenario ${type} loaded with ${this.bodies.size} satellites`);
+            });
+            
+            // Listen for reset events
+            window.addEventListener('reset-simulation', () => {
+                console.log('RO-ENGINE: Resetting simulation');
+                this.clearAll();
+            });
+            
             // Force scene to refresh all instance buffers
             this.scene.render();
             
@@ -87,14 +122,76 @@ export class ROEngine {
     /**
      * Populate space with 10,000 realistic orbiting objects
      */
-    async populateSpace() {
-        const distribution = {
-            LEO: 9000,   // 60% - Most visible, diverse orbits
-            MEO: 3750,   // 25% - GPS/GLONASS constellations  
-            GEO: 1500,   // 10% - Communication satellites
-            HEO: 600,    // 4% - Molniya orbits (e=0.6-0.75)
-            DEBRIS: 150  // 1% - Initial debris field
-        };
+    async populateSpace(totalCount = 10000, scenario = 'random') {
+        let distribution = {};
+        
+        // Define distributions based on scenario type
+        switch(scenario) {
+            case 'random':
+                // Beautiful random distribution for showcase
+                distribution = {
+                    LEO: Math.floor(totalCount * 0.6),
+                    MEO: Math.floor(totalCount * 0.25),
+                    GEO: Math.floor(totalCount * 0.1),
+                    HEO: Math.floor(totalCount * 0.04),
+                    DEBRIS: Math.floor(totalCount * 0.01)
+                };
+                break;
+                
+            case 'leo-clean':
+                // Clean LEO space (nominal operations)
+                distribution = {
+                    LEO: totalCount,
+                    MEO: 0,
+                    GEO: 0,
+                    HEO: 0,
+                    DEBRIS: 0
+                };
+                break;
+                
+            case 'leo-constellation':
+                // Starlink-like constellation
+                distribution = {
+                    LEO: totalCount,
+                    MEO: 0,
+                    GEO: 0,
+                    HEO: 0,
+                    DEBRIS: 0
+                };
+                break;
+                
+            case 'leo-dense':
+                // Dense LEO for Kessler syndrome
+                distribution = {
+                    LEO: Math.floor(totalCount * 0.7),
+                    MEO: 0,
+                    GEO: 0,
+                    HEO: 0,
+                    DEBRIS: Math.floor(totalCount * 0.3)
+                };
+                break;
+                
+            case 'mixed':
+                // Mixed orbits for ASAT scenarios
+                distribution = {
+                    LEO: Math.floor(totalCount * 0.5),
+                    MEO: Math.floor(totalCount * 0.2),
+                    GEO: Math.floor(totalCount * 0.2),
+                    HEO: Math.floor(totalCount * 0.05),
+                    DEBRIS: Math.floor(totalCount * 0.05)
+                };
+                break;
+                
+            default:
+                // Default to showcase distribution
+                distribution = {
+                    LEO: 6000,
+                    MEO: 2500,
+                    GEO: 1000,
+                    HEO: 400,
+                    DEBRIS: 100
+                };
+        }
         
         let totalCreated = 0;
         
@@ -753,16 +850,37 @@ export class ROEngine {
         };
     }
     
-    dispose() {
+    /**
+     * Clear all objects without disposing the physics engine
+     */
+    clearAll() {
+        // Dispose all satellite meshes
         this.bodies.forEach(body => {
-            if (body.mesh) body.mesh.dispose();
+            if (body.mesh) {
+                body.mesh.dispose();
+            }
         });
         this.bodies.clear();
         
+        // Dispose all debris meshes
         this.debris.forEach(deb => {
-            if (deb.mesh) deb.mesh.dispose();
+            if (deb.mesh) {
+                deb.mesh.dispose();
+            }
         });
         this.debris.clear();
+        
+        // Reset Kessler tracking
+        this.kesslerActive = false;
+        this.kesslerCollisionCount = 0;
+        this.kesslerCascadeLevel = 0;
+        this.kesslerDebrisGenerated = 0;
+        
+        console.log('RO-ENGINE: Cleared all objects');
+    }
+    
+    dispose() {
+        this.clearAll();
         
         if (this.plugin) {
             this.scene.disablePhysicsEngine();
