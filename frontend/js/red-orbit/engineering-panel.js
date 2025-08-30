@@ -125,7 +125,7 @@ export class EngineeringPanel {
                             <span class="object-count">10,000+ debris</span>
                         </div>
                         
-                        <div class="scenario-tile" data-scenario="aloha">
+                        <div class="scenario-tile" id="aloha-tile" data-scenario="aloha">
                             <svg class="scenario-icon" viewBox="0 0 100 100">
                                 <!-- Launch point -->
                                 <circle cx="50" cy="80" r="3" fill="#ff6600"/>
@@ -139,11 +139,9 @@ export class EngineeringPanel {
                                 <circle cx="35" cy="50" r="2" fill="#ffff00"/>
                                 <circle cx="40" cy="35" r="2" fill="#ff9900"/>
                             </svg>
-                            <h4>ALOHA ASAT</h4>
-                            <p>Load ASAT trajectory with conjunction analysis and impact simulation.</p>
+                            <h4>ALOHA</h4>
+                            <p>Load trajectory data with conjunction analysis and impact simulation.</p>
                             <span class="object-count">Custom trajectory</span>
-                            <input type="file" id="aloha-file-input" accept=".json" style="display: none;">
-                            <button class="aloha-config-btn" onclick="document.getElementById('aloha-file-input').click()">📁 Load</button>
                         </div>
                         
                         <div class="scenario-tile" data-scenario="kessler">
@@ -459,47 +457,237 @@ export class EngineeringPanel {
                 this.loadScenario(scenario);
             });
         });
+    }
+    
+    setupALOHAFileHandlers() {
+        const trajectorySelect = document.getElementById('aloha-trajectory-select');
+        const loadBtn = document.getElementById('load-scenario-btn');
         
-        // ALOHA file input handler
-        const alohaInput = document.getElementById('aloha-file-input');
-        if (alohaInput) {
-            alohaInput.addEventListener('change', async (e) => {
-                const file = e.target.files[0];
-                if (file) {
-                    await this.loadALOHAFile(file);
+        if (!trajectorySelect) return;
+        
+        this.alohaData = null;
+        
+        // Trajectory selection
+        trajectorySelect.addEventListener('change', async (e) => {
+            const selection = e.target.value;
+            if (selection) {
+                await this.loadPresetTrajectory(selection);
+            } else {
+                // Reset if no selection
+                this.alohaData = null;
+                document.getElementById('aloha-upload-section').style.display = 'block';
+                document.getElementById('aloha-analysis').style.display = 'none';
+                if (loadBtn) {
+                    loadBtn.textContent = 'Select Trajectory First';
+                    loadBtn.disabled = true;
                 }
-            });
+            }
+        });
+        
+        // Update load button
+        if (loadBtn) {
+            loadBtn.textContent = 'Select Trajectory First';
+            loadBtn.disabled = true;
         }
     }
     
-    async loadALOHAFile(file) {
+    async loadPresetTrajectory(trajectoryName) {
         try {
-            console.log('Loading ALOHA trajectory file:', file.name);
+            // Map selection to file path
+            const trajectoryFiles = {
+                'aloha': '/data/aloha.json',
+                'ascent_traj': '/data/ascent_traj.json'
+            };
             
-            // Read file
+            const filePath = trajectoryFiles[trajectoryName];
+            if (!filePath) {
+                throw new Error('Unknown trajectory: ' + trajectoryName);
+            }
+            
+            // Fetch the trajectory data
+            const response = await fetch(filePath);
+            if (!response.ok) {
+                throw new Error(`Failed to load ${trajectoryName}: ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            this.alohaData = data;
+            
+            // Analyze trajectory
+            this.analyzeTrajectory(data);
+            
+            // Show analysis
+            document.getElementById('aloha-analysis').style.display = 'block';
+            
+            // Enable load button
+            const loadBtn = document.getElementById('load-scenario-btn');
+            if (loadBtn) {
+                loadBtn.textContent = 'Launch Simulation';
+                loadBtn.disabled = false;
+            }
+            
+        } catch (error) {
+            console.error('Error loading preset trajectory:', error);
+            this.showNotification(`Failed to load trajectory: ${error.message}`, 'error');
+        }
+    }
+    
+    async loadALOHAFilePopup(file) {
+        try {
             const text = await file.text();
-            const alohaData = JSON.parse(text);
+            const data = JSON.parse(text);
+            this.alohaData = data;
             
-            // Validate it's ALOHA data
-            if (!alohaData.trajectory || !alohaData.epoch) {
-                throw new Error('Invalid ALOHA trajectory file');
+            // Analyze trajectory
+            this.analyzeTrajectory(data);
+            
+            // Show analysis
+            document.getElementById('aloha-analysis').style.display = 'block';
+            
+            // Enable load button
+            const loadBtn = document.getElementById('load-scenario-btn');
+            if (loadBtn) {
+                loadBtn.textContent = 'Launch Simulation';
+                loadBtn.disabled = false;
+            }
+            
+        } catch (error) {
+            console.error('Error loading file:', error);
+            
+            // Show error
+            const errorDiv = document.createElement('div');
+            errorDiv.style.cssText = `
+                background: rgba(255, 0, 0, 0.1);
+                border: 1px solid rgba(255, 0, 0, 0.5);
+                padding: 10px;
+                margin: 10px 0;
+                border-radius: 5px;
+                color: #ff6666;
+                font-family: monospace;
+                font-size: 11px;
+                white-space: pre-wrap;
+            `;
+            errorDiv.textContent = error.message;
+            
+            const uploadSection = document.getElementById('aloha-upload-section');
+            if (uploadSection) {
+                uploadSection.appendChild(errorDiv);
+                setTimeout(() => errorDiv.remove(), 5000);
+            }
+        }
+    }
+    
+    analyzeTrajectory(data) {
+        // Detect format and analyze
+        let states = [];
+        let epoch = null;
+        
+        if (data.states && Array.isArray(data.states)) {
+            states = data.states;
+            epoch = states[0].epoch;
+        } else if (data.trajectories && Array.isArray(data.trajectories)) {
+            const traj = data.trajectories[0];
+            epoch = traj.epoch;
+            states = traj.trajectory.map(point => ({
+                position: [point[1], point[2], point[3]],
+                time: point[0]
+            }));
+        }
+        
+        if (states.length === 0) return;
+        
+        // Calculate metrics
+        const duration = states[states.length - 1].time || 
+                        (new Date(states[states.length - 1].epoch) - new Date(states[0].epoch)) / 1000;
+        
+        const firstPos = states[0].position;
+        const startAlt = Math.sqrt(firstPos[0]**2 + firstPos[1]**2 + firstPos[2]**2) - 6371;
+        
+        let maxAlt = 0;
+        states.forEach(state => {
+            if (state.position) {
+                const alt = Math.sqrt(state.position[0]**2 + state.position[1]**2 + state.position[2]**2) - 6371;
+                maxAlt = Math.max(maxAlt, alt);
+            }
+        });
+        
+        // Update analysis display
+        const analysisContent = document.getElementById('aloha-analysis-content');
+        if (analysisContent) {
+            analysisContent.innerHTML = `
+                <div>Format: ${data.states ? 'States Array' : data.trajectories ? 'Trajectories Array' : 'Unknown'}</div>
+                <div>Data Points: ${states.length}</div>
+                <div>Duration: ${duration ? duration.toFixed(1) : 'N/A'} seconds</div>
+                <div>Start Altitude: ${startAlt.toFixed(1)} km</div>
+                <div>Max Altitude: ${maxAlt.toFixed(1)} km</div>
+                <div>Epoch: ${epoch || 'N/A'}</div>
+            `;
+        }
+        
+        // Update mission parameters
+        const missionParams = document.getElementById('aloha-mission-params');
+        if (missionParams) {
+            missionParams.innerHTML = `
+                <div class="metric">
+                    <span class="metric-label">Type:</span>
+                    <span class="metric-value">${maxAlt < 500 ? 'LEO' : maxAlt < 20000 ? 'MEO' : 'GEO'}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Points:</span>
+                    <span class="metric-value">${states.length}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Duration:</span>
+                    <span class="metric-value">${duration ? duration.toFixed(0) : 'N/A'}s</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Apogee:</span>
+                    <span class="metric-value">${maxAlt.toFixed(0)} km</span>
+                </div>
+            `;
+        }
+    }
+    
+    async launchALOHA(config) {
+        try {
+            console.log('Launching ALOHA with config:', config);
+            
+            // Validate it's ALOHA data  
+            if (!config.data) {
+                throw new Error('No trajectory data provided');
+            }
+            
+            const hasStates = config.data.states && config.data.states.length > 0;
+            const hasTrajectories = config.data.trajectories && config.data.trajectories.length > 0;
+            const hasTrajectory = config.data.trajectory && config.data.trajectory.length > 0;
+            
+            if (!hasStates && !hasTrajectories && !hasTrajectory) {
+                throw new Error('Invalid trajectory data: no recognized format found');
             }
             
             // Reset simulation first
             this.resetSimulation();
             
-            // Load background environment (5000 objects)
-            window.dispatchEvent(new CustomEvent('load-scenario', { 
-                detail: { type: 'mixed', count: 5000 } 
-            }));
+            // Load background objects if requested
+            if (config.backgroundObjects > 0) {
+                console.log(`Loading ${config.backgroundObjects} background objects`);
+                window.dispatchEvent(new CustomEvent('load-scenario', { 
+                    detail: { type: 'mixed', count: config.backgroundObjects } 
+                }));
+            } else {
+                console.log('Loading trajectory only (no background objects)');
+            }
             
-            // Load ALOHA trajectory
+            // Load ALOHA trajectory with config
             window.dispatchEvent(new CustomEvent('load-aloha', { 
-                detail: { data: alohaData } 
+                detail: config
             }));
             
-            // Show success
-            this.showNotification('ALOHA trajectory loaded successfully', 'success');
+            // Show success with details
+            const msg = config.backgroundObjects > 0 ? 
+                `ALOHA trajectory loaded with ${config.backgroundObjects.toLocaleString()} background objects` :
+                'ALOHA trajectory loaded (trajectory only)';
+            this.showNotification(msg, 'success');
             
         } catch (error) {
             console.error('Failed to load ALOHA file:', error);
@@ -755,21 +943,11 @@ export class EngineeringPanel {
                 }
             },
             aloha: {
-                title: 'ALOHA ASAT Trajectory',
-                description: 'Load and visualize ASAT trajectory with real-time conjunction analysis and impact simulation.',
-                details: [
-                    'Upload custom trajectory JSON',
-                    'Real-time conjunction warnings',
-                    'Visual warning indicators (red <1km, yellow <5km)',
-                    'Automatic target detection',
-                    'Impact and debris generation'
-                ],
-                metrics: {
-                    'Launch Location': '21.2°N, 46.7°E',
-                    'Flight Duration': '206 seconds',
-                    'Target Altitude': '398 km',
-                    'Warning Threshold': '5 km'
-                }
+                title: 'ALOHA',
+                description: 'Load and analyze trajectory data with real-time simulation.',
+                customContent: true,
+                details: [],
+                metrics: {}
             },
             asat: {
                 title: 'ASAT Weapon Test',
@@ -860,6 +1038,74 @@ export class EngineeringPanel {
         
         const data = scenarios[scenario] || scenarios.showcase;
         
+        // ALOHA custom content
+        if (data.customContent && scenario === 'aloha') {
+            // Set up file handling after popup is added to DOM
+            setTimeout(() => this.setupALOHAFileHandlers(), 100);
+            
+            return `
+                <h2>${data.title}</h2>
+                <p class="scenario-description">${data.description}</p>
+                
+                <div id="aloha-upload-section" style="margin: 20px 0;">
+                    <div style="background: rgba(255, 0, 0, 0.05); border: 1px solid rgba(255, 0, 0, 0.3); padding: 20px; border-radius: 5px;">
+                        <label style="color: #ff0000; font-size: 14px; display: block; margin-bottom: 10px;">Select Trajectory:</label>
+                        <select id="aloha-trajectory-select" style="width: 100%; padding: 10px; background: rgba(0, 0, 0, 0.5); border: 1px solid #ff0000; color: white; font-family: monospace; font-size: 13px;">
+                            <option value="">-- Select a trajectory --</option>
+                            <option value="aloha">ALOHA - Saudi Arabia ASAT (206s, 398km apogee)</option>
+                            <option value="ascent_traj">Ascent - New Zealand Launch (206s trajectory)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div id="aloha-analysis" style="display: none;">
+                    <div class="scenario-details">
+                        <h3>Trajectory Analysis:</h3>
+                        <div id="aloha-analysis-content" style="font-family: monospace; font-size: 12px; color: #0f0; line-height: 1.6;"></div>
+                    </div>
+                    
+                    <div class="scenario-metrics">
+                        <h3>Mission Parameters:</h3>
+                        <div id="aloha-mission-params" class="metrics-grid"></div>
+                    </div>
+                    
+                    <div style="margin: 15px 0; padding: 10px; background: rgba(0, 150, 255, 0.05); border: 1px solid rgba(0, 150, 255, 0.2); border-radius: 5px;">
+                        <div style="margin-bottom: 10px;">
+                            <label style="color: #00ff00; font-size: 12px; font-weight: bold; display: block; margin-bottom: 5px;">
+                                Background Objects:
+                            </label>
+                            <label style="color: #0099ff; font-size: 12px; margin-right: 15px;">
+                                <input type="radio" name="bg-objects" value="none" id="bg-none" style="margin-right: 5px;">
+                                None (Trajectory Only)
+                            </label>
+                            <label style="color: #0099ff; font-size: 12px; margin-right: 15px;">
+                                <input type="radio" name="bg-objects" value="5000" id="bg-5k" checked style="margin-right: 5px;">
+                                5,000 LEO Objects
+                            </label>
+                            <label style="color: #0099ff; font-size: 12px;">
+                                <input type="radio" name="bg-objects" value="15000" id="bg-15k" style="margin-right: 5px;">
+                                15,000 Objects (Max)
+                            </label>
+                        </div>
+                        
+                        <label style="color: #0099ff; font-size: 12px;">
+                            <input type="checkbox" id="show-conjunctions-popup" checked style="margin-right: 5px;">
+                            Show Conjunction Warnings
+                        </label>
+                        <br>
+                        <label style="color: #0099ff; font-size: 12px; margin-top: 5px; display: inline-block;">
+                            <input type="checkbox" id="auto-target-popup" checked style="margin-right: 5px;">
+                            Auto-detect Target
+                        </label>
+                        <div style="margin-top: 10px; color: #666; font-size: 11px; font-style: italic;">
+                            Note: Use global time controls (1x/60x) to adjust playback speed
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Standard content for other scenarios
         return `
             <h2>${data.title}</h2>
             <p class="scenario-description">${data.description}</p>
@@ -887,6 +1133,28 @@ export class EngineeringPanel {
     
     executeScenario(scenario) {
         console.log(`Executing scenario: ${scenario}`);
+        
+        // Handle ALOHA specially
+        if (scenario === 'aloha') {
+            if (!this.alohaData) {
+                this.showNotification('Please load a trajectory file first', 'error');
+                return;
+            }
+            
+            // Get background objects setting
+            let bgCount = 5000;
+            if (document.getElementById('bg-none')?.checked) bgCount = 0;
+            else if (document.getElementById('bg-15k')?.checked) bgCount = 15000;
+            
+            this.launchALOHA({
+                data: this.alohaData,
+                backgroundObjects: bgCount,
+                showConjunctions: document.getElementById('show-conjunctions-popup')?.checked || true,
+                autoTarget: document.getElementById('auto-target-popup')?.checked || true,
+                playbackSpeed: 1
+            });
+            return;
+        }
         
         // Show confirmation that scenario is loading
         if (true) {

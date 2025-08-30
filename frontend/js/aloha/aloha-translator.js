@@ -35,16 +35,16 @@ export class ALOHATranslator {
      * @param {Object} alohaData - Raw ALOHA JSON data
      * @returns {Promise<void>}
      */
-    async loadTrajectory(alohaData) {
-        console.log('🚀 ALOHA: Loading trajectory data...');
+    async loadTrajectory(trajectoryData) {
+        console.log('🚀 Loading trajectory data...');
         
         try {
-            // Validate data structure
-            this.validateALOHAData(alohaData);
+            // Normalize data from different formats
+            const normalized = this.normalizeTrajectoryData(trajectoryData);
             
-            // Store raw data
-            this.trajectory = alohaData.trajectory;
-            this.epoch = new Date(alohaData.epoch);
+            // Store normalized data
+            this.trajectory = normalized.trajectory;
+            this.epoch = new Date(normalized.epoch);
             this.duration = this.trajectory[this.trajectory.length - 1][0];
             
             // Pre-process all positions for performance
@@ -73,26 +73,71 @@ export class ALOHATranslator {
     }
     
     /**
-     * Validate ALOHA data structure
+     * Normalize trajectory data from different formats
      */
-    validateALOHAData(data) {
-        if (!data.trajectory || !Array.isArray(data.trajectory)) {
-            throw new Error('Invalid ALOHA data: missing trajectory array');
+    normalizeTrajectoryData(data) {
+        let normalized = {};
+        
+        // Format 1: ALOHA format with states array
+        if (data.states && Array.isArray(data.states)) {
+            const states = data.states;
+            normalized.epoch = states[0].epoch;
+            normalized.trajectory = states.map((state, i) => {
+                // Calculate time offset from first state
+                const timeDiff = (new Date(state.epoch) - new Date(states[0].epoch)) / 1000;
+                return [
+                    timeDiff,
+                    ...state.position,
+                    ...state.velocity
+                ];
+            });
+        }
+        // Format 2: ascent_traj format with trajectories array
+        else if (data.trajectories && Array.isArray(data.trajectories)) {
+            const traj = data.trajectories[0];
+            normalized.epoch = traj.epoch;
+            normalized.trajectory = traj.trajectory;
+            // Add velocities if missing (will be calculated)
+            if (traj.trajectory[0].length === 4) {
+                normalized.trajectory = traj.trajectory.map(point => [
+                    point[0], point[1], point[2], point[3], 0, 0, 0
+                ]);
+            }
+        }
+        // Format 3: Original ALOHA format
+        else if (data.trajectory && data.epoch) {
+            normalized = data;
+        }
+        else {
+            // Provide helpful error with examples
+            let errorMsg = 'Unrecognized trajectory format.\n\n';
+            errorMsg += 'Expected one of these formats:\n\n';
+            errorMsg += '1. States format:\n';
+            errorMsg += '{\n  "states": [{\n    "epoch": "2025-01-01T00:00:00Z",\n';
+            errorMsg += '    "position": [-4447.6, 2161.7, -4014.7],\n';
+            errorMsg += '    "velocity": [0.1, 0.2, 0.3]\n  }]\n}\n\n';
+            errorMsg += '2. Trajectories format:\n';
+            errorMsg += '{\n  "trajectories": [{\n    "epoch": "2025-07-03 19:35:15+00:00",\n';
+            errorMsg += '    "trajectory": [[0, -4447.6, 2161.7, -4014.7], ...]\n  }]\n}\n\n';
+            errorMsg += '3. Classic format:\n';
+            errorMsg += '{\n  "epoch": "2025-01-01T00:00:00Z",\n';
+            errorMsg += '  "trajectory": [[0, -4447.6, 2161.7, -4014.7, 0.1, 0.2, 0.3], ...]\n}\n\n';
+            errorMsg += 'Your file structure: ' + JSON.stringify(Object.keys(data).slice(0, 5));
+            
+            throw new Error(errorMsg);
         }
         
-        if (!data.epoch) {
-            throw new Error('Invalid ALOHA data: missing epoch timestamp');
+        // Validate normalized data
+        if (!normalized.trajectory || normalized.trajectory.length < 2) {
+            throw new Error('Invalid trajectory data: Need at least 2 points (found ' + 
+                (normalized.trajectory ? normalized.trajectory.length : 0) + ')');
         }
         
-        if (!data.frame || data.frame !== 'TEME') {
-            console.warn('⚠️ ALOHA: Expected TEME frame, got:', data.frame);
+        if (!normalized.epoch) {
+            throw new Error('Invalid trajectory data: Missing epoch timestamp');
         }
         
-        // Validate trajectory points
-        const firstPoint = data.trajectory[0];
-        if (!firstPoint || firstPoint.length !== 4) {
-            throw new Error('Invalid trajectory point format');
-        }
+        return normalized;
     }
     
     /**
@@ -126,11 +171,15 @@ export class ALOHATranslator {
      * @returns {BABYLON.Vector3}
      */
     temeTobabylon(temeCoords, elapsedTime) {
-        // Scale to Babylon units (Earth = 1 unit radius)
+        // TEME is Earth-centered, Earth-fixed
+        // In Babylon: Y is up, X is right, Z is forward
+        // In TEME: Z is North Pole, X is vernal equinox, Y is 90° east
+        
+        // Direct mapping (no axis swap needed for correct orientation)
         let position = new BABYLON.Vector3(
             temeCoords.x * this.BABYLON_SCALE,
-            temeCoords.z * this.BABYLON_SCALE, // Z becomes Y in Babylon
-            -temeCoords.y * this.BABYLON_SCALE // Y becomes -Z in Babylon
+            temeCoords.y * this.BABYLON_SCALE,
+            temeCoords.z * this.BABYLON_SCALE
         );
         
         // Account for Earth's rotation since epoch
