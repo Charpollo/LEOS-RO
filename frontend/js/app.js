@@ -987,6 +987,48 @@ async function createScene() {
     
     // Then create Earth and Moon
     earthMesh = await createEarth(scene, () => simState.timeMultiplier, sunDirection);
+    
+    // CREATE TEST COORDINATE ORBS
+    console.log('Creating test coordinate orbs...');
+    const testPoints = [
+        { lat: 46.797333, lon: -123.957992, name: 'Washington_USA', color: [0, 0, 1] }, // Blue
+        { lat: -6.355253, lon: -35.345825, name: 'Brazil_Coast', color: [0, 1, 0] }  // Green
+    ];
+    
+    testPoints.forEach(point => {
+        // Convert lat/lon to cartesian (same as ground stations)
+        const phi = point.lat * Math.PI / 180;
+        const lambda = point.lon * Math.PI / 180;
+        const radius = 1.01; // Slightly above Earth surface to be visible
+        
+        // Standard spherical to cartesian conversion
+        const x = radius * Math.cos(phi) * Math.cos(lambda);
+        const y = radius * Math.sin(phi);  // Y is up (North)
+        const z = radius * Math.cos(phi) * Math.sin(lambda);
+        
+        // Create test orb
+        const orb = BABYLON.MeshBuilder.CreateSphere(`testOrb_${point.name}`, {
+            diameter: 0.03  // Larger for visibility
+        }, scene);
+        
+        // Position on Earth surface
+        orb.position = new BABYLON.Vector3(x, y, z);
+        
+        // Parent to Earth mesh like ground stations do
+        orb.parent = earthMesh;
+        
+        // Create material with specified color
+        const material = new BABYLON.StandardMaterial(`testMat_${point.name}`, scene);
+        material.emissiveColor = new BABYLON.Color3(...point.color);
+        material.diffuseColor = new BABYLON.Color3(...point.color);
+        orb.material = material;
+        
+        console.log(`TEST ORB: ${point.name}`);
+        console.log(`  Lat/Lon: ${point.lat}°, ${point.lon}°`);
+        console.log(`  Babylon: x=${x.toFixed(3)}, y=${y.toFixed(3)}, z=${z.toFixed(3)}`);
+    });
+    
+    console.log('TEST ORBS CREATED: Blue=Washington USA (-123.96°W), Green=Brazil Coast (-35.35°W)');
     moonMesh = await createMoon(scene, () => simState.timeMultiplier);
     // Ground stations removed for Red Orbit
     // createGroundStations(scene, advancedTexture);

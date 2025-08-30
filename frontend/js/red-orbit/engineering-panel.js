@@ -394,6 +394,10 @@ export class EngineeringPanel {
                         <span id="max-render-value">5,000</span>
                     </div>
                     
+                    <div class="control-group">
+                        <button id="test-coords-btn" class="action-button">Test Coordinate System</button>
+                    </div>
+                    
                 </div>
             </div>
         `;
@@ -447,6 +451,12 @@ export class EngineeringPanel {
         this.initDisplayControls();
         this.initDataControls();
         this.initPerformanceMonitoring();
+        
+        // Add test coordinate button handler
+        const testCoordsBtn = document.getElementById('test-coords-btn');
+        if (testCoordsBtn) {
+            testCoordsBtn.addEventListener('click', () => this.testCoordinateSystem());
+        }
     }
 
     initScenarios() {
@@ -685,6 +695,51 @@ export class EngineeringPanel {
             console.error('Failed to load ALOHA file:', error);
             this.showNotification('Failed to load ALOHA file: ' + error.message, 'error');
         }
+    }
+    
+    testCoordinateSystem() {
+        console.log('Testing coordinate system with reference orbs...');
+        
+        // Test coordinates
+        const testPoints = [
+            { lat: 46.797333, lon: -123.957992, name: 'Washington USA', color: [0, 0, 1] }, // Blue
+            { lat: -6.355253, lon: -35.345825, name: 'Brazil Coast', color: [0, 1, 0] }  // Green
+        ];
+        
+        // Use the same coordinate conversion as ground stations
+        testPoints.forEach(point => {
+            // Convert lat/lon to cartesian
+            const phi = point.lat * Math.PI / 180;
+            const lambda = point.lon * Math.PI / 180;
+            const radius = 1; // Earth radius = 1 in Babylon units
+            
+            // Standard spherical to cartesian conversion
+            const x = radius * Math.cos(phi) * Math.cos(lambda);
+            const y = radius * Math.sin(phi);  // Y is up (North)
+            const z = radius * Math.cos(phi) * Math.sin(lambda);
+            
+            // Create test orb
+            const orb = BABYLON.MeshBuilder.CreateSphere(`testOrb_${point.name}`, {
+                diameter: 0.02  // Visible size
+            }, this.scene);
+            
+            // Position on Earth surface
+            orb.position = new BABYLON.Vector3(x, y, z);
+            
+            // Create material with specified color
+            const material = new BABYLON.StandardMaterial(`testMat_${point.name}`, this.scene);
+            material.emissiveColor = new BABYLON.Color3(...point.color);
+            material.diffuseColor = new BABYLON.Color3(...point.color);
+            orb.material = material;
+            
+            console.log(`Placed ${point.name} orb at:`, {
+                lat: point.lat,
+                lon: point.lon,
+                babylonPos: { x: x.toFixed(3), y: y.toFixed(3), z: z.toFixed(3) }
+            });
+        });
+        
+        this.showNotification('Test orbs placed: Blue (Washington), Green (Brazil)', 'success');
     }
     
     showNotification(message, type = 'info') {

@@ -192,18 +192,9 @@ export class ALOHATranslator {
             -temeCoords.y * this.BABYLON_SCALE   // Y (East) becomes -Z
         );
         
-        // Account for Earth's rotation since epoch
-        const earthRotation = this.EARTH_ROTATION_RATE * elapsedTime;
-        
-        // Rotate around Y axis (North Pole axis)
-        const cosRot = Math.cos(earthRotation);
-        const sinRot = Math.sin(earthRotation);
-        
-        const rotatedX = position.x * cosRot - position.z * sinRot;
-        const rotatedZ = position.x * sinRot + position.z * cosRot;
-        
-        position.x = rotatedX;
-        position.z = rotatedZ;
+        // DO NOT apply Earth's rotation to the trajectory
+        // TEME is an inertial reference frame - the trajectory stays fixed in space
+        // while the Earth rotates beneath it. The Earth mesh handles its own rotation.
         
         return position;
     }
