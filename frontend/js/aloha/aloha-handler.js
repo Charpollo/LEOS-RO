@@ -164,27 +164,17 @@ export class ALOHAHandler {
      * Create full trajectory path visualization
      */
     createFullTrajectoryPath() {
-        if (!this.trajectoryData) return;
+        if (!this.translator.isLoaded) return;
         
-        // Build full path from trajectory data
+        // Build full path from pre-processed positions
         const fullPath = [];
         
-        // Handle different formats
-        if (this.trajectoryData.states) {
-            for (const state of this.trajectoryData.states) {
-                const pos = this.translator.translatePosition(state.position);
-                fullPath.push(pos);
-            }
-        } else if (this.trajectoryData.trajectories) {
-            const traj = this.trajectoryData.trajectories[0];
-            for (const point of traj.trajectory) {
-                const pos = this.translator.translatePosition([point[1], point[2], point[3]]);
-                fullPath.push(pos);
-            }
-        } else if (this.trajectoryData.trajectory) {
-            for (const point of this.trajectoryData.trajectory) {
-                const pos = this.translator.translatePosition([point[1], point[2], point[3]]);
-                fullPath.push(pos);
+        // Sample the trajectory at regular intervals
+        const sampleInterval = 1; // Every second
+        for (let t = 0; t <= this.translator.duration; t += sampleInterval) {
+            const state = this.translator.getStateAtTime(t);
+            if (state && state.position) {
+                fullPath.push(state.position.clone());
             }
         }
         

@@ -513,11 +513,7 @@ export class EngineeringPanel {
             const data = await response.json();
             this.alohaData = data;
             
-            // Analyze trajectory
-            this.analyzeTrajectory(data);
-            
-            // Show analysis
-            document.getElementById('aloha-analysis').style.display = 'block';
+            // Trajectory loaded successfully
             
             // Enable load button
             const loadBtn = document.getElementById('load-scenario-btn');
@@ -538,11 +534,7 @@ export class EngineeringPanel {
             const data = JSON.parse(text);
             this.alohaData = data;
             
-            // Analyze trajectory
-            this.analyzeTrajectory(data);
-            
-            // Show analysis
-            document.getElementById('aloha-analysis').style.display = 'block';
+            // Trajectory loaded successfully
             
             // Enable load button
             const loadBtn = document.getElementById('load-scenario-btn');
@@ -1047,7 +1039,7 @@ export class EngineeringPanel {
                 <h2>${data.title}</h2>
                 <p class="scenario-description">${data.description}</p>
                 
-                <div id="aloha-upload-section" style="margin: 20px 0;">
+                <div id="aloha-selection" style="margin: 20px 0;">
                     <div style="background: rgba(255, 0, 0, 0.05); border: 1px solid rgba(255, 0, 0, 0.3); padding: 20px; border-radius: 5px;">
                         <label style="color: #ff0000; font-size: 14px; display: block; margin-bottom: 10px;">Select Trajectory:</label>
                         <select id="aloha-trajectory-select" style="width: 100%; padding: 10px; background: rgba(0, 0, 0, 0.5); border: 1px solid #ff0000; color: white; font-family: monospace; font-size: 13px;">
@@ -1055,50 +1047,15 @@ export class EngineeringPanel {
                             <option value="aloha">ALOHA - Saudi Arabia ASAT (206s, 398km apogee)</option>
                             <option value="ascent_traj">Ascent - New Zealand Launch (206s trajectory)</option>
                         </select>
-                    </div>
-                </div>
-                
-                <div id="aloha-analysis" style="display: none;">
-                    <div class="scenario-details">
-                        <h3>Trajectory Analysis:</h3>
-                        <div id="aloha-analysis-content" style="font-family: monospace; font-size: 12px; color: #0f0; line-height: 1.6;"></div>
-                    </div>
-                    
-                    <div class="scenario-metrics">
-                        <h3>Mission Parameters:</h3>
-                        <div id="aloha-mission-params" class="metrics-grid"></div>
-                    </div>
-                    
-                    <div style="margin: 15px 0; padding: 10px; background: rgba(0, 150, 255, 0.05); border: 1px solid rgba(0, 150, 255, 0.2); border-radius: 5px;">
-                        <div style="margin-bottom: 10px;">
-                            <label style="color: #00ff00; font-size: 12px; font-weight: bold; display: block; margin-bottom: 5px;">
-                                Background Objects:
-                            </label>
-                            <label style="color: #0099ff; font-size: 12px; margin-right: 15px;">
-                                <input type="radio" name="bg-objects" value="none" id="bg-none" style="margin-right: 5px;">
-                                None (Trajectory Only)
-                            </label>
-                            <label style="color: #0099ff; font-size: 12px; margin-right: 15px;">
-                                <input type="radio" name="bg-objects" value="5000" id="bg-5k" checked style="margin-right: 5px;">
-                                5,000 LEO Objects
-                            </label>
-                            <label style="color: #0099ff; font-size: 12px;">
-                                <input type="radio" name="bg-objects" value="15000" id="bg-15k" style="margin-right: 5px;">
-                                15,000 Objects (Max)
-                            </label>
-                        </div>
                         
-                        <label style="color: #0099ff; font-size: 12px;">
-                            <input type="checkbox" id="show-conjunctions-popup" checked style="margin-right: 5px;">
-                            Show Conjunction Warnings
-                        </label>
-                        <br>
-                        <label style="color: #0099ff; font-size: 12px; margin-top: 5px; display: inline-block;">
-                            <input type="checkbox" id="auto-target-popup" checked style="margin-right: 5px;">
-                            Auto-detect Target
-                        </label>
-                        <div style="margin-top: 10px; color: #666; font-size: 11px; font-style: italic;">
-                            Note: Use global time controls (1x/60x) to adjust playback speed
+                        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255, 0, 0, 0.2);">
+                            <label style="color: #0099ff; font-size: 13px;">
+                                <input type="checkbox" id="enable-background" style="margin-right: 5px;">
+                                Enable 15,000 background objects
+                            </label>
+                            <div style="color: #666; font-size: 11px; margin-top: 5px; margin-left: 20px;">
+                                Includes conjunction analysis and Red Watch integration
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -171,21 +171,31 @@ export class ALOHATranslator {
      * @returns {BABYLON.Vector3}
      */
     temeTobabylon(temeCoords, elapsedTime) {
-        // TEME is Earth-centered, Earth-fixed
-        // In Babylon: Y is up, X is right, Z is forward
-        // In TEME: Z is North Pole, X is vernal equinox, Y is 90° east
+        // TEME coordinate system:
+        // - X: Points to vernal equinox (0° longitude at epoch)
+        // - Y: 90° East in equatorial plane
+        // - Z: North Pole
         
-        // Direct mapping (no axis swap needed for correct orientation)
+        // Babylon coordinate system for Earth:
+        // - Y: Up (North Pole)
+        // - X: Right (in equatorial plane)
+        // - Z: Forward (in equatorial plane)
+        
+        // Transform TEME to Babylon:
+        // TEME Z (North) -> Babylon Y (Up)
+        // TEME X (Vernal Equinox) -> Babylon X
+        // TEME Y (90° East) -> Babylon -Z (Babylon Z is forward, opposite to TEME Y)
+        
         let position = new BABYLON.Vector3(
-            temeCoords.x * this.BABYLON_SCALE,
-            temeCoords.y * this.BABYLON_SCALE,
-            temeCoords.z * this.BABYLON_SCALE
+            temeCoords.x * this.BABYLON_SCALE,   // X stays X
+            temeCoords.z * this.BABYLON_SCALE,   // Z (North) becomes Y (Up)
+            -temeCoords.y * this.BABYLON_SCALE   // Y (East) becomes -Z
         );
         
         // Account for Earth's rotation since epoch
         const earthRotation = this.EARTH_ROTATION_RATE * elapsedTime;
         
-        // Rotate around Y axis (Earth's rotation axis in Babylon)
+        // Rotate around Y axis (North Pole axis)
         const cosRot = Math.cos(earthRotation);
         const sinRot = Math.sin(earthRotation);
         
