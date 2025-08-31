@@ -120,54 +120,40 @@ export class ALOHAHandler {
     }
     
     /**
-     * Create ASAT missile mesh with hybrid tech design
+     * Create ASAT missile mesh - simple red glowing orb
      */
     createASATMesh() {
         // Create parent container
         this.asatMesh = new BABYLON.TransformNode('asat', this.scene);
         
-        // Create outer diamond/octahedron shell (semi-transparent)
-        const outerShell = BABYLON.MeshBuilder.CreatePolyhedron('asatShell', {
-            type: 1, // Octahedron
-            size: 0.002
+        // Create simple red orb - MUCH SMALLER
+        const asatOrb = BABYLON.MeshBuilder.CreateSphere('asatOrb', {
+            diameter: 0.001,  // Much smaller
+            segments: 16
         }, this.scene);
-        outerShell.parent = this.asatMesh;
+        asatOrb.parent = this.asatMesh;
         
-        // Create inner rotating core (smaller, solid)
-        const innerCore = BABYLON.MeshBuilder.CreatePolyhedron('asatCore', {
-            type: 1, // Octahedron
-            size: 0.001
-        }, this.scene);
-        innerCore.parent = this.asatMesh;
-        
-        // Make outer shell pickable for hover
-        outerShell.isPickable = true;
-        outerShell.actionManager = new BABYLON.ActionManager(this.scene);
+        // Make orb pickable for hover
+        asatOrb.isPickable = true;
+        asatOrb.actionManager = new BABYLON.ActionManager(this.scene);
         
         // Add hover actions
-        outerShell.actionManager.registerAction(new BABYLON.ExecuteCodeAction(
+        asatOrb.actionManager.registerAction(new BABYLON.ExecuteCodeAction(
             BABYLON.ActionManager.OnPointerOverTrigger,
             () => this.showTooltip()
         ));
         
-        outerShell.actionManager.registerAction(new BABYLON.ExecuteCodeAction(
+        asatOrb.actionManager.registerAction(new BABYLON.ExecuteCodeAction(
             BABYLON.ActionManager.OnPointerOutTrigger,
             () => this.hideTooltip()
         ));
         
-        // Outer shell material - semi-transparent with color that changes
-        const shellMaterial = new BABYLON.StandardMaterial('asatShellMat', this.scene);
-        shellMaterial.diffuseColor = new BABYLON.Color3(0.2, 0.5, 1); // Blue-ish
-        shellMaterial.emissiveColor = new BABYLON.Color3(0.1, 0.3, 0.8);
-        shellMaterial.specularColor = new BABYLON.Color3(1, 1, 1);
-        shellMaterial.alpha = 0.6;
-        outerShell.material = shellMaterial;
-        
-        // Inner core material - bright, glowing
-        const coreMaterial = new BABYLON.StandardMaterial('asatCoreMat', this.scene);
-        coreMaterial.emissiveColor = new BABYLON.Color3(1, 0.5, 0); // Orange glow
-        coreMaterial.diffuseColor = new BABYLON.Color3(1, 0.7, 0.2);
-        innerCore.material = coreMaterial;
+        // Red glowing material
+        const orbMaterial = new BABYLON.StandardMaterial('asatOrbMat', this.scene);
+        orbMaterial.diffuseColor = new BABYLON.Color3(0.8, 0, 0);
+        orbMaterial.emissiveColor = new BABYLON.Color3(1, 0.2, 0.2);
+        orbMaterial.specularColor = new BABYLON.Color3(1, 0.5, 0.5);
+        asatOrb.material = orbMaterial;
         
         // Create thruster particles
         let thrusterParticles = new BABYLON.ParticleSystem('thruster', 20, this.scene);
@@ -190,48 +176,26 @@ export class ALOHAHandler {
         thrusterParticles.minEmitPower = 0.01;
         thrusterParticles.maxEmitPower = 0.02;
         
-        // Pulse effect and rotation animation
+        // Simple subtle pulse animation
         let pulsePhase = 0;
         this.scene.registerBeforeRender(() => {
             if (this.isActive) {
-                // Rotate inner core
-                innerCore.rotation.y += 0.05;
-                innerCore.rotation.x += 0.02;
-                
-                // Rotate outer shell slowly
-                outerShell.rotation.y -= 0.01;
-                
-                // Pulse effect
-                pulsePhase += 0.1;
-                const scale = 1 + Math.sin(pulsePhase) * 0.1;
-                outerShell.scaling = new BABYLON.Vector3(scale, scale, scale);
-                
-                // Change color based on altitude/speed
-                const state = this.translator?.getStateAtTime(this.currentTime);
-                if (state) {
-                    // Transition from blue to red as altitude increases
-                    const altitudeFactor = Math.min(1, state.altitude / 400);
-                    shellMaterial.emissiveColor = new BABYLON.Color3(
-                        0.1 + altitudeFactor * 0.9,  // Red increases
-                        0.3 * (1 - altitudeFactor),   // Green decreases
-                        0.8 * (1 - altitudeFactor)    // Blue decreases
-                    );
-                }
+                // Gentle pulse effect
+                pulsePhase += 0.05;
+                const intensity = 0.2 + Math.sin(pulsePhase) * 0.1;
+                orbMaterial.emissiveColor = new BABYLON.Color3(1, intensity, intensity);
             }
         });
         
         // Add glow if available
         if (this.scene.glowLayer) {
-            this.scene.glowLayer.addIncludedOnlyMesh(outerShell);
-            this.scene.glowLayer.addIncludedOnlyMesh(innerCore);
+            this.scene.glowLayer.addIncludedOnlyMesh(asatOrb);
         }
         
-        outerShell.isVisible = false;
-        innerCore.isVisible = false;
+        asatOrb.isVisible = false;
         
         // Store references
-        this.asatShell = outerShell;
-        this.asatCore = innerCore;
+        this.asatOrb = asatOrb;
         this.thrusterParticles = thrusterParticles;
         
         // Create label that follows ASAT
@@ -261,11 +225,11 @@ export class ALOHAHandler {
         label.background = "rgba(0, 0, 0, 0.75)";
         advancedTexture.addControl(label);
         
-        // Create text block - SMALLER, SHARPER
+        // Create text block - EVEN SMALLER
         const text = new GUI.TextBlock();
         text.text = this.asatName;
         text.color = "white";
-        text.fontSize = 12;
+        text.fontSize = 10;  // 20% smaller (was 12)
         text.fontWeight = "600";
         label.addControl(text);
         
@@ -349,8 +313,7 @@ export class ALOHAHandler {
         this.createLaunchMarker();
         
         // Show ASAT components
-        if (this.asatShell) this.asatShell.isVisible = true;
-        if (this.asatCore) this.asatCore.isVisible = true;
+        if (this.asatOrb) this.asatOrb.isVisible = true;
         if (this.thrusterParticles) this.thrusterParticles.start();
         if (this.asatLabel) this.asatLabel.isVisible = true;
         
@@ -717,9 +680,9 @@ export class ALOHAHandler {
         // Get launch position
         const launchState = this.translator.getStateAtTime(0);
         
-        // Create orange sphere - MUCH SMALLER
+        // Create orange sphere - 50% SMALLER
         this.launchMarker = BABYLON.MeshBuilder.CreateSphere('launchMarker', {
-            diameter: 0.002, // Much smaller - won't cover the launch
+            diameter: 0.001, // 50% smaller than before
             segments: 12
         }, this.scene);
         
@@ -883,8 +846,7 @@ export class ALOHAHandler {
         this.isActive = false;
         
         // Hide ASAT components
-        if (this.asatShell) this.asatShell.isVisible = false;
-        if (this.asatCore) this.asatCore.isVisible = false;
+        if (this.asatOrb) this.asatOrb.isVisible = false;
         if (this.thrusterParticles) this.thrusterParticles.stop();
         if (this.asatLabel) this.asatLabel.isVisible = false;
         
