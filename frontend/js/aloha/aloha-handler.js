@@ -388,6 +388,12 @@ export class ALOHAHandler {
         
         explosion.position = position.clone();
         
+        // Parent to Earth so explosion stays at correct location
+        const earthMesh = this.scene.getMeshByName('earth');
+        if (earthMesh) {
+            explosion.parent = earthMesh;
+        }
+        
         // Bright orange/yellow material
         const material = new BABYLON.StandardMaterial('explosionMat', this.scene);
         material.emissiveColor = new BABYLON.Color3(1, 0.5, 0);
@@ -416,6 +422,11 @@ export class ALOHAHandler {
         }, this.scene);
         
         flash.position = position.clone();
+        
+        // Parent flash to Earth as well
+        if (earthMesh) {
+            flash.parent = earthMesh;
+        }
         const flashMat = new BABYLON.StandardMaterial('flashMat', this.scene);
         flashMat.emissiveColor = new BABYLON.Color3(1, 1, 1);
         flash.material = flashMat;
@@ -437,7 +448,16 @@ export class ALOHAHandler {
         const particleSystem = new BABYLON.ParticleSystem('debris', 50, this.scene);
         particleSystem.particleTexture = new BABYLON.Texture('/textures/flare.png', this.scene);
         
-        particleSystem.emitter = position.clone();
+        // Create an emitter mesh parented to Earth
+        const emitterMesh = new BABYLON.TransformNode('debrisEmitter', this.scene);
+        emitterMesh.position = position.clone();
+        
+        const earthMesh = this.scene.getMeshByName('earth');
+        if (earthMesh) {
+            emitterMesh.parent = earthMesh;
+        }
+        
+        particleSystem.emitter = emitterMesh;
         particleSystem.minEmitBox = new BABYLON.Vector3(-0.001, -0.001, -0.001);
         particleSystem.maxEmitBox = new BABYLON.Vector3(0.001, 0.001, 0.001);
         
