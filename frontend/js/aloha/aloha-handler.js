@@ -25,6 +25,9 @@ export class ALOHAHandler {
         this.dynamicTrailLine = null; // Dynamic trail that follows ASAT
         this.launchMarker = null; // Orange sphere at launch
         this.impactDebris = null; // Persistent debris at impact
+        this.apogeeMarker = null; // Marker at highest point
+        this.timeToImpactLabel = null; // Countdown timer
+        this.groundTrackLine = null; // Ground projection
         
         // Playback state
         this.isActive = false;
@@ -45,6 +48,7 @@ export class ALOHAHandler {
         this.asatName = 'ASAT'; // Will be set from data
         this.asatLabel = null;
         this.asatTooltip = null;
+        this.tooltipUpdateInterval = null;
         
         // Configuration
         this.config = {
@@ -126,15 +130,29 @@ export class ALOHAHandler {
         // Create parent container
         this.asatMesh = new BABYLON.TransformNode('asat', this.scene);
         
-        // Create simple red orb - MUCH SMALLER
-        const asatOrb = BABYLON.MeshBuilder.CreateSphere('asatOrb', {
-            diameter: 0.001,  // Much smaller
-            segments: 16
-        }, this.scene);
+        // Create simple triangle shape for ASAT using custom geometry
+        const asatOrb = new BABYLON.Mesh('asatOrb', this.scene);
+        
+        // Define triangle vertices
+        const positions = [
+            0, 0.001, 0,    // Top vertex
+            -0.0008, -0.0008, 0,  // Bottom left
+            0.0008, -0.0008, 0    // Bottom right
+        ];
+        
+        const indices = [0, 1, 2]; // Single triangle face
+        
+        // Create vertex data
+        const vertexData = new BABYLON.VertexData();
+        vertexData.positions = positions;
+        vertexData.indices = indices;
+        vertexData.applyToMesh(asatOrb);
+        
         asatOrb.parent = this.asatMesh;
         
         // Make orb pickable for hover
         asatOrb.isPickable = true;
+        asatOrb.enablePointerMoveEvents = true; // Ensure pointer events work
         asatOrb.actionManager = new BABYLON.ActionManager(this.scene);
         
         // Add hover actions
@@ -233,16 +251,42 @@ export class ALOHAHandler {
         text.fontWeight = "600";
         label.addControl(text);
         
-        // Add hover interaction to label
+        // Make label interactive for hover
         label.isPointerBlocker = true;
-        label.onPointerEnterObservable.add(() => this.showTooltip());
-        label.onPointerOutObservable.add(() => this.hideTooltip());
+        label.onPointerEnterObservable.add(() => {
+            label.background = "rgba(50, 0, 0, 0.9)";
+            this.showTooltip();
+        });
+        label.onPointerOutObservable.add(() => {
+            label.background = "rgba(0, 0, 0, 0.75)";
+            this.hideTooltip();
+        });
         
         // Link to ASAT mesh
         label.linkWithMesh(this.asatMesh);
         label.linkOffsetY = -25;
         
+        // Add occlusion check for ASAT label
+        this.scene.registerBeforeRender(() => {
+            if (label && this.asatMesh && this.isActive) {
+                // Check if ASAT is behind Earth
+                const camera = this.scene.activeCamera;
+                const earthCenter = BABYLON.Vector3.Zero();
+                const asatPos = this.asatMesh.getAbsolutePosition();
+                const cameraPos = camera.position;
+                
+                // Check if ASAT is on the opposite side of Earth from camera
+                const toASAT = asatPos.subtract(earthCenter);
+                const toCamera = cameraPos.subtract(earthCenter);
+                const dot = BABYLON.Vector3.Dot(toASAT, toCamera);
+                
+                // Only show label if ASAT is visible and on same side as camera
+                label.isVisible = this.asatLabel && this.asatLabel._shouldBeVisible && dot > 0;
+            }
+        });
+        
         this.asatLabel = label;
+        this.asatLabel._shouldBeVisible = false; // Track intended visibility
         this.asatLabel.isVisible = false; // Start hidden
     }
     
@@ -282,6 +326,26 @@ export class ALOHAHandler {
         this.trajectoryLine.color = new BABYLON.Color3(1, 0, 0); // Red
         this.trajectoryLine.alpha = 0.5; // Semi-transparent to show it's the path
         
+        // Make line hoverable (though lines are hard to hover precisely)
+        this.trajectoryLine.isPickable = true;
+        this.trajectoryLine.actionManager = new BABYLON.ActionManager(this.scene);
+        
+        this.trajectoryLine.actionManager.registerAction(new BABYLON.ExecuteCodeAction(
+            BABYLON.ActionManager.OnPointerOverTrigger,
+            () => {
+                this.trajectoryLine.color = new BABYLON.Color3(1, 0.5, 0.5); // Lighter when hovered
+                this.trajectoryLine.alpha = 0.8;
+            }
+        ));
+        
+        this.trajectoryLine.actionManager.registerAction(new BABYLON.ExecuteCodeAction(
+            BABYLON.ActionManager.OnPointerOutTrigger,
+            () => {
+                this.trajectoryLine.color = new BABYLON.Color3(1, 0, 0); // Back to red
+                this.trajectoryLine.alpha = 0.5;
+            }
+        ));
+        
         // Parent to Earth so trajectory rotates with planet
         const earthMesh = this.scene.getMeshByName('earth');
         if (earthMesh) {
@@ -309,13 +373,19 @@ export class ALOHAHandler {
         }
         this.createFullTrajectoryPath();
         
-        // Create orange launch marker
+        // Create visual markers and displays
         this.createLaunchMarker();
+        this.createApogeeMarker();
+        this.createTimeToImpactDisplay();
+        this.createGroundTrack();
         
         // Show ASAT components
         if (this.asatOrb) this.asatOrb.isVisible = true;
         if (this.thrusterParticles) this.thrusterParticles.start();
-        if (this.asatLabel) this.asatLabel.isVisible = true;
+        if (this.asatLabel) {
+            this.asatLabel._shouldBeVisible = true; // Set intended visibility
+            console.log('ASAT label made visible');
+        }
         
         // Set trajectory visibility based on mode
         if (this.trajectoryLine) {
@@ -450,8 +520,43 @@ export class ALOHAHandler {
             }
         }
         
-        // Stop playback after a delay to see explosion
-        setTimeout(() => this.stop(), 2000);
+        // Keep tracks visible, only hide moving components
+        setTimeout(() => {
+            this.isActive = false;
+            
+            // Hide moving components but keep tracks
+            if (this.asatOrb) this.asatOrb.isVisible = false;
+            if (this.thrusterParticles) this.thrusterParticles.stop();
+            if (this.asatLabel) {
+                this.asatLabel._shouldBeVisible = false;
+                this.asatLabel.isVisible = false;
+            }
+            
+            // Keep tracks and labels visible
+            // Trajectory line stays visible
+            // Ground track stays visible
+            // Launch and impact labels stay visible
+            
+            // Hide only the dynamic elements (keep labels visible)
+            this.hideTooltip();
+            if (this.impactTimerInterval) {
+                clearInterval(this.impactTimerInterval);
+                this.impactTimerInterval = null;
+            }
+            if (this.timeToImpactRect) {
+                this.timeToImpactRect.isVisible = false;
+            }
+            if (this.dynamicTrailLine) {
+                this.dynamicTrailLine.dispose();
+                this.dynamicTrailLine = null;
+            }
+            this.dynamicTrailPoints = [];
+            
+            // Keep launch and impact labels visible
+            // They should persist after impact
+            
+            console.log('⏹️ ASAT trajectory complete - tracks preserved');
+        }, 2000);
         
         // Notify system
         window.dispatchEvent(new CustomEvent('asat-impact', {
@@ -660,13 +765,242 @@ export class ALOHAHandler {
         markerMat.diffuseColor = new BABYLON.Color3(1, 0, 0);
         impactMarker.material = markerMat;
         
+        // Store impact position for label
+        this.impactPosition = position.clone();
+        
+        // Only create impact location label if we don't have one yet
+        if (!this.impactLocationLabel) {
+            console.log('Creating impact location label at impact site...');
+            this.showImpactLocationLabel();
+        }
+        
         if (earthMesh) {
             impactMarker.parent = earthMesh;
         }
         
+        this.impactMarker = impactMarker;
         this.impactDebris.push(impactMarker);
         
         console.log('💥 Persistent debris cloud created');
+    }
+    
+    /**
+     * Create apogee marker at highest point
+     */
+    createApogeeMarker() {
+        if (!this.translator.isLoaded) return;
+        
+        // Find highest altitude point
+        let maxAltitude = -Infinity;
+        let apogeeTime = 0;
+        let apogeePosition = null;
+        
+        // Sample more frequently to find true apogee
+        const sampleInterval = 0.5; // Sample every 0.5 seconds for accuracy
+        
+        for (let t = 0; t <= this.translator.duration; t += sampleInterval) {
+            const state = this.translator.getStateAtTime(t);
+            if (state.altitude > maxAltitude) {
+                maxAltitude = state.altitude;
+                apogeeTime = t;
+                apogeePosition = state.position.clone();
+            }
+        }
+        
+        // Debug: Log trajectory profile and check if this is an ascent trajectory
+        const startAlt = this.translator.getStateAtTime(0).altitude;
+        const midAlt = this.translator.getStateAtTime(this.translator.duration / 2).altitude;
+        const endAlt = this.translator.getStateAtTime(this.translator.duration).altitude;
+        
+        console.log(`📊 Trajectory profile:`);
+        console.log(`  Start: ${startAlt.toFixed(1)}km`);
+        console.log(`  Middle: ${midAlt.toFixed(1)}km`);
+        console.log(`  End: ${endAlt.toFixed(1)}km`);
+        console.log(`  Apogee: ${maxAltitude.toFixed(1)}km at T+${apogeeTime.toFixed(1)}s (${(apogeeTime/this.translator.duration*100).toFixed(1)}% through flight)`);
+        
+        // If this is an ascent trajectory (altitude keeps increasing), apogee at end makes sense
+        const isAscentTrajectory = endAlt > midAlt && midAlt > startAlt;
+        if (isAscentTrajectory) {
+            console.log(`  ⚠️ This is an ASCENT trajectory - highest point at target altitude`);
+        }
+        
+        if (apogeePosition) {
+            // For ascent trajectories, we might want to mark the target altitude instead
+            // or skip the apogee marker since it's just the end point
+            if (!isAscentTrajectory) {
+                // Only create apogee marker for ballistic trajectories
+                // Create apogee marker - small white sphere
+                this.apogeeMarker = BABYLON.MeshBuilder.CreateSphere('apogeeMarker', {
+                    diameter: 0.002,
+                    segments: 12
+                }, this.scene);
+                
+                this.apogeeMarker.position = apogeePosition;
+                
+                // White glowing material
+                const material = new BABYLON.StandardMaterial('apogeeMat', this.scene);
+                material.emissiveColor = new BABYLON.Color3(1, 1, 1);
+                material.diffuseColor = new BABYLON.Color3(1, 1, 1);
+                this.apogeeMarker.material = material;
+                
+                // Parent to Earth
+                const earthMesh = this.scene.getMeshByName('earth');
+                if (earthMesh) {
+                    this.apogeeMarker.parent = earthMesh;
+                }
+                
+                // Create label for apogee
+                this.createApogeeLabel(maxAltitude, apogeeTime);
+                
+                console.log(`⚪ Apogee marker created at ${maxAltitude.toFixed(0)}km, T+${apogeeTime}s`);
+            } else {
+                console.log(`📈 Ascent trajectory - target altitude ${maxAltitude.toFixed(0)}km reached at T+${apogeeTime}s`);
+            }
+        }
+    }
+    
+    /**
+     * Create label for apogee marker
+     */
+    createApogeeLabel(altitude, time) {
+        let advancedTexture = this.scene._advancedTexture;
+        if (!advancedTexture) return;
+        
+        const label = new GUI.Rectangle();
+        label.width = "100px";
+        label.height = "40px";
+        label.cornerRadius = 3;
+        label.color = "white";
+        label.thickness = 1;
+        label.background = "rgba(0, 0, 0, 0.7)";
+        label.isPointerBlocker = false; // Allow clicks to pass through
+        advancedTexture.addControl(label);
+        
+        const text = new GUI.TextBlock();
+        text.text = `Apogee\n${altitude.toFixed(0)}km`;
+        text.color = "white";
+        text.fontSize = 11;
+        text.lineSpacing = "2px";
+        label.addControl(text);
+        
+        label.linkWithMesh(this.apogeeMarker);
+        label.linkOffsetY = -25;
+        
+        // Make apogee label aware of occlusion
+        this.scene.registerBeforeRender(() => {
+            if (label && this.apogeeMarker) {
+                // Check if apogee marker is behind Earth
+                const camera = this.scene.activeCamera;
+                const earthCenter = BABYLON.Vector3.Zero();
+                const markerPos = this.apogeeMarker.getAbsolutePosition();
+                const cameraPos = camera.position;
+                
+                // Check if marker is on the opposite side of Earth from camera
+                const toMarker = markerPos.subtract(earthCenter);
+                const toCamera = cameraPos.subtract(earthCenter);
+                const dot = BABYLON.Vector3.Dot(toMarker, toCamera);
+                
+                // Hide label if behind Earth
+                label.isVisible = dot > 0;
+            }
+        });
+        
+        this.apogeeLabel = label;
+    }
+    
+    /**
+     * Create time to impact counter
+     */
+    createTimeToImpactDisplay() {
+        let advancedTexture = this.scene._advancedTexture;
+        if (!advancedTexture) return;
+        
+        // Create countdown display
+        const timerRect = new GUI.Rectangle();
+        timerRect.width = "150px";
+        timerRect.height = "50px";
+        timerRect.cornerRadius = 5;
+        timerRect.color = "red";
+        timerRect.thickness = 2;
+        timerRect.background = "rgba(0, 0, 0, 0.8)";
+        timerRect.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+        timerRect.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
+        timerRect.top = "100px";
+        timerRect.left = "-20px";
+        advancedTexture.addControl(timerRect);
+        
+        const timerText = new GUI.TextBlock();
+        timerText.text = "TIME TO IMPACT\n--:--";
+        timerText.color = "white";
+        timerText.fontSize = 14;
+        timerText.fontWeight = "bold";
+        timerRect.addControl(timerText);
+        
+        this.timeToImpactLabel = timerText;
+        this.timeToImpactRect = timerRect;
+        
+        // Set up update interval
+        this.impactTimerInterval = setInterval(() => {
+            if (this.isActive && this.timeToImpactLabel) {
+                const remaining = Math.max(0, this.translator.duration - this.currentTime);
+                const minutes = Math.floor(remaining / 60);
+                const seconds = Math.floor(remaining % 60);
+                this.timeToImpactLabel.text = `TIME TO IMPACT\n${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                
+                // Change color as impact approaches
+                if (remaining < 10) {
+                    this.timeToImpactRect.color = "yellow";
+                } else if (remaining < 30) {
+                    this.timeToImpactRect.color = "orange";
+                }
+            }
+        }, 100);
+    }
+    
+    /**
+     * Create ground track projection on Earth surface
+     */
+    createGroundTrack() {
+        if (!this.translator.isLoaded) return;
+        
+        // Build ground track points (projection of trajectory onto Earth surface)
+        const groundPoints = [];
+        const sampleInterval = 1; // Sample every second for more points
+        
+        for (let t = 0; t <= this.translator.duration; t += sampleInterval) {
+            const state = this.translator.getStateAtTime(t);
+            
+            // Project position onto Earth surface (higher to avoid z-fighting)
+            const normalized = state.position.normalize();
+            const surfacePosition = normalized.scale(1.0008); // About 5km above surface
+            groundPoints.push(surfacePosition);
+        }
+        
+        if (groundPoints.length < 2) return;
+        
+        // Create ground track with enough points for smooth appearance at all zoom levels
+        // Use direct points for consistent appearance
+        this.groundTrackLine = BABYLON.MeshBuilder.CreateLines('groundTrack', {
+            points: groundPoints,
+            updatable: false,
+            instance: null
+        }, this.scene);
+        
+        // Solid yellow line for ground track
+        this.groundTrackLine.color = new BABYLON.Color3(1, 1, 0); // Bright yellow
+        this.groundTrackLine.alpha = 1.0; // Fully opaque for solid line
+        
+        // Use Earth's render group for proper occlusion
+        this.groundTrackLine.renderingGroupId = 0; // Same as Earth
+        this.groundTrackLine.isPickable = false;
+        
+        // Parent to Earth
+        const earthMesh = this.scene.getMeshByName('earth');
+        if (earthMesh) {
+            this.groundTrackLine.parent = earthMesh;
+        }
+        
+        console.log('📍 Ground track projection created');
     }
     
     /**
@@ -680,9 +1014,9 @@ export class ALOHAHandler {
         // Get launch position
         const launchState = this.translator.getStateAtTime(0);
         
-        // Create orange sphere - 50% SMALLER
+        // Create orange sphere - slightly bigger for better hover detection
         this.launchMarker = BABYLON.MeshBuilder.CreateSphere('launchMarker', {
-            diameter: 0.001, // 50% smaller than before
+            diameter: 0.002, // Bigger for better hover detection
             segments: 12
         }, this.scene);
         
@@ -700,7 +1034,239 @@ export class ALOHAHandler {
             this.launchMarker.parent = earthMesh;
         }
         
+        // Create launch location label immediately (always visible)
+        console.log('Creating launch location label...');
+        this.showLaunchLocationLabel();
+        
         console.log('🟠 Launch marker created at', launchState.position);
+    }
+    
+    /**
+     * Show launch location label on hover
+     */
+    showLaunchLocationLabel() {
+        // Don't return early - always create the label if it doesn't exist
+        
+        let advancedTexture = this.scene._advancedTexture;
+        if (!advancedTexture) return;
+        
+        // Get launch coordinates
+        const launchLoc = this.translator.getLaunchLocation();
+        if (!launchLoc) return;
+        
+        // Format coordinates
+        const latStr = launchLoc.latitude >= 0 ? 
+            `${launchLoc.latitude.toFixed(2)}°N` : 
+            `${Math.abs(launchLoc.latitude).toFixed(2)}°S`;
+        const lonStr = launchLoc.longitude >= 0 ? 
+            `${launchLoc.longitude.toFixed(2)}°E` : 
+            `${Math.abs(launchLoc.longitude).toFixed(2)}°W`;
+        
+        // Determine location name based on coordinates
+        const locationName = this.getGeographicalName(launchLoc.latitude, launchLoc.longitude);
+        
+        // Create label
+        const label = new GUI.Rectangle();
+        label.width = "160px";
+        label.height = "50px";
+        label.cornerRadius = 3;
+        label.color = "orange";
+        label.thickness = 1;
+        label.background = "rgba(0, 0, 0, 0.8)";
+        label.isPointerBlocker = false;
+        advancedTexture.addControl(label);
+        
+        const text = new GUI.TextBlock();
+        text.text = `LAUNCH SITE\n${latStr}, ${lonStr}\n${locationName}`;
+        text.color = "white";
+        text.fontSize = 10;
+        text.lineSpacing = "2px";
+        label.addControl(text);
+        
+        label.linkWithMesh(this.launchMarker);
+        label.linkOffsetY = -30;
+        
+        // Make label aware of occlusion
+        this.scene.registerBeforeRender(() => {
+            if (label && this.launchMarker) {
+                // Check if launch marker is behind Earth
+                const camera = this.scene.activeCamera;
+                const earthCenter = BABYLON.Vector3.Zero();
+                const markerPos = this.launchMarker.getAbsolutePosition();
+                const cameraPos = camera.position;
+                
+                // Check if marker is on the opposite side of Earth from camera
+                const toMarker = markerPos.subtract(earthCenter);
+                const toCamera = cameraPos.subtract(earthCenter);
+                const dot = BABYLON.Vector3.Dot(toMarker, toCamera);
+                
+                // Show/hide label based on whether it's behind Earth
+                label.isVisible = dot > 0;
+                if (this.launchLocationLine) this.launchLocationLine.isVisible = dot > 0;
+            }
+        });
+        
+        this.launchLocationLabel = label;
+    }
+    
+    /**
+     * Hide launch location label
+     */
+    hideLaunchLocationLabel() {
+        if (this.launchLocationLabel) {
+            this.launchLocationLabel.isVisible = false;
+        }
+    }
+    
+    /**
+     * Show impact location label on hover
+     */
+    showImpactLocationLabel() {
+        // Don't return early - always create the label if it doesn't exist
+        
+        let advancedTexture = this.scene._advancedTexture;
+        if (!advancedTexture || !this.impactPosition) return;
+        
+        // Convert impact position to lat/lon
+        const pos = this.impactPosition;
+        const radius = pos.length() / (1 / 6371); // Convert back to km
+        const lat = Math.asin(pos.y / pos.length()) * (180 / Math.PI);
+        const lon = Math.atan2(pos.z, pos.x) * (180 / Math.PI);
+        
+        // Format coordinates
+        const latStr = lat >= 0 ? 
+            `${lat.toFixed(2)}°N` : 
+            `${Math.abs(lat).toFixed(2)}°S`;
+        const lonStr = lon >= 0 ? 
+            `${lon.toFixed(2)}°E` : 
+            `${Math.abs(lon).toFixed(2)}°W`;
+        
+        // Determine location name
+        const locationName = this.getGeographicalName(lat, lon);
+        
+        // Create label
+        const label = new GUI.Rectangle();
+        label.width = "160px";
+        label.height = "50px";
+        label.cornerRadius = 3;
+        label.color = "red";
+        label.thickness = 1;
+        label.background = "rgba(50, 0, 0, 0.9)";
+        label.isPointerBlocker = false;
+        advancedTexture.addControl(label);
+        
+        const text = new GUI.TextBlock();
+        text.text = `IMPACT SITE\n${latStr}, ${lonStr}\n${locationName}`;
+        text.color = "white";
+        text.fontSize = 10;
+        text.lineSpacing = "2px";
+        label.addControl(text);
+        
+        label.linkWithMesh(this.impactMarker);
+        label.linkOffsetY = -40; // More offset to be clearly above debris
+        
+        // Make label aware of occlusion
+        this.scene.registerBeforeRender(() => {
+            if (label && this.impactMarker) {
+                // Check if impact marker is behind Earth
+                const camera = this.scene.activeCamera;
+                const earthCenter = BABYLON.Vector3.Zero();
+                const markerPos = this.impactMarker.getAbsolutePosition();
+                const cameraPos = camera.position;
+                
+                // Check if marker is on the opposite side of Earth from camera
+                const toMarker = markerPos.subtract(earthCenter);
+                const toCamera = cameraPos.subtract(earthCenter);
+                const dot = BABYLON.Vector3.Dot(toMarker, toCamera);
+                
+                // Show/hide label based on whether it's behind Earth
+                label.isVisible = dot > 0;
+                if (this.impactLocationLine) this.impactLocationLine.isVisible = dot > 0;
+            }
+        });
+        
+        this.impactLocationLabel = label;
+    }
+    
+    /**
+     * Hide impact location label
+     */
+    hideImpactLocationLabel() {
+        if (this.impactLocationLabel) {
+            this.impactLocationLabel.isVisible = false;
+        }
+    }
+    
+    /**
+     * Get geographical name based on coordinates
+     */
+    getGeographicalName(lat, lon) {
+        // Simple geographical regions based on coordinates
+        // This is a simplified mapping - in production you'd use a proper geocoding service
+        
+        // Check for oceans first
+        if (lat < -60) return "Southern Ocean";
+        if (lat > 70) return "Arctic Region";
+        
+        // Atlantic Ocean
+        if (lon > -80 && lon < -20) {
+            if (lat > 0 && lat < 30) return "Atlantic Ocean";
+        }
+        
+        // Pacific Ocean  
+        if (lon > 120 || lon < -120) {
+            if (lat > -60 && lat < 60) return "Pacific Ocean";
+        }
+        
+        // Indian Ocean
+        if (lon > 20 && lon < 120) {
+            if (lat > -60 && lat < -10) return "Indian Ocean";
+        }
+        
+        // Land regions - simplified
+        if (lon >= -10 && lon <= 50) {
+            if (lat >= 20 && lat <= 35) {
+                if (lon >= 35 && lon <= 55) return "Saudi Arabia";
+                if (lon >= 20 && lon <= 35) return "Egypt/Sudan";
+                if (lon >= -10 && lon <= 20) return "North Africa";
+            }
+            if (lat >= 35 && lat <= 55) {
+                if (lon >= -10 && lon <= 25) return "Europe";
+                if (lon >= 25 && lon <= 50) return "Eastern Europe";
+            }
+            if (lat >= -35 && lat <= 20) {
+                if (lon >= 10 && lon <= 50) return "East Africa";
+                if (lon >= -20 && lon <= 10) return "West Africa";
+            }
+        }
+        
+        // Asia
+        if (lon >= 50 && lon <= 150) {
+            if (lat >= 20 && lat <= 50) {
+                if (lon >= 50 && lon <= 75) return "Central Asia";
+                if (lon >= 75 && lon <= 100) return "South Asia";
+                if (lon >= 100 && lon <= 130) return "East Asia";
+                if (lon >= 130 && lon <= 150) return "Japan/Korea";
+            }
+        }
+        
+        // Americas
+        if (lon >= -170 && lon <= -30) {
+            if (lat >= 30 && lat <= 50) return "North America";
+            if (lat >= -55 && lat <= 30) {
+                if (lon >= -120 && lon <= -70) return "USA/Mexico";
+                if (lon >= -70 && lon <= -30) return "Central America";
+            }
+            if (lat <= -10) return "South America";
+        }
+        
+        // Australia/Oceania
+        if (lon >= 110 && lon <= 180) {
+            if (lat >= -45 && lat <= -10) return "Australia/Oceania";
+        }
+        
+        // Default to ocean or unknown
+        return "International Waters";
     }
     
     /**
@@ -783,8 +1349,6 @@ export class ALOHAHandler {
     showTooltip() {
         if (!this.isActive) return;
         
-        const state = this.translator.getStateAtTime(this.currentTime);
-        
         // Get advancedTexture
         let advancedTexture = this.scene._advancedTexture;
         if (!advancedTexture) {
@@ -792,11 +1356,24 @@ export class ALOHAHandler {
             return;
         }
         
+        // Clear any existing interval first
+        if (this.tooltipUpdateInterval) {
+            clearInterval(this.tooltipUpdateInterval);
+            this.tooltipUpdateInterval = null;
+        }
+        
+        // Set up real-time updating
+        this.tooltipUpdateInterval = setInterval(() => {
+            if (this.isActive && this.asatTooltip && this.asatTooltip.isVisible) {
+                this.updateTooltipText();
+            }
+        }, 100); // Update every 100ms for smooth real-time data
+        
         // Create tooltip if not exists
         if (!this.asatTooltip) {
             const tooltip = new GUI.Rectangle();
-            tooltip.width = "200px";
-            tooltip.height = "100px";
+            tooltip.width = "250px";
+            tooltip.height = "140px";
             tooltip.cornerRadius = 10;
             tooltip.color = "white";
             tooltip.thickness = 2;
@@ -805,8 +1382,9 @@ export class ALOHAHandler {
             
             const text = new GUI.TextBlock();
             text.color = "white";
-            text.fontSize = 12;
+            text.fontSize = 16;  // Much bigger text
             text.textWrapping = true;
+            text.lineSpacing = "4px";
             tooltip.addControl(text);
             
             tooltip.linkWithMesh(this.asatMesh);
@@ -816,7 +1394,18 @@ export class ALOHAHandler {
             this.asatTooltipText = text;
         }
         
-        // Update tooltip text
+        // Initial update
+        this.updateTooltipText();
+        this.asatTooltip.isVisible = true;
+    }
+    
+    /**
+     * Update tooltip text with current data
+     */
+    updateTooltipText() {
+        if (!this.asatTooltipText || !this.translator) return;
+        
+        const state = this.translator.getStateAtTime(this.currentTime);
         const progress = (this.currentTime / this.translator.duration * 100).toFixed(1);
         const velocity = state.velocity.length() * 6371; // Convert to km/s
         
@@ -826,8 +1415,6 @@ export class ALOHAHandler {
             `Velocity: ${velocity.toFixed(1)} km/s\n` +
             `Progress: ${progress}%\n` +
             `Time: ${this.currentTime.toFixed(0)}/${this.translator.duration}s`;
-        
-        this.asatTooltip.isVisible = true;
     }
     
     /**
@@ -836,6 +1423,10 @@ export class ALOHAHandler {
     hideTooltip() {
         if (this.asatTooltip) {
             this.asatTooltip.isVisible = false;
+        }
+        if (this.tooltipUpdateInterval) {
+            clearInterval(this.tooltipUpdateInterval);
+            this.tooltipUpdateInterval = null;
         }
     }
     
@@ -848,7 +1439,24 @@ export class ALOHAHandler {
         // Hide ASAT components
         if (this.asatOrb) this.asatOrb.isVisible = false;
         if (this.thrusterParticles) this.thrusterParticles.stop();
-        if (this.asatLabel) this.asatLabel.isVisible = false;
+        if (this.asatLabel) {
+            this.asatLabel._isVisible = false;
+            this.asatLabel.isVisible = false;
+        }
+        
+        // Hide tooltip
+        this.hideTooltip();
+        
+        // Clear impact timer
+        if (this.impactTimerInterval) {
+            clearInterval(this.impactTimerInterval);
+            this.impactTimerInterval = null;
+        }
+        
+        // Hide time to impact display
+        if (this.timeToImpactRect) {
+            this.timeToImpactRect.isVisible = false;
+        }
         
         // Hide dynamic trail
         if (this.dynamicTrailLine) {
@@ -856,6 +1464,11 @@ export class ALOHAHandler {
             this.dynamicTrailLine = null;
         }
         this.dynamicTrailPoints = [];
+        
+        // Hide ground track
+        if (this.groundTrackLine) {
+            this.groundTrackLine.isVisible = false;
+        }
         
         console.log('⏹️ ASAT simulation stopped');
     }
@@ -876,14 +1489,77 @@ export class ALOHAHandler {
             this.trajectoryLine = null;
         }
         
+        if (this.groundTrackLine) {
+            this.groundTrackLine.dispose();
+            this.groundTrackLine = null;
+        }
+        
         if (this.launchMarker) {
             this.launchMarker.dispose();
             this.launchMarker = null;
         }
         
+        if (this.launchLocationLabel) {
+            this.launchLocationLabel.dispose();
+            this.launchLocationLabel = null;
+        }
+        
+        if (this.launchLocationLine) {
+            this.launchLocationLine.dispose();
+            this.launchLocationLine = null;
+        }
+        
+        if (this.apogeeMarker) {
+            this.apogeeMarker.dispose();
+            this.apogeeMarker = null;
+        }
+        
+        if (this.apogeeLabel) {
+            this.apogeeLabel.dispose();
+            this.apogeeLabel = null;
+        }
+        
+        if (this.timeToImpactRect) {
+            this.timeToImpactRect.dispose();
+            this.timeToImpactRect = null;
+            this.timeToImpactLabel = null;
+        }
+        
+        if (this.asatTooltip) {
+            this.asatTooltip.dispose();
+            this.asatTooltip = null;
+            this.asatTooltipText = null;
+        }
+        
+        if (this.asatLabel) {
+            this.asatLabel.dispose();
+            this.asatLabel = null;
+        }
+        
         if (this.impactDebris) {
             this.impactDebris.forEach(debris => debris.dispose());
             this.impactDebris = [];
+        }
+        
+        if (this.impactLocationLabel) {
+            this.impactLocationLabel.dispose();
+            this.impactLocationLabel = null;
+        }
+        
+        if (this.impactLocationLine) {
+            this.impactLocationLine.dispose();
+            this.impactLocationLine = null;
+        }
+        
+        // Clear all intervals
+        if (this.tooltipUpdateInterval) {
+            clearInterval(this.tooltipUpdateInterval);
+            this.tooltipUpdateInterval = null;
+        }
+        
+        if (this.impactTimerInterval) {
+            clearInterval(this.impactTimerInterval);
+            this.impactTimerInterval = null;
         }
         
         this.trajectoryPoints = [];
