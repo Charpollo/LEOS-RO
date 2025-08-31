@@ -195,6 +195,12 @@ export class ALOHAHandler {
         
         this.trajectoryLine.color = new BABYLON.Color3(1, 0, 0); // Red
         this.trajectoryLine.alpha = 0.5; // Semi-transparent to show it's the path
+        
+        // Parent to Earth so trajectory rotates with planet
+        const earthMesh = this.scene.getMeshByName('earth');
+        if (earthMesh) {
+            this.trajectoryLine.parent = earthMesh;
+        }
     }
     
     /**
@@ -272,6 +278,12 @@ export class ALOHAHandler {
         // Update mesh position
         if (this.asatMesh) {
             this.asatMesh.position = state.position;
+            
+            // Parent to Earth if not already
+            const earthMesh = this.scene.getMeshByName('earth');
+            if (earthMesh && !this.asatMesh.parent) {
+                this.asatMesh.parent = earthMesh;
+            }
             
             // Orient arrow in direction of velocity
             if (this.asatArrow && state.velocity) {

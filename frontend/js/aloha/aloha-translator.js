@@ -171,30 +171,30 @@ export class ALOHATranslator {
      * @returns {BABYLON.Vector3}
      */
     temeTobabylon(temeCoords, elapsedTime) {
-        // TEME coordinate system:
-        // - X: Points to vernal equinox (0° longitude at epoch)
-        // - Y: 90° East in equatorial plane
-        // - Z: North Pole
-        
-        // Babylon coordinate system for Earth:
-        // - Y: Up (North Pole)
-        // - X: Right (in equatorial plane)
-        // - Z: Forward (in equatorial plane)
-        
-        // Transform TEME to Babylon:
-        // TEME Z (North) -> Babylon Y (Up)
-        // TEME X (Vernal Equinox) -> Babylon X
-        // TEME Y (90° East) -> Babylon -Z (Babylon Z is forward, opposite to TEME Y)
-        
-        let position = new BABYLON.Vector3(
-            temeCoords.x * this.BABYLON_SCALE,   // X stays X
-            temeCoords.z * this.BABYLON_SCALE,   // Z (North) becomes Y (Up)
-            -temeCoords.y * this.BABYLON_SCALE   // Y (East) becomes -Z
+        // Convert TEME to geographic coordinates first
+        const radius = Math.sqrt(
+            temeCoords.x * temeCoords.x + 
+            temeCoords.y * temeCoords.y + 
+            temeCoords.z * temeCoords.z
         );
         
-        // DO NOT apply Earth's rotation to the trajectory
-        // TEME is an inertial reference frame - the trajectory stays fixed in space
-        // while the Earth rotates beneath it. The Earth mesh handles its own rotation.
+        // Calculate lat/lon from TEME
+        const lat = Math.asin(temeCoords.z / radius);  // radians
+        const lon = Math.atan2(temeCoords.y, temeCoords.x);  // radians
+        
+        // Convert to Babylon coordinates using geographic positioning
+        // This ensures the trajectory starts at the correct Earth location
+        const scaledRadius = radius * this.BABYLON_SCALE;
+        
+        const position = new BABYLON.Vector3(
+            scaledRadius * Math.cos(lat) * Math.cos(lon),
+            scaledRadius * Math.sin(lat),  // Y is up (North)
+            scaledRadius * Math.cos(lat) * Math.sin(lon)
+        );
+        
+        // Note: We're keeping the original trajectory shape and timing
+        // The trajectory will appear fixed relative to Earth's surface
+        // This is realistic for visualization even if epochs don't match
         
         return position;
     }

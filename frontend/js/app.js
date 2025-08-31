@@ -847,6 +847,10 @@ async function createScene() {
     scene.autoClear = true; // Enable auto clear to prevent dark artifacts
     scene.autoClearDepthAndStencil = true;
     
+    // Define Earth constants early
+    const EARTH_RADIUS_KM = 6371;
+    const EARTH_SCALE = 1 / EARTH_RADIUS_KM;
+    
     // Make scene and engine globally accessible for FPS counter and settings
     window.scene = scene;
     window.engine = engine;
@@ -1029,6 +1033,65 @@ async function createScene() {
     });
     
     console.log('TEST ORBS CREATED: Blue=Washington USA (-123.96°W), Green=Brazil Coast (-35.35°W)');
+    
+    // CREATE YELLOW MARKER AT TEME COORDINATES
+    console.log('Creating TEME coordinate marker...');
+    const temeCoords = {
+        x: 4075.849,  // km
+        y: 4327.987,  // km
+        z: 2302.374   // km
+    };
+    
+    // Convert TEME to Babylon coordinates (same as aloha-translator.js)
+    const BABYLON_SCALE = 1 / EARTH_RADIUS_KM;
+    
+    // TEME to Babylon transformation:
+    // TEME X -> Babylon X  
+    // TEME Z (North) -> Babylon Y (Up)
+    // TEME Y (East) -> Babylon -Z
+    const temeMarker = BABYLON.MeshBuilder.CreateSphere('temeMarker', {
+        diameter: 0.05  // Larger for visibility
+    }, scene);
+    
+    // Calculate the geographic position from TEME
+    const temeRadius = Math.sqrt(temeCoords.x * temeCoords.x + temeCoords.y * temeCoords.y + temeCoords.z * temeCoords.z);
+    const temeLat = Math.asin(temeCoords.z / temeRadius);  // radians
+    const temeLon = Math.atan2(temeCoords.y, temeCoords.x);  // radians
+    
+    // Now place the marker at the correct geographic location
+    // Using the same approach as the test orbs which work correctly
+    const markerRadius = (temeRadius / EARTH_RADIUS_KM);  // Keep original altitude
+    
+    // Convert to Babylon using correct geographic positioning
+    temeMarker.position = new BABYLON.Vector3(
+        markerRadius * Math.cos(temeLat) * Math.cos(temeLon),
+        markerRadius * Math.sin(temeLat),  // Y is up (North)
+        markerRadius * Math.cos(temeLat) * Math.sin(temeLon)
+    );
+    
+    // Parent to Earth so it rotates with it
+    temeMarker.parent = earthMesh;
+    
+    // Create yellow material
+    const temeMaterial = new BABYLON.StandardMaterial('temeMarkerMat', scene);
+    temeMaterial.emissiveColor = new BABYLON.Color3(1, 1, 0); // Yellow
+    temeMaterial.diffuseColor = new BABYLON.Color3(1, 1, 0);
+    temeMarker.material = temeMaterial;
+    
+    // Calculate distance from center for debugging
+    const radius = Math.sqrt(
+        temeCoords.x * temeCoords.x + 
+        temeCoords.y * temeCoords.y + 
+        temeCoords.z * temeCoords.z
+    );
+    const altitude = radius - EARTH_RADIUS_KM;
+    
+    console.log('TEME MARKER CREATED (Yellow):');
+    console.log(`  TEME coords: [${temeCoords.x}, ${temeCoords.y}, ${temeCoords.z}] km`);
+    console.log(`  Babylon pos: [${temeMarker.position.x.toFixed(3)}, ${temeMarker.position.y.toFixed(3)}, ${temeMarker.position.z.toFixed(3)}]`);
+    console.log(`  Radius: ${radius.toFixed(1)} km`);
+    console.log(`  Altitude: ${altitude.toFixed(1)} km`);
+    
     moonMesh = await createMoon(scene, () => simState.timeMultiplier);
     // Ground stations removed for Red Orbit
     // createGroundStations(scene, advancedTexture);

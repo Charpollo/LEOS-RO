@@ -1,0 +1,7 @@
+{
+  "id": "aurora_test",
+  "epoch": "2025-01-01T12:00:00Z",
+  "frame": "TEME",
+  "description": "Test trajectory from 20°38'31\"N 48°48'02\"E to 51°50'04\"N 34°46'20\"W at 400km",
+  "trajectory": []
+}
