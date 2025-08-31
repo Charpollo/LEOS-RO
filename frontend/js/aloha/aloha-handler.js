@@ -8,6 +8,7 @@
  */
 
 import * as BABYLON from '@babylonjs/core';
+import * as GUI from '@babylonjs/gui';
 import ALOHATranslator from './aloha-translator.js';
 
 export class ALOHAHandler {
@@ -21,6 +22,9 @@ export class ALOHAHandler {
         // ASAT mesh
         this.asatMesh = null;
         this.trajectoryLine = null;
+        this.dynamicTrailLine = null; // Dynamic trail that follows ASAT
+        this.launchMarker = null; // Orange sphere at launch
+        this.impactDebris = null; // Persistent debris at impact
         
         // Playback state
         this.isActive = false;
@@ -31,7 +35,16 @@ export class ALOHAHandler {
         // Trajectory data
         this.trajectoryData = null;
         this.trajectoryPoints = [];
+        this.dynamicTrailPoints = []; // Points for dynamic trail
         this.maxTrailPoints = 200; // Smooth trail
+        
+        // Trail mode (toggle with M key)
+        this.showFullPath = true; // true = show full path, false = dynamic trail
+        
+        // ASAT info
+        this.asatName = 'ASAT'; // Will be set from data
+        this.asatLabel = null;
+        this.asatTooltip = null;
         
         // Configuration
         this.config = {
@@ -64,6 +77,9 @@ export class ALOHAHandler {
             // Store trajectory data
             this.trajectoryData = alohaData;
             
+            // Extract ASAT name from data
+            this.asatName = alohaData.id || alohaData.name || 'ASAT_001';
+            
             // Load into translator
             const metadata = await this.translator.loadTrajectory(alohaData);
             
@@ -79,13 +95,16 @@ export class ALOHAHandler {
             
             // Register with RO-Engine as a tracked object
             this.roEngine.registerTrajectoryObject({
-                id: 'ASAT_001',
+                id: this.asatName,
                 type: 'trajectory',
                 mesh: this.asatMesh,
                 getPosition: () => this.getCurrentPosition(),
                 getVelocity: () => this.getCurrentVelocity(),
                 metadata: metadata
             });
+            
+            // Set up keyboard handler for M key
+            this.setupKeyboardHandler();
             
             console.log('✅ ALOHA trajectory loaded');
             console.log(`   Playback speed: ${this.playbackSpeed}x`);
@@ -101,63 +120,166 @@ export class ALOHAHandler {
     }
     
     /**
-     * Create ASAT missile mesh with grid sphere and direction arrow
+     * Create ASAT missile mesh with hybrid tech design
      */
     createASATMesh() {
         // Create parent container
         this.asatMesh = new BABYLON.TransformNode('asat', this.scene);
         
-        // Create wireframe sphere with grid
-        const sphere = BABYLON.MeshBuilder.CreateSphere('asatSphere', {
-            diameter: 0.003,  // 3km in real scale
-            segments: 8
+        // Create outer diamond/octahedron shell (semi-transparent)
+        const outerShell = BABYLON.MeshBuilder.CreatePolyhedron('asatShell', {
+            type: 1, // Octahedron
+            size: 0.002
         }, this.scene);
-        sphere.parent = this.asatMesh;
+        outerShell.parent = this.asatMesh;
         
-        // Create grid material
-        const gridMaterial = new BABYLON.StandardMaterial('asatGridMat', this.scene);
-        gridMaterial.wireframe = true;
-        gridMaterial.emissiveColor = new BABYLON.Color3(1, 0, 0);
-        gridMaterial.diffuseColor = new BABYLON.Color3(1, 0, 0);
-        sphere.material = gridMaterial;
-        
-        // Create direction arrow (cone pointing forward)
-        const arrow = BABYLON.MeshBuilder.CreateCylinder('asatArrow', {
-            diameterTop: 0,
-            diameterBottom: 0.001,
-            height: 0.002,
-            tessellation: 6
+        // Create inner rotating core (smaller, solid)
+        const innerCore = BABYLON.MeshBuilder.CreatePolyhedron('asatCore', {
+            type: 1, // Octahedron
+            size: 0.001
         }, this.scene);
-        arrow.parent = this.asatMesh;
-        arrow.position.z = 0.002; // Position in front
-        arrow.rotation.x = Math.PI / 2; // Point forward
+        innerCore.parent = this.asatMesh;
         
-        // Arrow material (bright red)
-        const arrowMaterial = new BABYLON.StandardMaterial('asatArrowMat', this.scene);
-        arrowMaterial.emissiveColor = new BABYLON.Color3(1, 0.2, 0.2);
-        arrowMaterial.diffuseColor = new BABYLON.Color3(1, 0, 0);
-        arrow.material = arrowMaterial;
+        // Make outer shell pickable for hover
+        outerShell.isPickable = true;
+        outerShell.actionManager = new BABYLON.ActionManager(this.scene);
         
-        // Add rotation animation to sphere
+        // Add hover actions
+        outerShell.actionManager.registerAction(new BABYLON.ExecuteCodeAction(
+            BABYLON.ActionManager.OnPointerOverTrigger,
+            () => this.showTooltip()
+        ));
+        
+        outerShell.actionManager.registerAction(new BABYLON.ExecuteCodeAction(
+            BABYLON.ActionManager.OnPointerOutTrigger,
+            () => this.hideTooltip()
+        ));
+        
+        // Outer shell material - semi-transparent with color that changes
+        const shellMaterial = new BABYLON.StandardMaterial('asatShellMat', this.scene);
+        shellMaterial.diffuseColor = new BABYLON.Color3(0.2, 0.5, 1); // Blue-ish
+        shellMaterial.emissiveColor = new BABYLON.Color3(0.1, 0.3, 0.8);
+        shellMaterial.specularColor = new BABYLON.Color3(1, 1, 1);
+        shellMaterial.alpha = 0.6;
+        outerShell.material = shellMaterial;
+        
+        // Inner core material - bright, glowing
+        const coreMaterial = new BABYLON.StandardMaterial('asatCoreMat', this.scene);
+        coreMaterial.emissiveColor = new BABYLON.Color3(1, 0.5, 0); // Orange glow
+        coreMaterial.diffuseColor = new BABYLON.Color3(1, 0.7, 0.2);
+        innerCore.material = coreMaterial;
+        
+        // Create thruster particles
+        let thrusterParticles = new BABYLON.ParticleSystem('thruster', 20, this.scene);
+        if (BABYLON.GPUParticleSystem.IsSupported) {
+            thrusterParticles = new BABYLON.GPUParticleSystem('thruster', 20, this.scene);
+        }
+        thrusterParticles.particleTexture = new BABYLON.Texture("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==", this.scene);
+        thrusterParticles.emitter = this.asatMesh;
+        thrusterParticles.minEmitBox = new BABYLON.Vector3(0, 0, -0.001);
+        thrusterParticles.maxEmitBox = new BABYLON.Vector3(0, 0, -0.001);
+        thrusterParticles.color1 = new BABYLON.Color4(1, 0.5, 0, 1);
+        thrusterParticles.color2 = new BABYLON.Color4(1, 0.2, 0, 0.5);
+        thrusterParticles.minSize = 0.0001;
+        thrusterParticles.maxSize = 0.0003;
+        thrusterParticles.minLifeTime = 0.1;
+        thrusterParticles.maxLifeTime = 0.3;
+        thrusterParticles.emitRate = 30;
+        thrusterParticles.direction1 = new BABYLON.Vector3(0, 0, -1);
+        thrusterParticles.direction2 = new BABYLON.Vector3(0, 0, -1);
+        thrusterParticles.minEmitPower = 0.01;
+        thrusterParticles.maxEmitPower = 0.02;
+        
+        // Pulse effect and rotation animation
+        let pulsePhase = 0;
         this.scene.registerBeforeRender(() => {
-            if (sphere && this.isActive) {
-                sphere.rotation.y += 0.01;
-                sphere.rotation.x += 0.005;
+            if (this.isActive) {
+                // Rotate inner core
+                innerCore.rotation.y += 0.05;
+                innerCore.rotation.x += 0.02;
+                
+                // Rotate outer shell slowly
+                outerShell.rotation.y -= 0.01;
+                
+                // Pulse effect
+                pulsePhase += 0.1;
+                const scale = 1 + Math.sin(pulsePhase) * 0.1;
+                outerShell.scaling = new BABYLON.Vector3(scale, scale, scale);
+                
+                // Change color based on altitude/speed
+                const state = this.translator?.getStateAtTime(this.currentTime);
+                if (state) {
+                    // Transition from blue to red as altitude increases
+                    const altitudeFactor = Math.min(1, state.altitude / 400);
+                    shellMaterial.emissiveColor = new BABYLON.Color3(
+                        0.1 + altitudeFactor * 0.9,  // Red increases
+                        0.3 * (1 - altitudeFactor),   // Green decreases
+                        0.8 * (1 - altitudeFactor)    // Blue decreases
+                    );
+                }
             }
         });
         
         // Add glow if available
         if (this.scene.glowLayer) {
-            this.scene.glowLayer.addIncludedOnlyMesh(sphere);
-            this.scene.glowLayer.addIncludedOnlyMesh(arrow);
+            this.scene.glowLayer.addIncludedOnlyMesh(outerShell);
+            this.scene.glowLayer.addIncludedOnlyMesh(innerCore);
         }
         
-        sphere.isVisible = false;
-        arrow.isVisible = false;
+        outerShell.isVisible = false;
+        innerCore.isVisible = false;
         
         // Store references
-        this.asatSphere = sphere;
-        this.asatArrow = arrow;
+        this.asatShell = outerShell;
+        this.asatCore = innerCore;
+        this.thrusterParticles = thrusterParticles;
+        
+        // Create label that follows ASAT
+        this.createASATLabel();
+    }
+    
+    /**
+     * Create persistent label for ASAT
+     */
+    createASATLabel() {
+        // Try to get existing advancedTexture from scene
+        let advancedTexture = this.scene._advancedTexture;
+        
+        if (!advancedTexture) {
+            // Create new advancedTexture
+            advancedTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("ASATUI");
+            this.scene._advancedTexture = advancedTexture;
+        }
+        
+        // Create label rectangle - SMALLER, CLEANER
+        const label = new GUI.Rectangle();
+        label.width = "110px";
+        label.height = "26px";
+        label.cornerRadius = 3;
+        label.color = "red";
+        label.thickness = 1;
+        label.background = "rgba(0, 0, 0, 0.75)";
+        advancedTexture.addControl(label);
+        
+        // Create text block - SMALLER, SHARPER
+        const text = new GUI.TextBlock();
+        text.text = this.asatName;
+        text.color = "white";
+        text.fontSize = 12;
+        text.fontWeight = "600";
+        label.addControl(text);
+        
+        // Add hover interaction to label
+        label.isPointerBlocker = true;
+        label.onPointerEnterObservable.add(() => this.showTooltip());
+        label.onPointerOutObservable.add(() => this.hideTooltip());
+        
+        // Link to ASAT mesh
+        label.linkWithMesh(this.asatMesh);
+        label.linkOffsetY = -25;
+        
+        this.asatLabel = label;
+        this.asatLabel.isVisible = false; // Start hidden
     }
     
     /**
@@ -223,9 +345,19 @@ export class ALOHAHandler {
         }
         this.createFullTrajectoryPath();
         
+        // Create orange launch marker
+        this.createLaunchMarker();
+        
         // Show ASAT components
-        if (this.asatSphere) this.asatSphere.isVisible = true;
-        if (this.asatArrow) this.asatArrow.isVisible = true;
+        if (this.asatShell) this.asatShell.isVisible = true;
+        if (this.asatCore) this.asatCore.isVisible = true;
+        if (this.thrusterParticles) this.thrusterParticles.start();
+        if (this.asatLabel) this.asatLabel.isVisible = true;
+        
+        // Set trajectory visibility based on mode
+        if (this.trajectoryLine) {
+            this.trajectoryLine.isVisible = this.showFullPath;
+        }
         
         // Get conjunction system from RO-Engine
         if (!this.conjunctionSystem && this.roEngine.conjunctionSystem) {
@@ -285,18 +417,9 @@ export class ALOHAHandler {
                 this.asatMesh.parent = earthMesh;
             }
             
-            // Orient arrow in direction of velocity
-            if (this.asatArrow && state.velocity) {
-                const velocity = state.velocity.normalize();
-                if (velocity.length() > 0) {
-                    // Calculate rotation to align arrow with velocity
-                    const forward = new BABYLON.Vector3(0, 0, 1);
-                    const axis = BABYLON.Vector3.Cross(forward, velocity);
-                    const angle = Math.acos(BABYLON.Vector3.Dot(forward, velocity));
-                    if (axis.length() > 0) {
-                        this.asatArrow.rotationQuaternion = BABYLON.Quaternion.RotationAxis(axis.normalize(), angle);
-                    }
-                }
+            // Update dynamic trail if in dynamic mode
+            if (!this.showFullPath) {
+                this.updateDynamicTrail(state.position);
             }
         }
         
@@ -381,6 +504,9 @@ export class ALOHAHandler {
      * Create explosion animation
      */
     createExplosion(position) {
+        // Create persistent debris cloud first
+        this.createPersistentDebris(position);
+        
         // Create expanding sphere for explosion
         const explosion = BABYLON.MeshBuilder.CreateSphere('explosion', {
             diameter: 0.01
@@ -514,14 +640,260 @@ export class ALOHAHandler {
     }
     
     /**
+     * Create persistent debris cloud at impact location
+     */
+    createPersistentDebris(position) {
+        // Clean up any existing debris
+        if (this.impactDebris) {
+            this.impactDebris.forEach(debris => debris.dispose());
+            this.impactDebris = [];
+        }
+        
+        this.impactDebris = [];
+        const earthMesh = this.scene.getMeshByName('earth');
+        
+        // Create multiple small debris pieces
+        const debrisCount = 8;
+        for (let i = 0; i < debrisCount; i++) {
+            const debris = BABYLON.MeshBuilder.CreateSphere(`debris_${i}`, {
+                diameter: 0.002,
+                segments: 4
+            }, this.scene);
+            
+            // Position with slight random offset
+            const offset = new BABYLON.Vector3(
+                (Math.random() - 0.5) * 0.01,
+                (Math.random() - 0.5) * 0.01,
+                (Math.random() - 0.5) * 0.01
+            );
+            debris.position = position.add(offset);
+            
+            // Grey/dark material for debris
+            const material = new BABYLON.StandardMaterial(`debrisMat_${i}`, this.scene);
+            material.emissiveColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+            material.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.5);
+            material.alpha = 0.8;
+            debris.material = material;
+            
+            // Parent to Earth
+            if (earthMesh) {
+                debris.parent = earthMesh;
+            }
+            
+            this.impactDebris.push(debris);
+        }
+        
+        // Create a glowing impact marker
+        const impactMarker = BABYLON.MeshBuilder.CreateSphere('impactMarker', {
+            diameter: 0.005,
+            segments: 8
+        }, this.scene);
+        
+        impactMarker.position = position.clone();
+        
+        // Glowing red material
+        const markerMat = new BABYLON.StandardMaterial('impactMarkerMat', this.scene);
+        markerMat.emissiveColor = new BABYLON.Color3(0.8, 0.2, 0.2);
+        markerMat.diffuseColor = new BABYLON.Color3(1, 0, 0);
+        impactMarker.material = markerMat;
+        
+        if (earthMesh) {
+            impactMarker.parent = earthMesh;
+        }
+        
+        this.impactDebris.push(impactMarker);
+        
+        console.log('💥 Persistent debris cloud created');
+    }
+    
+    /**
+     * Create orange launch marker at start position
+     */
+    createLaunchMarker() {
+        if (this.launchMarker) {
+            this.launchMarker.dispose();
+        }
+        
+        // Get launch position
+        const launchState = this.translator.getStateAtTime(0);
+        
+        // Create orange sphere - MUCH SMALLER
+        this.launchMarker = BABYLON.MeshBuilder.CreateSphere('launchMarker', {
+            diameter: 0.002, // Much smaller - won't cover the launch
+            segments: 12
+        }, this.scene);
+        
+        this.launchMarker.position = launchState.position.clone();
+        
+        // Orange material
+        const material = new BABYLON.StandardMaterial('launchMat', this.scene);
+        material.emissiveColor = new BABYLON.Color3(1, 0.5, 0); // Orange
+        material.diffuseColor = new BABYLON.Color3(1, 0.5, 0);
+        this.launchMarker.material = material;
+        
+        // Parent to Earth
+        const earthMesh = this.scene.getMeshByName('earth');
+        if (earthMesh) {
+            this.launchMarker.parent = earthMesh;
+        }
+        
+        console.log('🟠 Launch marker created at', launchState.position);
+    }
+    
+    /**
+     * Update dynamic trail that follows ASAT
+     */
+    updateDynamicTrail(position) {
+        // Add current position to trail
+        this.dynamicTrailPoints.push(position.clone());
+        
+        // Limit trail length
+        if (this.dynamicTrailPoints.length > this.maxTrailPoints) {
+            this.dynamicTrailPoints.shift();
+        }
+        
+        // Update or create trail line
+        if (this.dynamicTrailPoints.length > 1) {
+            if (this.dynamicTrailLine) {
+                this.dynamicTrailLine.dispose();
+            }
+            
+            this.dynamicTrailLine = BABYLON.MeshBuilder.CreateLines('dynamicTrail', {
+                points: this.dynamicTrailPoints,
+                updatable: false
+            }, this.scene);
+            
+            this.dynamicTrailLine.color = new BABYLON.Color3(1, 0, 0); // Red
+            this.dynamicTrailLine.alpha = 0.8;
+            
+            // Parent to Earth
+            const earthMesh = this.scene.getMeshByName('earth');
+            if (earthMesh) {
+                this.dynamicTrailLine.parent = earthMesh;
+            }
+        }
+    }
+    
+    /**
+     * Setup keyboard handler for trail mode toggle
+     */
+    setupKeyboardHandler() {
+        window.addEventListener('keydown', (event) => {
+            if (event.key === 'm' || event.key === 'M') {
+                this.toggleTrailMode();
+            }
+        });
+    }
+    
+    /**
+     * Toggle between full path and dynamic trail
+     */
+    toggleTrailMode() {
+        this.showFullPath = !this.showFullPath;
+        
+        // Update visibility
+        if (this.trajectoryLine) {
+            this.trajectoryLine.isVisible = this.showFullPath;
+        }
+        
+        if (!this.showFullPath) {
+            // Clear dynamic trail to start fresh
+            this.dynamicTrailPoints = [];
+            if (this.dynamicTrailLine) {
+                this.dynamicTrailLine.dispose();
+                this.dynamicTrailLine = null;
+            }
+        } else {
+            // Clear dynamic trail when switching to full path
+            if (this.dynamicTrailLine) {
+                this.dynamicTrailLine.dispose();
+                this.dynamicTrailLine = null;
+            }
+        }
+        
+        console.log(`Trail mode: ${this.showFullPath ? 'Full Path' : 'Dynamic Trail'}`);
+    }
+    
+    /**
+     * Show tooltip with ASAT details
+     */
+    showTooltip() {
+        if (!this.isActive) return;
+        
+        const state = this.translator.getStateAtTime(this.currentTime);
+        
+        // Get advancedTexture
+        let advancedTexture = this.scene._advancedTexture;
+        if (!advancedTexture) {
+            console.warn('No advancedTexture for tooltip');
+            return;
+        }
+        
+        // Create tooltip if not exists
+        if (!this.asatTooltip) {
+            const tooltip = new GUI.Rectangle();
+            tooltip.width = "200px";
+            tooltip.height = "100px";
+            tooltip.cornerRadius = 10;
+            tooltip.color = "white";
+            tooltip.thickness = 2;
+            tooltip.background = "rgba(0, 0, 0, 0.9)";
+            advancedTexture.addControl(tooltip);
+            
+            const text = new GUI.TextBlock();
+            text.color = "white";
+            text.fontSize = 12;
+            text.textWrapping = true;
+            tooltip.addControl(text);
+            
+            tooltip.linkWithMesh(this.asatMesh);
+            tooltip.linkOffsetY = -70;
+            
+            this.asatTooltip = tooltip;
+            this.asatTooltipText = text;
+        }
+        
+        // Update tooltip text
+        const progress = (this.currentTime / this.translator.duration * 100).toFixed(1);
+        const velocity = state.velocity.length() * 6371; // Convert to km/s
+        
+        this.asatTooltipText.text = 
+            `${this.asatName}\n` +
+            `Altitude: ${state.altitude.toFixed(1)} km\n` +
+            `Velocity: ${velocity.toFixed(1)} km/s\n` +
+            `Progress: ${progress}%\n` +
+            `Time: ${this.currentTime.toFixed(0)}/${this.translator.duration}s`;
+        
+        this.asatTooltip.isVisible = true;
+    }
+    
+    /**
+     * Hide tooltip
+     */
+    hideTooltip() {
+        if (this.asatTooltip) {
+            this.asatTooltip.isVisible = false;
+        }
+    }
+    
+    /**
      * Stop trajectory playback
      */
     stop() {
         this.isActive = false;
         
         // Hide ASAT components
-        if (this.asatSphere) this.asatSphere.isVisible = false;
-        if (this.asatArrow) this.asatArrow.isVisible = false;
+        if (this.asatShell) this.asatShell.isVisible = false;
+        if (this.asatCore) this.asatCore.isVisible = false;
+        if (this.thrusterParticles) this.thrusterParticles.stop();
+        if (this.asatLabel) this.asatLabel.isVisible = false;
+        
+        // Hide dynamic trail
+        if (this.dynamicTrailLine) {
+            this.dynamicTrailLine.dispose();
+            this.dynamicTrailLine = null;
+        }
+        this.dynamicTrailPoints = [];
         
         console.log('⏹️ ASAT simulation stopped');
     }
@@ -540,6 +912,16 @@ export class ALOHAHandler {
         if (this.trajectoryLine) {
             this.trajectoryLine.dispose();
             this.trajectoryLine = null;
+        }
+        
+        if (this.launchMarker) {
+            this.launchMarker.dispose();
+            this.launchMarker = null;
+        }
+        
+        if (this.impactDebris) {
+            this.impactDebris.forEach(debris => debris.dispose());
+            this.impactDebris = [];
         }
         
         this.trajectoryPoints = [];
