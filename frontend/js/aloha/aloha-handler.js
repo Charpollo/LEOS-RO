@@ -124,35 +124,25 @@ export class ALOHAHandler {
     }
     
     /**
-     * Create ASAT missile mesh - loads Mica missile model
+     * Create ASAT missile mesh - simple red orb like SDA
      */
     createASATMesh() {
         // Create parent container
         this.asatMesh = new BABYLON.TransformNode('asat', this.scene);
+        // Don't parent to Earth here - will be done in update loop
         
-        // Create temporary triangle shape as fallback
-        const asatOrb = new BABYLON.Mesh('asatOrb', this.scene);
+        // Create simple red orb
+        const asatOrb = BABYLON.MeshBuilder.CreateSphere('asatOrb', {
+            diameter: 0.002,  // Small red orb like SDA
+            segments: 16
+        }, this.scene);
         
-        // Define triangle vertices (fallback)
-        const positions = [
-            0, 0.001, 0,    // Top vertex
-            -0.0008, -0.0008, 0,  // Bottom left
-            0.0008, -0.0008, 0    // Bottom right
-        ];
-        
-        const indices = [0, 1, 2]; // Single triangle face
-        
-        // Create vertex data
-        const vertexData = new BABYLON.VertexData();
-        vertexData.positions = positions;
-        vertexData.indices = indices;
-        vertexData.applyToMesh(asatOrb);
-        
+        // Parent to container
         asatOrb.parent = this.asatMesh;
         
         // Make orb pickable for hover
         asatOrb.isPickable = true;
-        asatOrb.enablePointerMoveEvents = true; // Ensure pointer events work
+        asatOrb.enablePointerMoveEvents = true;
         asatOrb.actionManager = new BABYLON.ActionManager(this.scene);
         
         // Add hover actions
@@ -166,81 +156,24 @@ export class ALOHAHandler {
             () => this.hideTooltip()
         ));
         
-        // Red glowing material (for fallback)
+        // Red glowing material
         const orbMaterial = new BABYLON.StandardMaterial('asatOrbMat', this.scene);
         orbMaterial.diffuseColor = new BABYLON.Color3(0.8, 0, 0);
         orbMaterial.emissiveColor = new BABYLON.Color3(1, 0.2, 0.2);
         orbMaterial.specularColor = new BABYLON.Color3(1, 0.5, 0.5);
+        orbMaterial.specularPower = 128;
         asatOrb.material = orbMaterial;
         
-        // Load the Mica missile model
-        BABYLON.SceneLoader.LoadAssetContainer(
-            "/assets/red-orbit/",
-            "mica_anti_aircraft_missile_free.glb",
-            this.scene,
-            (container) => {
-                // Remove temporary triangle
-                asatOrb.dispose();
-                
-                // Add loaded meshes to scene
-                const loadedMeshes = container.instantiateModelsToScene();
-                
-                // Get the root mesh
-                const missileMesh = loadedMeshes.rootNodes[0];
-                
-                if (missileMesh) {
-                    // Parent to our ASAT container
-                    missileMesh.parent = this.asatMesh;
-                    
-                    // Scale appropriately for our scene (adjust as needed)
-                    missileMesh.scaling = new BABYLON.Vector3(0.0002, 0.0002, 0.0002);
-                    
-                    // Rotate to point nose forward along trajectory
-                    missileMesh.rotation.x = Math.PI / 2; // Point nose up
-                    
-                    // Store reference to the actual missile mesh
-                    this.asatOrb = missileMesh;
-                    
-                    // Apply red glowing material to all child meshes
-                    loadedMeshes.animationGroups.forEach(ag => ag.stop());
-                    missileMesh.getChildMeshes().forEach(mesh => {
-                        // Make pickable for hover
-                        mesh.isPickable = true;
-                        mesh.enablePointerMoveEvents = true;
-                        mesh.actionManager = new BABYLON.ActionManager(this.scene);
-                        
-                        // Add hover actions
-                        mesh.actionManager.registerAction(new BABYLON.ExecuteCodeAction(
-                            BABYLON.ActionManager.OnPointerOverTrigger,
-                            () => this.showTooltip()
-                        ));
-                        
-                        mesh.actionManager.registerAction(new BABYLON.ExecuteCodeAction(
-                            BABYLON.ActionManager.OnPointerOutTrigger,
-                            () => this.hideTooltip()
-                        ));
-                        
-                        // Apply red glowing material
-                        const material = new BABYLON.StandardMaterial(`asatMat_${mesh.name}`, this.scene);
-                        material.diffuseColor = new BABYLON.Color3(0.8, 0.1, 0.1);
-                        material.specularColor = new BABYLON.Color3(1, 0.2, 0.2);
-                        material.emissiveColor = new BABYLON.Color3(0.3, 0, 0);
-                        material.specularPower = 64;
-                        mesh.material = material;
-                        
-                        // Add glow if available
-                        if (this.scene.glowLayer) {
-                            this.scene.glowLayer.addIncludedOnlyMesh(mesh);
-                        }
-                    });
-                }
-            },
-            null,
-            (scene, message) => {
-                console.warn("Failed to load Mica missile model:", message);
-                // Keep using the triangle fallback
-            }
-        );
+        // Add glow if available
+        if (this.scene.glowLayer) {
+            this.scene.glowLayer.addIncludedOnlyMesh(asatOrb);
+        }
+        
+        // Start hidden
+        asatOrb.isVisible = false;
+        
+        // Store reference
+        this.asatOrb = asatOrb;
         
         // Create thruster particles
         let thrusterParticles = new BABYLON.ParticleSystem('thruster', 20, this.scene);
@@ -263,26 +196,7 @@ export class ALOHAHandler {
         thrusterParticles.minEmitPower = 0.01;
         thrusterParticles.maxEmitPower = 0.02;
         
-        // Simple subtle pulse animation
-        let pulsePhase = 0;
-        this.scene.registerBeforeRender(() => {
-            if (this.isActive) {
-                // Gentle pulse effect
-                pulsePhase += 0.05;
-                const intensity = 0.2 + Math.sin(pulsePhase) * 0.1;
-                orbMaterial.emissiveColor = new BABYLON.Color3(1, intensity, intensity);
-            }
-        });
-        
-        // Add glow if available
-        if (this.scene.glowLayer) {
-            this.scene.glowLayer.addIncludedOnlyMesh(asatOrb);
-        }
-        
-        asatOrb.isVisible = false;
-        
         // Store references
-        this.asatOrb = asatOrb;
         this.thrusterParticles = thrusterParticles;
         
         // Create label that follows ASAT
@@ -361,20 +275,27 @@ export class ALOHAHandler {
         
         // Add occlusion check for ASAT label
         this.scene.registerBeforeRender(() => {
-            if (label && this.asatMesh && this.isActive) {
-                // Check if ASAT is behind Earth
-                const camera = this.scene.activeCamera;
-                const earthCenter = BABYLON.Vector3.Zero();
-                const asatPos = this.asatMesh.getAbsolutePosition();
-                const cameraPos = camera.position;
-                
-                // Check if ASAT is on the opposite side of Earth from camera
-                const toASAT = asatPos.subtract(earthCenter);
-                const toCamera = cameraPos.subtract(earthCenter);
-                const dot = BABYLON.Vector3.Dot(toASAT, toCamera);
-                
-                // Only show label if ASAT is visible and on same side as camera
-                label.isVisible = this.asatLabel && this.asatLabel._shouldBeVisible && dot > 0;
+            if (label && this.asatMesh) {
+                if (this.isActive) {
+                    // Check if ASAT is behind Earth
+                    const camera = this.scene.activeCamera;
+                    const earthCenter = BABYLON.Vector3.Zero();
+                    const asatPos = this.asatMesh.getAbsolutePosition();
+                    const cameraPos = camera.position;
+                    
+                    // Check if ASAT is on the opposite side of Earth from camera
+                    const toASAT = asatPos.subtract(earthCenter);
+                    const toCamera = cameraPos.subtract(earthCenter);
+                    const dot = BABYLON.Vector3.Dot(toASAT, toCamera);
+                    
+                    // Only show label if ASAT is visible and on same side as camera
+                    label.isVisible = this.asatLabel && this.asatLabel._shouldBeVisible && dot > 0;
+                } else {
+                    // When inactive, hide the label properly
+                    if (label.isVisible) {
+                        label.isVisible = false;
+                    }
+                }
             }
         });
         
@@ -479,7 +400,7 @@ export class ALOHAHandler {
         }
         
         this.isActive = true;
-        this.impactCompleted = false;  // Reset impact flag
+        // Start update loop
         this.startTime = Date.now();
         this.currentTime = 0;
         
@@ -542,8 +463,14 @@ export class ALOHAHandler {
      * Update ASAT position using global simulation time
      */
     update() {
-        // Prevent updates if already completed
-        if (this.impactCompleted) return;
+        // Only update if active
+        if (!this.isActive || !this.translator.isLoaded) {
+            if (!this.isActive && this.lastActiveLog !== false) {
+                console.warn(`⚠️ ASAT update stopped: isActive=${this.isActive}`);
+                this.lastActiveLog = false;
+            }
+            return;
+        }
         
         // Use global physics time multiplier from RO-Engine
         const elapsed = (Date.now() - this.startTime) / 1000;
@@ -552,15 +479,53 @@ export class ALOHAHandler {
         // Apply global simulation speed
         this.currentTime = elapsed * globalSpeed;
         
-        // Check if complete (only trigger once)
-        if (this.currentTime >= this.translator.duration && !this.impactCompleted) {
-            this.impactCompleted = true;  // Prevent multiple triggers
+        // Debug logging every 5 seconds
+        if (Math.floor(elapsed) % 5 === 0 && Math.floor(elapsed) !== this.lastLoggedTime) {
+            this.lastLoggedTime = Math.floor(elapsed);
+            console.log(`⏱️ ASAT Update: elapsed=${elapsed.toFixed(1)}s, currentTime=${this.currentTime.toFixed(1)}s/${this.translator.duration}s, isActive=${this.isActive}`);
+            if (this.asatOrb) {
+                console.log(`  Orb visible=${this.asatOrb.isVisible}, disposed=${this.asatOrb.isDisposed()}, parent=${this.asatOrb.parent?.name}`);
+            }
+            if (this.asatMesh) {
+                const pos = this.asatMesh.position;
+                console.log(`  Mesh position=(${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)}), parent=${this.asatMesh.parent?.name}`);
+            }
+        }
+        
+        // Extra debug at 60 seconds
+        if (elapsed >= 59 && elapsed <= 61 && !this.debugged60) {
+            this.debugged60 = true;
+            console.warn(`🔍 60-SECOND DEBUG:`);
+            console.warn(`  isActive=${this.isActive}`);
+            console.warn(`  currentTime=${this.currentTime.toFixed(1)}s`);
+            console.warn(`  duration=${this.translator.duration}s`);
+            console.warn(`  asatOrb exists=${!!this.asatOrb}`);
+            console.warn(`  asatOrb visible=${this.asatOrb?.isVisible}`);
+            console.warn(`  asatOrb disposed=${this.asatOrb?.isDisposed()}`);
+            console.warn(`  asatMesh exists=${!!this.asatMesh}`);
+            console.warn(`  asatMesh parent=${this.asatMesh?.parent?.name}`);
+            const state = this.translator.getStateAtTime(this.currentTime);
+            console.warn(`  state exists=${!!state}`);
+            if (state?.position) {
+                console.warn(`  state.position=(${state.position.x.toFixed(3)}, ${state.position.y.toFixed(3)}, ${state.position.z.toFixed(3)})`);
+            }
+        }
+        
+        // Check if complete
+        if (this.currentTime >= this.translator.duration) {
+            console.log(`💥 Impact at currentTime=${this.currentTime.toFixed(1)}s`);
             this.onImpact();
             return;
         }
         
         // Get current state
         const state = this.translator.getStateAtTime(this.currentTime);
+        
+        // Check if state is valid
+        if (!state || !state.position) {
+            console.error(`❌ Invalid state at time ${this.currentTime.toFixed(1)}s`);
+            return;
+        }
         
         // Update mesh position
         if (this.asatMesh) {
@@ -572,24 +537,8 @@ export class ALOHAHandler {
                 this.asatMesh.parent = earthMesh;
             }
             
-            // Orient missile along velocity vector
-            if (state.velocity && state.velocity.length() > 0.001) {
-                // Get the velocity direction
-                const velocityDir = state.velocity.normalize();
-                
-                // Calculate look-at position (point ahead in velocity direction)
-                const lookAtPos = state.position.add(velocityDir.scale(0.1));
-                
-                // Make missile look in the direction of travel
-                this.asatMesh.lookAt(lookAtPos, new BABYLON.Vector3(0, 1, 0));
-                
-                // Additional rotation adjustment for the missile model
-                // The model might need to be rotated to align properly
-                if (this.asatOrb && this.asatOrb !== this.asatMesh) {
-                    // Adjust local rotation if needed (model-specific)
-                    this.asatOrb.rotation.x = Math.PI / 2; // Nose up
-                }
-            }
+            // Don't orient the orb - it's just a sphere
+            // The lookAt was causing issues with the transform
             
             // Update dynamic trail if in dynamic mode
             if (!this.showFullPath) {
@@ -899,7 +848,7 @@ export class ALOHAHandler {
         } else {
             // Create impact marker only if it doesn't exist (shouldn't happen)
             const impactMarker = BABYLON.MeshBuilder.CreateSphere('impactMarker', {
-                diameter: 0.005,
+                diameter: 0.001, // Small marker
                 segments: 8
             }, this.scene);
             
@@ -943,7 +892,7 @@ export class ALOHAHandler {
         }
         
         this.impactMarker = BABYLON.MeshBuilder.CreateSphere('impactMarker', {
-            diameter: 0.003,
+            diameter: 0.001, // Small marker
             segments: 12
         }, this.scene);
         
@@ -1016,7 +965,7 @@ export class ALOHAHandler {
                 // Only create apogee marker for ballistic trajectories
                 // Create apogee marker - small white sphere
                 this.apogeeMarker = BABYLON.MeshBuilder.CreateSphere('apogeeMarker', {
-                    diameter: 0.002,
+                    diameter: 0.001, // Small marker
                     segments: 12
                 }, this.scene);
                 
@@ -1110,23 +1059,29 @@ export class ALOHAHandler {
         
         // Build ground track points (projection of trajectory onto Earth surface)
         const groundPoints = [];
-        const sampleInterval = 1; // Sample every second for more points
+        const sampleInterval = 0.5; // Sample every 0.5 seconds for smoother curve
         
         for (let t = 0; t <= this.translator.duration; t += sampleInterval) {
             const state = this.translator.getStateAtTime(t);
             
             // Project position onto Earth surface (higher to avoid z-fighting)
             const normalized = state.position.normalize();
-            const surfacePosition = normalized.scale(1.0008); // About 5km above surface
+            const surfacePosition = normalized.scale(1.0006); // Slightly above surface
             groundPoints.push(surfacePosition);
         }
         
         if (groundPoints.length < 2) return;
         
-        // Create ground track with enough points for smooth appearance at all zoom levels
-        // Use direct points for consistent appearance
+        // Create smooth spline for ground track
+        const groundCurve = BABYLON.Curve3.CreateCatmullRomSpline(
+            groundPoints,
+            Math.min(600, groundPoints.length * 2), // More points for smoother curve
+            false
+        );
+        
+        // Create ground track with smooth curve
         this.groundTrackLine = BABYLON.MeshBuilder.CreateLines('groundTrack', {
-            points: groundPoints,
+            points: groundCurve.getPoints(),
             updatable: false,
             instance: null
         }, this.scene);
@@ -1159,9 +1114,9 @@ export class ALOHAHandler {
         // Get launch position
         const launchState = this.translator.getStateAtTime(0);
         
-        // Create orange sphere - slightly bigger for better hover detection
+        // Create orange sphere - small
         this.launchMarker = BABYLON.MeshBuilder.CreateSphere('launchMarker', {
-            diameter: 0.002, // Bigger for better hover detection
+            diameter: 0.001, // Small marker
             segments: 12
         }, this.scene);
         
