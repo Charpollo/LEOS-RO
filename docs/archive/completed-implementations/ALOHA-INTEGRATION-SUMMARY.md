@@ -36,7 +36,7 @@ The ALOHA (Anti-Satellite) capability has been successfully integrated into RED 
 ## Key Features Delivered
 
 ### Visual Components
-- **ASAT Vehicle**: Simple red triangle mesh
+- **ASAT Vehicle**: Mica missile 3D model (with triangle fallback)
 - **Trajectory Path**: Full flight path visualization
 - **Ground Track**: Yellow projection on Earth's surface
 - **Launch Marker**: Orange sphere with location label (coordinates + country)
@@ -73,9 +73,12 @@ The ALOHA (Anti-Satellite) capability has been successfully integrated into RED 
 
 ## Documentation Created
 
-1. **ALOHA-CAPABILITY-OVERVIEW.md** - Complete technical overview
-2. **ASAT-TRAJECTORY-ANALYSIS.md** - Mathematical foundations
-3. **ALOHA-ASAT-IMPLEMENTATION-PLAN.md** - Development roadmap (complete)
+All ALOHA documentation organized in `/docs/tech-docs/aloha/`:
+
+1. **aloha/ALOHA-CAPABILITY-OVERVIEW.md** - Complete technical overview
+2. **aloha/ASAT-TRAJECTORY-ANALYSIS.md** - Mathematical foundations  
+3. **aloha/ASAT-SPEED-ANALYSIS.md** - Hypersonic physics analysis
+4. **ALOHA-ASAT-IMPLEMENTATION-PLAN.md** - Development roadmap (complete)
 
 ## Files Modified
 
