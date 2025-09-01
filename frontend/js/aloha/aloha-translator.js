@@ -230,6 +230,13 @@ export class ALOHATranslator {
             }
             
             const velocity = p2.position.subtract(p1.position).scale(1 / dt);
+            
+            // Debug check for extreme velocities
+            const speedKms = velocity.length() * this.EARTH_RADIUS_KM;
+            if (speedKms > 50 && i % 20 === 0) {  // Log every 20th extreme velocity
+                console.warn(`Velocity at t=${p1.time}s: ${speedKms.toFixed(1)} km/s`);
+            }
+            
             this.velocities.push(velocity);
         }
         

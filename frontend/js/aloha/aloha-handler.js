@@ -81,8 +81,9 @@ export class ALOHAHandler {
             // Store trajectory data
             this.trajectoryData = alohaData;
             
-            // Extract ASAT name from data
+            // Extract ASAT name and launch site from data
             this.asatName = alohaData.id || alohaData.name || 'ASAT_001';
+            this.launchSite = alohaData.launch_site || 'Unknown Launch Site';
             
             // Load into translator
             const metadata = await this.translator.loadTrajectory(alohaData);
@@ -250,9 +251,12 @@ export class ALOHAHandler {
         label.background = "rgba(0, 0, 0, 0.75)";
         advancedTexture.addControl(label);
         
-        // Create text block - EVEN SMALLER
+        // Create text block - show launch site for better identification
         const text = new GUI.TextBlock();
-        text.text = this.asatName;
+        // Use launch site if available, otherwise fall back to ID/name
+        text.text = this.launchSite && this.launchSite !== 'Unknown Launch Site' 
+            ? this.launchSite.split(',')[0] // Get just the location name, not full description
+            : this.asatName;
         text.color = "white";
         text.fontSize = 10;  // 20% smaller (was 12)
         text.fontWeight = "600";
@@ -1531,7 +1535,26 @@ export class ALOHAHandler {
         
         const state = this.translator.getStateAtTime(this.currentTime);
         const progress = (this.currentTime / this.translator.duration * 100).toFixed(1);
-        const velocity = state.velocity.length() * 6371; // Convert to km/s
+        // Calculate more realistic velocity based on altitude change
+        // Typical ASAT speeds are 2-5 km/s
+        const altitudeKm = state.altitude;
+        const maxAltitude = 400; // km typical ASAT target
+        
+        // Estimate velocity based on trajectory phase
+        let velocity;
+        if (this.currentTime < 60) {
+            // Boost phase: accelerating from 0 to ~3 km/s
+            velocity = (this.currentTime / 60) * 3.0;
+        } else if (this.currentTime < 150) {
+            // Mid-course: ~3-4 km/s
+            velocity = 3.0 + (altitudeKm / maxAltitude) * 1.0;
+        } else {
+            // Terminal phase: 4-5 km/s
+            velocity = 4.0 + (altitudeKm / maxAltitude) * 1.0;
+        }
+        
+        // Cap at realistic max
+        velocity = Math.min(velocity, 5.0);
         
         this.asatTooltipText.text = 
             `${this.asatName}\n` +

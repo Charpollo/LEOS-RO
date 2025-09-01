@@ -506,7 +506,9 @@ export class EngineeringPanel {
             // Map selection to file path
             const trajectoryFiles = {
                 'aloha': '/data/aloha.json',
-                'ascent_traj': '/data/ascent_traj.json'
+                'ascent_traj': '/data/ascent_traj.json',
+                'colorado_asat': '/data/colorado_asat.json',
+                'russia_asat': '/data/russia_asat.json'
             };
             
             const filePath = trajectoryFiles[trajectoryName];
@@ -1101,6 +1103,8 @@ export class EngineeringPanel {
                             <option value="">-- Select a trajectory --</option>
                             <option value="aloha">ALOHA - Saudi Arabia ASAT (206s, 398km apogee)</option>
                             <option value="ascent_traj">Ascent - New Zealand Launch (206s trajectory)</option>
+                            <option value="colorado_asat">Colorado ASAT - Aurora Launch (420s, 400km target)</option>
+                            <option value="russia_asat">Russia ASAT - Plesetsk Launch (380s, 400km target)</option>
                         </select>
                         
                         <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255, 0, 0, 0.2);">
