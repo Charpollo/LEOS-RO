@@ -114,14 +114,19 @@ export class ROEngine {
                 this.clearAll();
             });
             
+            // Initialize ALOHA handler immediately
+            const { ALOHAHandler } = await import('../../aloha/aloha-handler.js');
+            this.alohaHandler = new ALOHAHandler(this);
+            
+            // Setup event listener for custom launch button
+            window.addEventListener('show-asat-configurator', () => {
+                this.alohaHandler.showLaunchConfigurator();
+            });
+            
             // Listen for ALOHA trajectory loading
             window.addEventListener('load-aloha', async (event) => {
                 const { data } = event.detail;
                 console.log('RO-ENGINE: Loading ALOHA trajectory');
-                
-                // Import and create ALOHA handler
-                const { ALOHAHandler } = await import('../../aloha/aloha-handler.js');
-                this.alohaHandler = new ALOHAHandler(this);
                 
                 // Load trajectory
                 await this.alohaHandler.loadTrajectory(data);

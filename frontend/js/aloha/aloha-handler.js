@@ -10,6 +10,7 @@
 import * as BABYLON from '@babylonjs/core';
 import * as GUI from '@babylonjs/gui';
 import ALOHATranslator from './aloha-translator.js';
+import ASATTargetingMode from './asat-targeting-mode.js';
 
 export class ALOHAHandler {
     constructor(roEngine) {
@@ -61,7 +62,26 @@ export class ALOHAHandler {
         this.conjunctionSystem = null; // Will be set by RO-Engine
         this.impactSystem = null;      // Will be set by RO-Engine
         
-        console.log('🎯 ALOHA Handler initialized with real-time playback');
+        // Interactive targeting mode
+        this.targetingMode = null; // Created when needed
+        
+        console.log('ALOHA Handler initialized with real-time playback');
+    }
+    
+    /**
+     * Enter interactive ASAT targeting mode
+     */
+    showLaunchConfigurator() {
+        // Clean up any existing targeting mode
+        if (this.targetingMode && this.targetingMode.isActive) {
+            this.targetingMode.deactivate();
+        }
+        
+        // Create or activate targeting mode
+        if (!this.targetingMode) {
+            this.targetingMode = new ASATTargetingMode(this.scene, this);
+        }
+        this.targetingMode.activate();
     }
     
     /**
@@ -1638,6 +1658,11 @@ export class ALOHAHandler {
      */
     stop() {
         this.isActive = false;
+        
+        // Deactivate targeting mode if active
+        if (this.targetingMode && this.targetingMode.isActive) {
+            this.targetingMode.deactivate();
+        }
         
         // Hide ASAT components
         if (this.asatOrb) this.asatOrb.isVisible = false;

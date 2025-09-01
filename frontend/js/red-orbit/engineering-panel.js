@@ -17,6 +17,34 @@ export class EngineeringPanel {
         this.initTabs();
     }
 
+    /**
+     * Get saved ASAT scenarios from localStorage
+     */
+    getSavedScenarios() {
+        try {
+            const saved = localStorage.getItem('asat_scenarios');
+            return saved ? JSON.parse(saved) : [];
+        } catch (e) {
+            console.error('Error loading saved scenarios:', e);
+            return [];
+        }
+    }
+    
+    /**
+     * Render saved scenario options for dropdown
+     */
+    renderSavedScenarioOptions() {
+        const scenarios = this.getSavedScenarios();
+        if (scenarios.length === 0) return '';
+        
+        let html = '<optgroup label="Saved Scenarios">';
+        scenarios.forEach(scenario => {
+            html += `<option value="saved_${scenario.id}">${scenario.name}</option>`;
+        });
+        html += '</optgroup>';
+        return html;
+    }
+    
     initPanel() {
         // Create panel container
         const panel = document.createElement('div');
@@ -480,7 +508,14 @@ export class EngineeringPanel {
         // Trajectory selection
         trajectorySelect.addEventListener('change', async (e) => {
             const selection = e.target.value;
-            if (selection) {
+            if (selection === 'custom') {
+                // Close the panel first
+                this.minimize();
+                // Show custom launch configurator
+                window.dispatchEvent(new CustomEvent('show-asat-configurator'));
+                // Reset selection
+                trajectorySelect.value = '';
+            } else if (selection) {
                 await this.loadPresetTrajectory(selection);
             } else {
                 // Reset if no selection
@@ -506,23 +541,35 @@ export class EngineeringPanel {
             // Map selection to file path
             const trajectoryFiles = {
                 'aloha': '/data/aloha.json',
-                'ascent_traj': '/data/ascent_traj.json',
-                'colorado_asat': '/data/colorado_asat.json',
-                'russia_asat': '/data/russia_asat.json'
+                'ascent_traj': '/data/ascent_traj.json'
             };
             
-            const filePath = trajectoryFiles[trajectoryName];
-            if (!filePath) {
+            // Add saved scenarios from localStorage
+            const savedScenarios = this.getSavedScenarios();
+            savedScenarios.forEach(scenario => {
+                trajectoryFiles[`saved_${scenario.id}`] = scenario;
+            });
+            
+            const filePathOrData = trajectoryFiles[trajectoryName];
+            if (!filePathOrData) {
                 throw new Error('Unknown trajectory: ' + trajectoryName);
             }
             
-            // Fetch the trajectory data
-            const response = await fetch(filePath);
-            if (!response.ok) {
-                throw new Error(`Failed to load ${trajectoryName}: ${response.statusText}`);
+            let data;
+            
+            // Check if it's a saved scenario (object) or a file path (string)
+            if (typeof filePathOrData === 'object') {
+                // It's a saved scenario, use directly
+                data = filePathOrData;
+            } else {
+                // It's a file path, fetch it
+                const response = await fetch(filePathOrData);
+                if (!response.ok) {
+                    throw new Error(`Failed to load ${trajectoryName}: ${response.statusText}`);
+                }
+                data = await response.json();
             }
             
-            const data = await response.json();
             this.alohaData = data;
             
             // Trajectory loaded successfully
@@ -1103,8 +1150,8 @@ export class EngineeringPanel {
                             <option value="">-- Select a trajectory --</option>
                             <option value="aloha">ALOHA - Saudi Arabia ASAT (206s, 398km apogee)</option>
                             <option value="ascent_traj">Ascent - New Zealand Launch (206s trajectory)</option>
-                            <option value="colorado_asat">Colorado ASAT - Aurora Launch (420s, 400km target)</option>
-                            <option value="russia_asat">Russia ASAT - Plesetsk Launch (380s, 400km target)</option>
+                            ${this.renderSavedScenarioOptions()}
+                            <option value="custom">CUSTOM LAUNCH - Configure your own ASAT</option>
                         </select>
                         
                         <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255, 0, 0, 0.2);">
