@@ -290,17 +290,41 @@ export class ALOHAHandler {
     }
     
     /**
+     * Ensure GUI texture is properly initialized with correct resolution
+     */
+    ensureGUITexture() {
+        if (!this.scene._advancedTexture) {
+            // Create with explicit settings for better quality
+            const advancedTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("ASATUI", true, this.scene);
+            
+            // Force ideal size for crisp rendering
+            const engine = this.scene.getEngine();
+            advancedTexture.idealWidth = engine.getRenderWidth();
+            advancedTexture.idealHeight = engine.getRenderHeight();
+            advancedTexture.renderAtIdealSize = true;
+            
+            // Store reference
+            this.scene._advancedTexture = advancedTexture;
+            
+            // Update on resize for consistent quality
+            window.addEventListener('resize', () => {
+                if (this.scene._advancedTexture) {
+                    this.scene._advancedTexture.idealWidth = engine.getRenderWidth();
+                    this.scene._advancedTexture.idealHeight = engine.getRenderHeight();
+                    this.scene._advancedTexture.markAsDirty();
+                }
+            });
+        }
+        return this.scene._advancedTexture;
+    }
+    
+    /**
      * Create persistent label for ASAT
      */
     createASATLabel() {
-        // Try to get existing advancedTexture from scene
-        let advancedTexture = this.scene._advancedTexture;
-        
-        if (!advancedTexture) {
-            // Create new advancedTexture
-            advancedTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("ASATUI");
-            this.scene._advancedTexture = advancedTexture;
-        }
+        // Ensure GUI texture exists with proper resolution
+        const advancedTexture = this.ensureGUITexture();
+        if (!advancedTexture) return;
         
         // Create label rectangle - SMALLER, CLEANER
         const label = new GUI.Rectangle();
@@ -395,15 +419,37 @@ export class ALOHAHandler {
         this.trajectoryLine.color = new BABYLON.Color3(1, 0, 0); // Red
         this.trajectoryLine.alpha = 0.5; // Semi-transparent to show it's the path
         
-        // Make line hoverable (though lines are hard to hover precisely)
+        // Make line hoverable to show trajectory info
         this.trajectoryLine.isPickable = true;
+        this.trajectoryLine.enablePointerMoveEvents = true;
         this.trajectoryLine.actionManager = new BABYLON.ActionManager(this.scene);
+        
+        // Store trajectory metadata
+        this.trajectoryLine.metadata = {
+            launchName: this.asatName || 'ASAT',
+            duration: this.translator.duration,
+            launchLat: this.translator.getLaunchLocation()?.latitude || 0,
+            launchLon: this.translator.getLaunchLocation()?.longitude || 0,
+            maxAltitude: 0 // Will be calculated
+        };
+        
+        // Calculate max altitude for metadata
+        for (let t = 0; t <= this.translator.duration; t += 1) {
+            const state = this.translator.getStateAtTime(t);
+            if (state && state.position) {
+                const altitude = (state.position.length() - 1) * 6371;
+                if (altitude > this.trajectoryLine.metadata.maxAltitude) {
+                    this.trajectoryLine.metadata.maxAltitude = altitude;
+                }
+            }
+        }
         
         this.trajectoryLine.actionManager.registerAction(new BABYLON.ExecuteCodeAction(
             BABYLON.ActionManager.OnPointerOverTrigger,
             () => {
                 this.trajectoryLine.color = new BABYLON.Color3(1, 0.5, 0.5); // Lighter when hovered
                 this.trajectoryLine.alpha = 0.8;
+                this.showTrajectoryTooltip();
             }
         ));
         
@@ -412,6 +458,7 @@ export class ALOHAHandler {
             () => {
                 this.trajectoryLine.color = new BABYLON.Color3(1, 0, 0); // Back to red
                 this.trajectoryLine.alpha = 0.5;
+                this.hideTrajectoryTooltip();
             }
         ));
         
@@ -432,6 +479,7 @@ export class ALOHAHandler {
         }
         
         this.isActive = true;
+        this.impactCompleted = false;  // Reset impact flag
         this.startTime = Date.now();
         this.currentTime = 0;
         
@@ -444,6 +492,7 @@ export class ALOHAHandler {
         
         // Create visual markers and displays
         this.createLaunchMarker();
+        this.createImpactMarker();  // Create impact marker at start
         this.createApogeeMarker();
         // Time to impact display removed - will be in RED WATCH
         this.createGroundTrack();
@@ -493,6 +542,9 @@ export class ALOHAHandler {
      * Update ASAT position using global simulation time
      */
     update() {
+        // Prevent updates if already completed
+        if (this.impactCompleted) return;
+        
         // Use global physics time multiplier from RO-Engine
         const elapsed = (Date.now() - this.startTime) / 1000;
         const globalSpeed = this.roEngine.physicsTimeMultiplier || 1;
@@ -500,8 +552,9 @@ export class ALOHAHandler {
         // Apply global simulation speed
         this.currentTime = elapsed * globalSpeed;
         
-        // Check if complete
-        if (this.currentTime >= this.translator.duration) {
+        // Check if complete (only trigger once)
+        if (this.currentTime >= this.translator.duration && !this.impactCompleted) {
+            this.impactCompleted = true;  // Prevent multiple triggers
             this.onImpact();
             return;
         }
@@ -837,37 +890,83 @@ export class ALOHAHandler {
             this.impactDebris.push(debris);
         }
         
-        // Create a glowing impact marker
-        const impactMarker = BABYLON.MeshBuilder.CreateSphere('impactMarker', {
-            diameter: 0.005,
-            segments: 8
-        }, this.scene);
-        
-        impactMarker.position = position.clone();
-        
-        // Glowing red material
-        const markerMat = new BABYLON.StandardMaterial('impactMarkerMat', this.scene);
-        markerMat.emissiveColor = new BABYLON.Color3(0.8, 0.2, 0.2);
-        markerMat.diffuseColor = new BABYLON.Color3(1, 0, 0);
-        impactMarker.material = markerMat;
-        
-        // Store impact position for label
-        this.impactPosition = position.clone();
-        
-        // Only create impact location label if we don't have one yet
-        if (!this.impactLocationLabel) {
-            console.log('Creating impact location label at impact site...');
-            this.showImpactLocationLabel();
+        // Don't create a new impact marker if we already have one from createImpactMarker()
+        // Just update its position if needed
+        if (this.impactMarker) {
+            // Update position to actual impact location
+            this.impactMarker.position = position.clone();
+            this.impactPosition = position.clone();
+        } else {
+            // Create impact marker only if it doesn't exist (shouldn't happen)
+            const impactMarker = BABYLON.MeshBuilder.CreateSphere('impactMarker', {
+                diameter: 0.005,
+                segments: 8
+            }, this.scene);
+            
+            impactMarker.position = position.clone();
+            
+            // Glowing red material
+            const markerMat = new BABYLON.StandardMaterial('impactMarkerMat', this.scene);
+            markerMat.emissiveColor = new BABYLON.Color3(0.8, 0.2, 0.2);
+            markerMat.diffuseColor = new BABYLON.Color3(1, 0, 0);
+            impactMarker.material = markerMat;
+            
+            this.impactPosition = position.clone();
+            this.impactMarker = impactMarker;
+            
+            if (earthMesh) {
+                impactMarker.parent = earthMesh;
+            }
+            
+            this.impactDebris.push(impactMarker);
         }
         
-        if (earthMesh) {
-            impactMarker.parent = earthMesh;
-        }
-        
-        this.impactMarker = impactMarker;
-        this.impactDebris.push(impactMarker);
+        // Don't create label here - it's already created at start in createImpactMarker()
+        // The label is already linked to the original impact marker
         
         console.log('💥 Persistent debris cloud created');
+    }
+    
+    /**
+     * Create impact marker and label at trajectory end position
+     */
+    createImpactMarker() {
+        if (!this.translator.isLoaded) return;
+        
+        // Get impact position (end of trajectory)
+        const impactState = this.translator.getStateAtTime(this.translator.duration);
+        const impactPosition = impactState.position.clone();
+        
+        // Create red impact marker
+        if (this.impactMarker) {
+            this.impactMarker.dispose();
+        }
+        
+        this.impactMarker = BABYLON.MeshBuilder.CreateSphere('impactMarker', {
+            diameter: 0.003,
+            segments: 12
+        }, this.scene);
+        
+        this.impactMarker.position = impactPosition;
+        this.impactPosition = impactPosition;
+        
+        // Red glowing material
+        const material = new BABYLON.StandardMaterial('impactMat', this.scene);
+        material.emissiveColor = new BABYLON.Color3(0.8, 0.2, 0.2);
+        material.diffuseColor = new BABYLON.Color3(1, 0, 0);
+        this.impactMarker.material = material;
+        
+        // Parent to Earth
+        const earthMesh = this.scene.getMeshByName('earth');
+        if (earthMesh) {
+            this.impactMarker.parent = earthMesh;
+        }
+        
+        // Create impact location label immediately
+        console.log('Creating impact location label at start...');
+        this.showImpactLocationLabel();
+        
+        console.log('🔴 Impact marker created at', impactPosition);
     }
     
     /**
@@ -949,7 +1048,7 @@ export class ALOHAHandler {
      * Create label for apogee marker
      */
     createApogeeLabel(altitude, time) {
-        let advancedTexture = this.scene._advancedTexture;
+        const advancedTexture = this.ensureGUITexture();
         if (!advancedTexture) return;
         
         const label = new GUI.Rectangle();
@@ -1093,7 +1192,7 @@ export class ALOHAHandler {
     showLaunchLocationLabel() {
         // Don't return early - always create the label if it doesn't exist
         
-        let advancedTexture = this.scene._advancedTexture;
+        const advancedTexture = this.ensureGUITexture();
         if (!advancedTexture) return;
         
         // Get launch coordinates
@@ -1168,10 +1267,11 @@ export class ALOHAHandler {
      * Show impact location label on hover
      */
     showImpactLocationLabel() {
-        // Don't return early - always create the label if it doesn't exist
+        // Don't create if already exists
+        if (this.impactLocationLabel) return;
         
-        let advancedTexture = this.scene._advancedTexture;
-        if (!advancedTexture || !this.impactPosition) return;
+        const advancedTexture = this.ensureGUITexture();
+        if (!advancedTexture || !this.impactPosition || !this.impactMarker) return;
         
         // Convert impact position to lat/lon
         const pos = this.impactPosition;
@@ -1208,8 +1308,31 @@ export class ALOHAHandler {
         text.lineSpacing = "2px";
         label.addControl(text);
         
+        // Link to impact marker
         label.linkWithMesh(this.impactMarker);
         label.linkOffsetY = -40; // More offset to be clearly above debris
+        
+        // Create leader line from debris to label
+        const linePoints = [
+            this.impactPosition.clone(),
+            this.impactPosition.add(new BABYLON.Vector3(0, 0.015, 0))
+        ];
+        
+        this.impactLocationLine = BABYLON.MeshBuilder.CreateLines('impactLeaderLine', {
+            points: linePoints,
+            updatable: false
+        }, this.scene);
+        
+        const lineMaterial = new BABYLON.StandardMaterial('impactLineMat', this.scene);
+        lineMaterial.emissiveColor = new BABYLON.Color3(0.8, 0.2, 0.2);
+        this.impactLocationLine.material = lineMaterial;
+        this.impactLocationLine.color = new BABYLON.Color3(0.8, 0.2, 0.2);
+        this.impactLocationLine.renderingGroupId = 1;
+        
+        const earthMesh = this.scene.getMeshByName('earth');
+        if (earthMesh) {
+            this.impactLocationLine.parent = earthMesh;
+        }
         
         // Make label aware of occlusion
         this.scene.registerBeforeRender(() => {
@@ -1225,7 +1348,7 @@ export class ALOHAHandler {
                 const toCamera = cameraPos.subtract(earthCenter);
                 const dot = BABYLON.Vector3.Dot(toMarker, toCamera);
                 
-                // Show/hide label based on whether it's behind Earth
+                // Show/hide label and line based on whether it's behind Earth
                 label.isVisible = dot > 0;
                 if (this.impactLocationLine) this.impactLocationLine.isVisible = dot > 0;
             }
@@ -1396,7 +1519,7 @@ export class ALOHAHandler {
         if (!this.isActive) return;
         
         // Get advancedTexture
-        let advancedTexture = this.scene._advancedTexture;
+        const advancedTexture = this.ensureGUITexture();
         if (!advancedTexture) {
             console.warn('No advancedTexture for tooltip');
             return;
@@ -1461,6 +1584,62 @@ export class ALOHAHandler {
             `Velocity: ${velocity.toFixed(1)} km/s\n` +
             `Progress: ${progress}%\n` +
             `Time: ${this.currentTime.toFixed(0)}/${this.translator.duration}s`;
+    }
+    
+    /**
+     * Show trajectory tooltip on hover
+     */
+    showTrajectoryTooltip() {
+        if (!this.trajectoryLine || !this.trajectoryLine.metadata) return;
+        
+        const advancedTexture = this.ensureGUITexture();
+        if (!advancedTexture) return;
+        
+        // Create tooltip if not exists
+        if (!this.trajectoryTooltip) {
+            const tooltip = new GUI.Rectangle();
+            tooltip.width = "220px";
+            tooltip.height = "100px";
+            tooltip.cornerRadius = 5;
+            tooltip.color = "red";
+            tooltip.thickness = 2;
+            tooltip.background = "rgba(0, 0, 0, 0.9)";
+            advancedTexture.addControl(tooltip);
+            
+            const text = new GUI.TextBlock();
+            text.color = "white";
+            text.fontSize = 12;
+            text.textWrapping = true;
+            tooltip.addControl(text);
+            
+            this.trajectoryTooltip = tooltip;
+            this.trajectoryTooltipText = text;
+        }
+        
+        // Update tooltip content
+        const meta = this.trajectoryLine.metadata;
+        const latStr = meta.launchLat >= 0 ? `${meta.launchLat.toFixed(1)}°N` : `${Math.abs(meta.launchLat).toFixed(1)}°S`;
+        const lonStr = meta.launchLon >= 0 ? `${meta.launchLon.toFixed(1)}°E` : `${Math.abs(meta.launchLon).toFixed(1)}°W`;
+        
+        this.trajectoryTooltipText.text = 
+            `TRAJECTORY: ${meta.launchName}\n` +
+            `Duration: ${meta.duration.toFixed(0)}s\n` +
+            `Max Alt: ${meta.maxAltitude.toFixed(0)} km\n` +
+            `Launch: ${latStr}, ${lonStr}`;
+        
+        // Position near mouse
+        this.trajectoryTooltip.leftInPixels = this.scene.pointerX + 20;
+        this.trajectoryTooltip.topInPixels = this.scene.pointerY - 50;
+        this.trajectoryTooltip.isVisible = true;
+    }
+    
+    /**
+     * Hide trajectory tooltip
+     */
+    hideTrajectoryTooltip() {
+        if (this.trajectoryTooltip) {
+            this.trajectoryTooltip.isVisible = false;
+        }
     }
     
     /**
