@@ -124,16 +124,16 @@ export class ALOHAHandler {
     }
     
     /**
-     * Create ASAT missile mesh - simple red glowing orb
+     * Create ASAT missile mesh - loads Mica missile model
      */
     createASATMesh() {
         // Create parent container
         this.asatMesh = new BABYLON.TransformNode('asat', this.scene);
         
-        // Create simple triangle shape for ASAT using custom geometry
+        // Create temporary triangle shape as fallback
         const asatOrb = new BABYLON.Mesh('asatOrb', this.scene);
         
-        // Define triangle vertices
+        // Define triangle vertices (fallback)
         const positions = [
             0, 0.001, 0,    // Top vertex
             -0.0008, -0.0008, 0,  // Bottom left
@@ -166,12 +166,81 @@ export class ALOHAHandler {
             () => this.hideTooltip()
         ));
         
-        // Red glowing material
+        // Red glowing material (for fallback)
         const orbMaterial = new BABYLON.StandardMaterial('asatOrbMat', this.scene);
         orbMaterial.diffuseColor = new BABYLON.Color3(0.8, 0, 0);
         orbMaterial.emissiveColor = new BABYLON.Color3(1, 0.2, 0.2);
         orbMaterial.specularColor = new BABYLON.Color3(1, 0.5, 0.5);
         asatOrb.material = orbMaterial;
+        
+        // Load the Mica missile model
+        BABYLON.SceneLoader.LoadAssetContainer(
+            "/assets/red-orbit/",
+            "mica_anti_aircraft_missile_free.glb",
+            this.scene,
+            (container) => {
+                // Remove temporary triangle
+                asatOrb.dispose();
+                
+                // Add loaded meshes to scene
+                const loadedMeshes = container.instantiateModelsToScene();
+                
+                // Get the root mesh
+                const missileMesh = loadedMeshes.rootNodes[0];
+                
+                if (missileMesh) {
+                    // Parent to our ASAT container
+                    missileMesh.parent = this.asatMesh;
+                    
+                    // Scale appropriately for our scene (adjust as needed)
+                    missileMesh.scaling = new BABYLON.Vector3(0.0002, 0.0002, 0.0002);
+                    
+                    // Rotate to point nose forward along trajectory
+                    missileMesh.rotation.x = Math.PI / 2; // Point nose up
+                    
+                    // Store reference to the actual missile mesh
+                    this.asatOrb = missileMesh;
+                    
+                    // Apply red glowing material to all child meshes
+                    loadedMeshes.animationGroups.forEach(ag => ag.stop());
+                    missileMesh.getChildMeshes().forEach(mesh => {
+                        // Make pickable for hover
+                        mesh.isPickable = true;
+                        mesh.enablePointerMoveEvents = true;
+                        mesh.actionManager = new BABYLON.ActionManager(this.scene);
+                        
+                        // Add hover actions
+                        mesh.actionManager.registerAction(new BABYLON.ExecuteCodeAction(
+                            BABYLON.ActionManager.OnPointerOverTrigger,
+                            () => this.showTooltip()
+                        ));
+                        
+                        mesh.actionManager.registerAction(new BABYLON.ExecuteCodeAction(
+                            BABYLON.ActionManager.OnPointerOutTrigger,
+                            () => this.hideTooltip()
+                        ));
+                        
+                        // Apply red glowing material
+                        const material = new BABYLON.StandardMaterial(`asatMat_${mesh.name}`, this.scene);
+                        material.diffuseColor = new BABYLON.Color3(0.8, 0.1, 0.1);
+                        material.specularColor = new BABYLON.Color3(1, 0.2, 0.2);
+                        material.emissiveColor = new BABYLON.Color3(0.3, 0, 0);
+                        material.specularPower = 64;
+                        mesh.material = material;
+                        
+                        // Add glow if available
+                        if (this.scene.glowLayer) {
+                            this.scene.glowLayer.addIncludedOnlyMesh(mesh);
+                        }
+                    });
+                }
+            },
+            null,
+            (scene, message) => {
+                console.warn("Failed to load Mica missile model:", message);
+                // Keep using the triangle fallback
+            }
+        );
         
         // Create thruster particles
         let thrusterParticles = new BABYLON.ParticleSystem('thruster', 20, this.scene);
@@ -448,6 +517,25 @@ export class ALOHAHandler {
             const earthMesh = this.scene.getMeshByName('earth');
             if (earthMesh && !this.asatMesh.parent) {
                 this.asatMesh.parent = earthMesh;
+            }
+            
+            // Orient missile along velocity vector
+            if (state.velocity && state.velocity.length() > 0.001) {
+                // Get the velocity direction
+                const velocityDir = state.velocity.normalize();
+                
+                // Calculate look-at position (point ahead in velocity direction)
+                const lookAtPos = state.position.add(velocityDir.scale(0.1));
+                
+                // Make missile look in the direction of travel
+                this.asatMesh.lookAt(lookAtPos, new BABYLON.Vector3(0, 1, 0));
+                
+                // Additional rotation adjustment for the missile model
+                // The model might need to be rotated to align properly
+                if (this.asatOrb && this.asatOrb !== this.asatMesh) {
+                    // Adjust local rotation if needed (model-specific)
+                    this.asatOrb.rotation.x = Math.PI / 2; // Nose up
+                }
             }
             
             // Update dynamic trail if in dynamic mode
