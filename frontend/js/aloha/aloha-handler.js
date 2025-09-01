@@ -445,7 +445,7 @@ export class ALOHAHandler {
         // Create visual markers and displays
         this.createLaunchMarker();
         this.createApogeeMarker();
-        this.createTimeToImpactDisplay();
+        // Time to impact display removed - will be in RED WATCH
         this.createGroundTrack();
         
         // Show ASAT components
@@ -631,9 +631,7 @@ export class ALOHAHandler {
                 clearInterval(this.impactTimerInterval);
                 this.impactTimerInterval = null;
             }
-            if (this.timeToImpactRect) {
-                this.timeToImpactRect.isVisible = false;
-            }
+            // Time to impact display removed - will be in RED WATCH
             if (this.dynamicTrailLine) {
                 this.dynamicTrailLine.dispose();
                 this.dynamicTrailLine = null;
@@ -997,52 +995,12 @@ export class ALOHAHandler {
     }
     
     /**
-     * Create time to impact counter
+     * Create time to impact counter - REMOVED
+     * Time to impact will be displayed in RED WATCH application
      */
     createTimeToImpactDisplay() {
-        let advancedTexture = this.scene._advancedTexture;
-        if (!advancedTexture) return;
-        
-        // Create countdown display
-        const timerRect = new GUI.Rectangle();
-        timerRect.width = "150px";
-        timerRect.height = "50px";
-        timerRect.cornerRadius = 5;
-        timerRect.color = "red";
-        timerRect.thickness = 2;
-        timerRect.background = "rgba(0, 0, 0, 0.8)";
-        timerRect.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
-        timerRect.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
-        timerRect.top = "100px";
-        timerRect.left = "-20px";
-        advancedTexture.addControl(timerRect);
-        
-        const timerText = new GUI.TextBlock();
-        timerText.text = "TIME TO IMPACT\n--:--";
-        timerText.color = "white";
-        timerText.fontSize = 14;
-        timerText.fontWeight = "bold";
-        timerRect.addControl(timerText);
-        
-        this.timeToImpactLabel = timerText;
-        this.timeToImpactRect = timerRect;
-        
-        // Set up update interval
-        this.impactTimerInterval = setInterval(() => {
-            if (this.isActive && this.timeToImpactLabel) {
-                const remaining = Math.max(0, this.translator.duration - this.currentTime);
-                const minutes = Math.floor(remaining / 60);
-                const seconds = Math.floor(remaining % 60);
-                this.timeToImpactLabel.text = `TIME TO IMPACT\n${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-                
-                // Change color as impact approaches
-                if (remaining < 10) {
-                    this.timeToImpactRect.color = "yellow";
-                } else if (remaining < 30) {
-                    this.timeToImpactRect.color = "orange";
-                }
-            }
-        }, 100);
+        // Intentionally removed - time to impact will be in RED WATCH
+        return;
     }
     
     /**
@@ -1541,10 +1499,7 @@ export class ALOHAHandler {
             this.impactTimerInterval = null;
         }
         
-        // Hide time to impact display
-        if (this.timeToImpactRect) {
-            this.timeToImpactRect.isVisible = false;
-        }
+        // Time to impact display removed - will be in RED WATCH
         
         // Hide dynamic trail
         if (this.dynamicTrailLine) {
@@ -1553,12 +1508,11 @@ export class ALOHAHandler {
         }
         this.dynamicTrailPoints = [];
         
-        // Hide ground track
-        if (this.groundTrackLine) {
-            this.groundTrackLine.isVisible = false;
-        }
+        // IMPORTANT: Keep trajectory and ground track visible even when stopped
+        // These should persist throughout the session
+        // DO NOT hide trajectoryLine or groundTrackLine here
         
-        console.log('⏹️ ASAT simulation stopped');
+        console.log('⏹️ ASAT simulation stopped (tracks remain visible)');
     }
     
     /**
