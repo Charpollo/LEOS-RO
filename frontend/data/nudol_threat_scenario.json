@@ -1,0 +1,137 @@
+{
+  "id": "THREAT_2024_095A_NUDOL",
+  "classification": "UNCLASSIFIED//EXERCISE",
+  "threat_assessment": {
+    "threat_type": "PL-19_NUDOL",
+    "country_of_origin": "RUS",
+    "launch_site": {
+      "name": "Plesetsk Cosmodrome",
+      "lat": 62.9259,
+      "lon": 40.5777,
+      "elevation_m": 139
+    },
+    "detection_time": "2024-03-15T14:23:45.123Z",
+    "detection_source": ["SBIRS_GEO_3", "SBIRS_HEO_2"],
+    "confidence_level": 0.98
+  },
+  "target_analysis": {
+    "primary_target": {
+      "catalog_id": "48915",
+      "common_name": "USA-328",
+      "mission_type": "ISR",
+      "orbit": {
+        "altitude_km": 547,
+        "inclination_deg": 53.2,
+        "period_minutes": 95.6
+      },
+      "priority": "CRITICAL",
+      "vulnerability": "HIGH"
+    },
+    "alternative_targets": [
+      {
+        "catalog_id": "46265",
+        "common_name": "STARLINK-2367",
+        "probability": 0.23
+      },
+      {
+        "catalog_id": "43567",
+        "common_name": "COSMOS-2545",
+        "probability": 0.15
+      }
+    ]
+  },
+  "intercept_parameters": {
+    "time_to_intercept_seconds": 423,
+    "intercept_altitude_km": 547,
+    "closing_velocity_km_s": 14.2,
+    "probability_of_kill": 0.87,
+    "miss_distance_m": 500,
+    "engagement_envelope": {
+      "min_altitude_km": 200,
+      "max_altitude_km": 1500,
+      "max_range_km": 2000
+    }
+  },
+  "debris_assessment": {
+    "estimated_fragments": 15000,
+    "trackable_pieces": 1500,
+    "lethal_debris_radius_km": 2000,
+    "orbital_lifetime_years": "5-125",
+    "affected_satellites": 147,
+    "kessler_risk": "MODERATE"
+  },
+  "decision_timeline": {
+    "launch_detection": "T+0:00",
+    "trajectory_confirmed": "T+0:15",
+    "target_identified": "T+0:45",
+    "last_maneuver_opportunity": "T+3:30",
+    "impact": "T+7:03"
+  },
+  "sensor_coverage": [
+    {
+      "sensor_id": "UEWR_THULE",
+      "type": "RADAR",
+      "coverage_start": "T+1:30",
+      "coverage_end": "T+4:45",
+      "track_quality": "HIGH"
+    },
+    {
+      "sensor_id": "GEODSS_SOCORRO",
+      "type": "OPTICAL",
+      "coverage_start": "T+2:15",
+      "coverage_end": "T+5:30",
+      "track_quality": "MEDIUM"
+    }
+  ],
+  "countermeasures": {
+    "recommended_action": "EVASIVE_MANEUVER",
+    "delta_v_required_m_s": 45,
+    "fuel_cost_kg": 12,
+    "mission_impact": "MINIMAL",
+    "execution_time": "T+3:15"
+  },
+  "frame": "TEME",
+  "epoch": "2024-03-15T14:23:45.000Z",
+  "trajectory": [
+    [0, 4453.234, 3987.123, 2341.567],
+    [1, 4454.123, 3988.234, 2343.678],
+    [2, 4455.234, 3989.456, 2346.789],
+    [5, 4460.567, 3995.789, 2358.901],
+    [10, 4471.234, 4008.456, 2380.123],
+    [20, 4495.678, 4035.789, 2425.456],
+    [30, 4523.456, 4067.890, 2478.901],
+    [60, 4612.345, 4178.901, 2658.234],
+    [90, 4712.456, 4298.123, 2856.789],
+    [120, 4823.567, 4425.456, 3074.567],
+    [150, 4945.678, 4560.789, 3311.234],
+    [180, 5078.901, 4704.123, 3566.890],
+    [210, 5223.234, 4855.456, 3841.567],
+    [240, 5378.567, 5014.789, 4135.234],
+    [270, 5544.901, 5182.123, 4447.890],
+    [300, 5722.234, 5357.456, 4779.567],
+    [330, 5910.567, 5540.789, 5130.234],
+    [360, 6109.901, 5732.123, 5499.890],
+    [390, 6320.234, 5931.456, 5888.567],
+    [420, 6541.567, 6138.789, 6296.234],
+    [423, 6567.890, 6167.123, 6341.456]
+  ],
+  "uncertainty": {
+    "position_covariance_km": [
+      [0.25, 0.05, 0.03],
+      [0.05, 0.30, 0.07],
+      [0.03, 0.07, 0.28]
+    ],
+    "velocity_uncertainty_km_s": 0.015
+  },
+  "intelligence_assessment": {
+    "launch_indicators": [
+      "Increased activity at launch site 72hr prior",
+      "NOTAM issued for airspace",
+      "Naval exclusion zone declared",
+      "Communications spike on military frequencies"
+    ],
+    "strategic_context": "Response to NATO satellite deployment",
+    "escalation_risk": "HIGH",
+    "attribution_confidence": 0.97
+  }
+}

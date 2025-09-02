@@ -542,7 +542,13 @@ export class EngineeringPanel {
             const trajectoryFiles = {
                 'aloha': '/data/aloha.json',
                 'ascent_traj': '/data/ascent_traj.json',
-                'traj_0': '/data/traj_0.json'
+                'traj_0': '/data/traj_0.json',
+                'aurora_asat': '/data/aurora_asat_test.json',
+                'russia_asat': '/data/russia_asat_test.json',
+                'orbital_intercept_1': '/data/orbital_intercept_1_test.json',
+                'orbital_intercept_2': '/data/orbital_intercept_2_test.json',
+                'nudol_threat': '/data/nudol_threat_scenario.json',
+                'cosmos_rpo': '/data/cosmos_rpo_scenario.json'
             };
             
             // Add saved scenarios from localStorage
@@ -1149,9 +1155,23 @@ export class EngineeringPanel {
                         <label style="color: #ff0000; font-size: 14px; display: block; margin-bottom: 10px;">Select Trajectory:</label>
                         <select id="aloha-trajectory-select" style="width: 100%; padding: 10px; background: rgba(0, 0, 0, 0.5); border: 1px solid #ff0000; color: white; font-family: monospace; font-size: 13px;">
                             <option value="">-- Select a trajectory --</option>
-                            <option value="aloha">ALOHA - Saudi Arabia ASAT (206s, 398km apogee)</option>
-                            <option value="ascent_traj">Ascent - New Zealand Launch (206s trajectory)</option>
-                            <option value="traj_0">Trajectory 0 - Test Data (206s trajectory)</option>
+                            <optgroup label="Original Test Data">
+                                <option value="aloha">ALOHA - Saudi Arabia ASAT (206s, 398km apogee)</option>
+                                <option value="ascent_traj">Ascent - New Zealand Launch (206s trajectory)</option>
+                                <option value="traj_0">Trajectory 0 - Test Data (206s trajectory)</option>
+                            </optgroup>
+                            <optgroup label="Ground-Launched ASATs">
+                                <option value="aurora_asat">Aurora, CO → 600km (7 min)</option>
+                                <option value="russia_asat">Plesetsk, Russia → 800km (8 min)</option>
+                            </optgroup>
+                            <optgroup label="Orbital Intercepts">
+                                <option value="orbital_intercept_1">LEO to LEO (400→450km, 3 min)</option>
+                                <option value="orbital_intercept_2">MEO Intercept (600→800km, 4 min)</option>
+                            </optgroup>
+                            <optgroup label="Realistic Threats">
+                                <option value="nudol_threat">Russian Nudol/PL-19 Scenario</option>
+                                <option value="cosmos_rpo">Co-orbital RPO (Cosmos-2558)</option>
+                            </optgroup>
                             ${this.renderSavedScenarioOptions()}
                             <option value="custom">CUSTOM LAUNCH - Configure your own ASAT</option>
                         </select>
