@@ -51,8 +51,11 @@ export class ASATTrajectoryGenerator {
             targetLat, targetLon
         );
         
-        // Generate trajectory points
-        for (let t = 0; t <= duration; t++) {
+        // Generate trajectory points with sparse sampling
+        // Use key time points instead of every second
+        const timePoints = this.getKeyTimePoints(duration);
+        
+        for (let t of timePoints) {
             const point = this.calculateTrajectoryPoint(
                 t, duration, pathParams, targetAlt
             );
@@ -60,6 +63,41 @@ export class ASATTrajectoryGenerator {
         }
         
         return trajectory;
+    }
+    
+    /**
+     * Get key time points for sparse trajectory
+     * Similar to how real trajectory data is structured
+     */
+    getKeyTimePoints(duration) {
+        const points = [];
+        
+        // Initial dense sampling (first 10 seconds)
+        for (let t = 0; t <= 10; t++) {
+            points.push(t);
+        }
+        
+        // Then sample every 5 seconds until 60
+        for (let t = 15; t <= 60; t += 5) {
+            points.push(t);
+        }
+        
+        // Then every 10 seconds until 180
+        for (let t = 70; t <= 180; t += 10) {
+            points.push(t);
+        }
+        
+        // Then every 30 seconds until end
+        for (let t = 210; t <= duration; t += 30) {
+            points.push(t);
+        }
+        
+        // Always include the final point
+        if (points[points.length - 1] !== duration) {
+            points.push(duration);
+        }
+        
+        return points;
     }
     
     /**
