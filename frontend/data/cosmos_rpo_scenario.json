@@ -1,0 +1,161 @@
+{
+  "id": "RPO_2024_COSMOS_2558",
+  "classification": "UNCLASSIFIED//EXERCISE",
+  "threat_assessment": {
+    "threat_type": "CO_ORBITAL_ASAT",
+    "threat_designation": "COSMOS-2558",
+    "country_of_origin": "RUS",
+    "launch_date": "2022-08-01",
+    "current_status": "MANEUVERING",
+    "behavior_pattern": "INSPECTOR_KILLER",
+    "days_shadowing": 47
+  },
+  "target_analysis": {
+    "shadowed_satellite": {
+      "catalog_id": "53239",
+      "common_name": "USA-326",
+      "mission_type": "NRO_SIGINT",
+      "orbit": {
+        "altitude_km": 35786,
+        "longitude_deg": -105.2,
+        "drift_rate_deg_day": 0.02
+      },
+      "value": "STRATEGIC",
+      "vulnerability": "CRITICAL"
+    },
+    "relative_motion": {
+      "range_km": 45,
+      "range_rate_m_s": -2.3,
+      "closing_time_hours": 5.4,
+      "station_keeping": false,
+      "last_maneuver": "2024-03-15T08:45:00Z"
+    }
+  },
+  "pattern_of_life": {
+    "typical_distance_km": 100,
+    "closest_approach_km": 35,
+    "maneuver_frequency_days": 3.5,
+    "delta_v_per_maneuver_m_s": 0.8,
+    "estimated_fuel_remaining_percent": 67
+  },
+  "kill_assessment": {
+    "attack_vectors": [
+      "KINETIC_RAM",
+      "LASER_DAZZLE",
+      "RF_JAMMING",
+      "CYBERATTACK"
+    ],
+    "time_to_intercept_minutes": 324,
+    "escape_delta_v_required_m_s": 12,
+    "probability_of_kill": {
+      "if_no_action": 0.78,
+      "with_evasion": 0.23,
+      "with_countermeasures": 0.15
+    }
+  },
+  "intelligence_fusion": {
+    "sigint_indicators": [
+      "Encrypted commanding on 2.2GHz",
+      "Burst transmissions every 6 hours",
+      "Signal strength increase last 48hr"
+    ],
+    "imaging_observations": [
+      "Solar panels oriented for max power",
+      "Possible robotic arm deployment",
+      "Thermal signature consistent with active payload"
+    ],
+    "cyber_indicators": [
+      "Attempted intrusions on ground segment",
+      "Phishing targeting satellite operators",
+      "Malware matching APT signatures"
+    ]
+  },
+  "multi_int_correlation": {
+    "ground_support": {
+      "site": "Titov Main Space Center",
+      "lat": 40.577,
+      "lon": 70.683,
+      "last_pass": "2024-03-15T12:34:00Z",
+      "next_pass": "2024-03-15T18:45:00Z"
+    },
+    "naval_assets": {
+      "tracking_ship": "Kosmonaut Viktor Patsayev",
+      "position": "Pacific_Station_3",
+      "correlation": "HIGH"
+    }
+  },
+  "frame": "GCRF",
+  "epoch": "2024-03-15T14:00:00.000Z",
+  "trajectory": [
+    [0, -41164.234, -8734.567, 1234.567],
+    [60, -41163.456, -8736.789, 1234.890],
+    [120, -41162.345, -8739.234, 1235.345],
+    [180, -41161.123, -8741.890, 1235.901],
+    [240, -41159.789, -8744.678, 1236.567],
+    [300, -41158.345, -8747.567, 1237.345],
+    [360, -41156.789, -8750.567, 1238.234],
+    [420, -41155.123, -8753.678, 1239.234],
+    [480, -41153.345, -8756.901, 1240.345],
+    [540, -41151.456, -8760.234, 1241.567],
+    [600, -41149.456, -8763.678, 1242.901],
+    [900, -41140.234, -8778.901, 1248.567],
+    [1200, -41130.567, -8794.678, 1254.789],
+    [1500, -41120.456, -8810.901, 1261.456],
+    [1800, -41109.890, -8827.567, 1268.567],
+    [2100, -41098.890, -8844.678, 1276.123],
+    [2400, -41087.456, -8862.234, 1284.123],
+    [2700, -41075.567, -8880.234, 1292.567],
+    [3000, -41063.234, -8898.678, 1301.456],
+    [3300, -41050.456, -8917.567, 1310.789],
+    [3600, -41037.234, -8936.901, 1320.567]
+  ],
+  "conjunction_analysis": {
+    "closest_approach": {
+      "time": "2024-03-15T19:24:00Z",
+      "miss_distance_m": 35000,
+      "probability_of_collision": 0.00034,
+      "combined_hard_body_radius_m": 15
+    },
+    "screening_volume_km": 2,
+    "time_to_conjunction_hours": 5.4
+  },
+  "recommended_actions": {
+    "immediate": [
+      "Increase tracking cadence to 5-min updates",
+      "Alert NRO mission operations",
+      "Prep collision avoidance maneuver"
+    ],
+    "contingency": [
+      "Execute 2m/s retrograde burn at T-2hr",
+      "Deploy decoys if available",
+      "Activate jamming countermeasures"
+    ],
+    "strategic": [
+      "Brief USSPACECOM commander",
+      "Coordinate with Five Eyes partners",
+      "Prepare attribution package"
+    ]
+  },
+  "decision_support": {
+    "rules_of_engagement": "YELLOW",
+    "escalation_ladder": "STEP_3_OF_7",
+    "legal_authority": "STANDING_ROE_APPLIES",
+    "coalition_notification": "REQUIRED",
+    "public_affairs_posture": "NO_COMMENT"
+  },
+  "historical_context": {
+    "similar_events": [
+      {
+        "date": "2020-01-15",
+        "satellites": "COSMOS-2542/2543 vs USA-245",
+        "outcome": "Shadowing for 6 months"
+      },
+      {
+        "date": "2019-08-23",
+        "satellites": "LUCH-OLYMP vs INTELSAT-33E",
+        "outcome": "Station-kept at 10km for 3 months"
+      }
+    ],
+    "pattern_match_confidence": 0.89
+  }
+}
