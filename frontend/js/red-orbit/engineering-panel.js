@@ -541,7 +541,8 @@ export class EngineeringPanel {
             // Map selection to file path
             const trajectoryFiles = {
                 'aloha': '/data/aloha.json',
-                'ascent_traj': '/data/ascent_traj.json'
+                'ascent_traj': '/data/ascent_traj.json',
+                'traj_0': '/data/traj_0.json'
             };
             
             // Add saved scenarios from localStorage
@@ -1150,6 +1151,7 @@ export class EngineeringPanel {
                             <option value="">-- Select a trajectory --</option>
                             <option value="aloha">ALOHA - Saudi Arabia ASAT (206s, 398km apogee)</option>
                             <option value="ascent_traj">Ascent - New Zealand Launch (206s trajectory)</option>
+                            <option value="traj_0">Trajectory 0 - Test Data (206s trajectory)</option>
                             ${this.renderSavedScenarioOptions()}
                             <option value="custom">CUSTOM LAUNCH - Configure your own ASAT</option>
                         </select>

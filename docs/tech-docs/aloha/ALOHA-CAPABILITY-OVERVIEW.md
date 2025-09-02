@@ -150,6 +150,9 @@ Real-time detection of close approaches to other objects:
 
 ### Engineering Panel
 - Dedicated ALOHA scenario tile
+- Trajectory selection dropdown:
+  - Pre-loaded scenarios from localStorage
+  - CUSTOM LAUNCH option for interactive targeting
 - Configuration options:
   - Background objects (0-5000)
   - Conjunction analysis toggle
@@ -203,9 +206,58 @@ Custom events fired:
 - Risk window identification
 - Collision avoidance calculations
 
+## Interactive ASAT Targeting Mode
+
+### On-Demand Trajectory Generation
+The system now includes a fully JavaScript-based trajectory generator that runs in the browser:
+- **No server dependencies**: All calculations done client-side
+- **WebAssembly compatible**: Pure JS implementation
+- **Real-time physics**: Ballistic trajectory with boost, midcourse, and terminal phases
+
+### Interactive Targeting System
+When selecting "CUSTOM LAUNCH" from the engineering panel:
+1. **Targeting Mode Activation**
+   - Engineering panel minimizes automatically
+   - Crosshair cursor appears
+   - HUD displays instructions with pulsing border
+   
+2. **Point Selection**
+   - **Right-click** on Earth to select launch site (green marker)
+   - **Right-click** again to select target (red marker)
+   - Yellow trajectory preview appears immediately
+   
+3. **Configuration Panel**
+   - Shows launch/target coordinates and distance
+   - Adjustable target altitude (200-1000 km)
+   - Adjustable flight time (300-600 seconds)
+   - Real-time trajectory preview updates
+   
+4. **Controls**
+   - **ESC**: Exit targeting mode
+   - **RESET**: Clear markers and start over
+   - **LAUNCH**: Execute ASAT with current configuration
+
+### JavaScript Trajectory Generator
+Located in `/frontend/js/aloha/asat-trajectory-generator.js`:
+- Generates realistic ballistic trajectories
+- Great circle path calculation
+- TEME coordinate output
+- Physics validation (max velocity checks)
+- Metadata generation for ALOHA handler
+
+### Saved Scenarios
+Custom trajectories can be saved to localStorage:
+- Name and save configurations
+- Load previous scenarios from dropdown
+- Clear all saved scenarios option
+- Persistent across browser sessions
+
 ## Future Enhancements
 
 ### Planned Features
+- [x] Interactive click-to-target ASAT launch
+- [x] Browser-based trajectory generation (JS)
+- [x] Saved scenario management
 - [ ] Multiple simultaneous ASAT tracking
 - [ ] Predictive intercept calculations
 - [ ] ML-based trajectory prediction

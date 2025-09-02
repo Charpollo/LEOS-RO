@@ -334,6 +334,38 @@ export class ALOHAHandler {
     createFullTrajectoryPath() {
         if (!this.translator.isLoaded) return;
         
+        // Detect trajectory type for visualization
+        const startState = this.translator.getStateAtTime(0);
+        const endState = this.translator.getStateAtTime(this.translator.duration);
+        const startAlt = startState.altitude || 0;
+        const endAlt = endState.altitude || 0;
+        
+        // Find max altitude
+        let maxAlt = 0;
+        for (let t = 0; t <= this.translator.duration; t += 5) {
+            const state = this.translator.getStateAtTime(t);
+            maxAlt = Math.max(maxAlt, state.altitude || 0);
+        }
+        
+        // Classify trajectory type
+        this.trajectoryType = 'unknown';
+        if (startAlt < 100 && endAlt < 100 && maxAlt > 200) {
+            this.trajectoryType = 'ballistic'; // Ground to ground ballistic
+        } else if (startAlt < 100 && endAlt >= 100) {
+            this.trajectoryType = 'ascent'; // Launch to orbit
+        } else if (startAlt >= 100 && endAlt < 100) {
+            this.trajectoryType = 'descent'; // De-orbit or ASAT strike
+        } else if (startAlt >= 100 && endAlt >= 100 && Math.abs(startAlt - endAlt) > 200) {
+            this.trajectoryType = 'intercept'; // Orbital intercept
+        } else if (startAlt >= 100 && endAlt >= 100) {
+            this.trajectoryType = 'orbital'; // Orbital maneuver
+        }
+        
+        console.log(`ASAT Trajectory: ${this.trajectoryType.toUpperCase()}`);
+        console.log(`  Start: ${startAlt.toFixed(0)} km`);
+        console.log(`  End: ${endAlt.toFixed(0)} km`);
+        console.log(`  Max: ${maxAlt.toFixed(0)} km`);
+        
         // Build full path from pre-processed positions
         const fullPath = [];
         
@@ -361,7 +393,26 @@ export class ALOHAHandler {
             updatable: false
         }, this.scene);
         
-        this.trajectoryLine.color = new BABYLON.Color3(1, 0, 0); // Red
+        // Set color based on trajectory type
+        switch(this.trajectoryType) {
+            case 'ballistic':
+                this.trajectoryLine.color = new BABYLON.Color3(1, 0.5, 0); // Orange
+                break;
+            case 'ascent':
+                this.trajectoryLine.color = new BABYLON.Color3(0, 1, 0); // Green
+                break;
+            case 'descent':
+                this.trajectoryLine.color = new BABYLON.Color3(1, 0, 0); // Red
+                break;
+            case 'intercept':
+                this.trajectoryLine.color = new BABYLON.Color3(1, 0, 1); // Magenta
+                break;
+            case 'orbital':
+                this.trajectoryLine.color = new BABYLON.Color3(0, 0.5, 1); // Blue
+                break;
+            default:
+                this.trajectoryLine.color = new BABYLON.Color3(1, 1, 1); // White
+        }
         this.trajectoryLine.alpha = 0.5; // Semi-transparent to show it's the path
         
         // Make line hoverable to show trajectory info
@@ -1138,13 +1189,24 @@ export class ALOHAHandler {
         // Get launch position
         const launchState = this.translator.getStateAtTime(0);
         
-        // Create orange sphere - small
+        // Determine marker size based on altitude
+        const altitude = launchState.altitude || 0;
+        const isGroundLaunch = altitude < 100; // Below 100km = ground/air launch
+        
+        // Create orange sphere - size depends on launch type
         this.launchMarker = BABYLON.MeshBuilder.CreateSphere('launchMarker', {
-            diameter: 0.001, // Small marker
+            diameter: isGroundLaunch ? 0.002 : 0.001, // Larger for ground launches
             segments: 12
         }, this.scene);
         
-        this.launchMarker.position = launchState.position.clone();
+        // For ground/underground launches, place marker on surface
+        if (altitude < 10) {
+            // Project to surface if underground or very low
+            const normalized = launchState.position.normalize();
+            this.launchMarker.position = normalized.scale(1.0);
+        } else {
+            this.launchMarker.position = launchState.position.clone();
+        }
         
         // Orange material
         const material = new BABYLON.StandardMaterial('launchMat', this.scene);
