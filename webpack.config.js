@@ -11,6 +11,7 @@ module.exports = {
   output: {
     filename: 'js/bundle.js', // Simplified filename without hashing
     path: path.resolve(__dirname, 'frontend/dist'),
+    publicPath: '/', // Important for Netlify
     clean: true // Clean the build directory on each build
   },
   optimization: {
@@ -41,7 +42,9 @@ module.exports = {
         { from: 'frontend/css', to: 'css' },
         { from: 'frontend/assets', to: 'assets' },
         { from: 'frontend/templates', to: 'templates' },
-        { from: 'frontend/data', to: 'data' }
+        { from: 'frontend/data', to: 'data' },
+        { from: 'frontend/login.html', to: 'login.html' },
+        { from: 'frontend/js/auth', to: 'js/auth' }
       ]
     })
   ],
