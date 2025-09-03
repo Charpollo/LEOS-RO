@@ -63,9 +63,29 @@
     X-XSS-Protection = "1; mode=block"
     Referrer-Policy = "strict-origin-when-cross-origin"
 
+# Auth redirects
+[[redirects]]
+  from = "/login"
+  to = "/login.html"
+  status = 200
+
+# Protect main app (handled by JS but good for SEO)
+[[redirects]]
+  from = "/"
+  to = "/index.html"
+  status = 200
+  conditions = {Role = ["user"]}
+
+# Redirect non-authenticated to login
+[[redirects]]
+  from = "/"
+  to = "/login.html"
+  status = 302
+
 # SPA redirect - but don't redirect files that exist
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
   force = false
+  conditions = {Role = ["user"]}

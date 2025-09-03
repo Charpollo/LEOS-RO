@@ -3,6 +3,9 @@ import '@babylonjs/loaders';
 import { AdvancedDynamicTexture, TextBlock, Rectangle } from '@babylonjs/gui';
 import { GlowLayer } from '@babylonjs/core/Layers/glowLayer';
 
+// Import Auth Guard - FLIGHT RULE: Auth check before anything else
+import { authGuard } from './auth/auth-guard.js';
+
 // Import UI components and manager
 import { uiManager } from './ui/manager.js';
 import { initBrandUI, hideLoadingScreen, showHelpButton } from './ui/brand-ui.js';
@@ -79,6 +82,13 @@ export function getSun() {
 }
 
 export async function initApp() {
+    // FLIGHT RULE: Check authentication before initializing
+    const isAuthorized = await authGuard.init();
+    if (!isAuthorized) {
+        console.log('[RED ORBIT] Auth check failed - redirecting to login');
+        return; // Stop initialization if not authorized
+    }
+    
     // Delay UI initialization until after scene is created for better startup performance
     setTimeout(() => {
         initBrandUI();
