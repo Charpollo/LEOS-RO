@@ -1,0 +1,71 @@
+# ALOHA Branch Deploy Configuration
+# This config is for the aloha.redorbit.space subdomain
+
+[build]
+  command = "npm install --production=false && npm run build:prod"
+  publish = "frontend/dist"
+  base = "/"
+  
+[build.environment]
+  NODE_VERSION = "18"
+  NODE_ENV = "production"
+  # Set a flag to identify ALOHA build
+  ALOHA_BUILD = "true"
+
+# Branch deploy settings
+[context.aloha]
+  command = "npm install --production=false && npm run build:prod"
+  
+# Disable processing - webpack already handles this
+[build.processing]
+  skip_processing = true
+
+# Aggressive caching for assets
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Preload critical assets only
+[[headers]]
+  for = "/"
+  [headers.values]
+    Link = '''
+    </assets/earth_diffuse.png>; rel=preload; as=image; crossorigin=anonymous,
+    </assets/stars.png>; rel=preload; as=image; crossorigin=anonymous
+    '''
+
+# Handle WebAssembly files for Ammo.js physics engine
+[[headers]]
+  for = "*.wasm"
+  [headers.values]
+    Content-Type = "application/wasm"
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# CORS headers for data files and assets
+[[headers]]
+  for = "/data/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Cache-Control = "public, max-age=3600"
+
+# Security headers
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    X-XSS-Protection = "1; mode=block"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+# Auth redirects
+[[redirects]]
+  from = "/login"
+  to = "/login.html"
+  status = 200
+
+# Simple redirect - Let JavaScript handle auth
+[[redirects]]
+  from = "/"
+  to = "/index.html"
+  status = 200

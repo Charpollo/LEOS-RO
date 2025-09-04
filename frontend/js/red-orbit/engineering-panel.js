@@ -46,32 +46,42 @@ export class EngineeringPanel {
     }
     
     initPanel() {
+        // Check if we're on the ALOHA subdomain
+        const isAlohaSubdomain = window.location.hostname === 'aloha.redorbit.space' || 
+                                 window.location.hostname.startsWith('aloha.');
+        
         // Create panel container
         const panel = document.createElement('div');
         panel.id = 'engineering-panel';
         panel.className = 'engineering-panel closed';
+        
+        // Different tabs for ALOHA subdomain
+        const tabsHTML = isAlohaSubdomain ? 
+            `<button class="tab-btn active" data-tab="scenarios">Scenarios</button>` :
+            `<button class="tab-btn active" data-tab="scenarios">Scenarios</button>
+                <button class="tab-btn" data-tab="simulation">Simulation</button>
+                <button class="tab-btn" data-tab="display">Display</button>
+                <button class="tab-btn" data-tab="data">Data Pipeline</button>
+                <button class="tab-btn" data-tab="performance">Performance</button>`;
+        
         panel.innerHTML = `
             <div class="panel-header">
                 <div class="panel-title">
                     <span class="red-orbit-badge">RED ORBIT</span>
-                    <span>Engineering Panel</span>
+                    <span>${isAlohaSubdomain ? 'ALOHA Control Panel' : 'Engineering Panel'}</span>
                 </div>
                 <button class="panel-close" id="close-panel">×</button>
             </div>
             
             <div class="panel-tabs">
-                <button class="tab-btn active" data-tab="scenarios">Scenarios</button>
-                <button class="tab-btn" data-tab="simulation">Simulation</button>
-                <button class="tab-btn" data-tab="display">Display</button>
-                <button class="tab-btn" data-tab="data">Data Pipeline</button>
-                <button class="tab-btn" data-tab="performance">Performance</button>
+                ${tabsHTML}
             </div>
             
             <div class="panel-content">
                 <!-- Scenarios Tab -->
                 <div class="tab-content active" id="scenarios-tab">
-                    <h3>Quick Scenarios</h3>
-                    <div class="scenario-grid">
+                    <h3>${isAlohaSubdomain ? 'ALOHA Scenarios' : 'Quick Scenarios'}</h3>
+                    <div class="scenario-grid" id="scenario-grid">
                         <div class="scenario-tile" data-scenario="showcase">
                             <svg class="scenario-icon" viewBox="0 0 100 100">
                                 <circle cx="50" cy="50" r="20" fill="none" stroke="#ff3333" stroke-width="2"/>
@@ -473,12 +483,15 @@ export class EngineeringPanel {
         
         // Initialize scenario tiles
         this.initScenarios();
+        this.filterScenariosForSubdomain();
         
-        // Initialize controls
-        this.initSimulationControls();
-        this.initDisplayControls();
-        this.initDataControls();
-        this.initPerformanceMonitoring();
+        // Initialize controls - only if not ALOHA subdomain
+        if (!isAlohaSubdomain) {
+            this.initSimulationControls();
+            this.initDisplayControls();
+            this.initDataControls();
+            this.initPerformanceMonitoring();
+        }
         
         // Add test coordinate button handler
         const testCoordsBtn = document.getElementById('test-coords-btn');
@@ -495,6 +508,35 @@ export class EngineeringPanel {
                 this.loadScenario(scenario);
             });
         });
+    }
+    
+    filterScenariosForSubdomain() {
+        const isAlohaSubdomain = window.location.hostname === 'aloha.redorbit.space' || 
+                                 window.location.hostname.startsWith('aloha.');
+        
+        if (isAlohaSubdomain) {
+            // Only show ALOHA, Beautiful Math, and LEO cards for ALOHA subdomain
+            const allowedScenarios = ['aloha', 'showcase', 'leo-all'];
+            const tiles = document.querySelectorAll('.scenario-tile');
+            
+            tiles.forEach(tile => {
+                const scenario = tile.dataset.scenario;
+                if (!allowedScenarios.includes(scenario)) {
+                    tile.style.display = 'none';
+                }
+            });
+            
+            // Update titles for customer-facing view
+            const showcaseTile = document.querySelector('[data-scenario="showcase"] h4');
+            if (showcaseTile) {
+                showcaseTile.textContent = 'Math Visualization';
+            }
+            
+            const leoTile = document.querySelector('[data-scenario="leo-all"] h4');
+            if (leoTile) {
+                leoTile.textContent = 'LEO Management';
+            }
+        }
     }
     
     setupALOHAFileHandlers() {
