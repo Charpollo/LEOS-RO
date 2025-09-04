@@ -453,6 +453,9 @@ export async function initApp() {
         }
     }
 
+    // Dispatch event when app is loaded to remove particle canvas
+    window.dispatchEvent(new Event('red-orbit-loaded'));
+    
     // Use unlimited render loop for smooth LOS visualization
     let lastFrameTime = 0;
     const maxFPS = 45; // Reduced FPS during loading for better overall performance

@@ -22,18 +22,18 @@ module.exports = {
             drop_console: true, // Remove ALL console.logs
             drop_debugger: true, // Remove debugger statements
             dead_code: true,
-            passes: 2 // Multiple passes for better compression
+            passes: 1 // Reduced passes to avoid breaking Babylon
           },
           mangle: {
-            properties: {
-              regex: /^_/ // Mangle properties starting with _
-            }
+            reserved: ['Scene', 'Engine', 'Vector3', 'Color3', 'Mesh'], // Preserve Babylon classes
+            // Remove property mangling - it breaks Babylon
           },
           format: {
             comments: false, // Remove all comments
           },
         },
         extractComments: false, // Don't create LICENSE.txt
+        exclude: /babylon/, // Be gentler with Babylon files
       }),
     ],
     // Code splitting to make reverse engineering harder

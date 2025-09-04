@@ -103,6 +103,9 @@
     </style>
 </head>
 <body>
+    <!-- Particle Canvas for Loading -->
+    <canvas id="particle-canvas" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; background: black;"></canvas>
+    
     <div id="renderCanvas-container">
         <!-- UNCLASSIFIED Banner -->
         <div id="unclass-banner" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 30px; background: linear-gradient(135deg, #228B22 0%, #32CD32 100%); color: #000000; font-family: 'Orbitron', monospace; font-weight: bold; font-size: 14px; text-align: center; line-height: 30px; letter-spacing: 3px; z-index: 20000; box-shadow: 0 2px 10px rgba(34, 139, 34, 0.5); border-bottom: 2px solid #000000;">
@@ -273,5 +276,93 @@
     </script>
     <!-- Clean UI initialization removed - handled in app.js -->
     <!-- SDA button click binding now handled in app.js -->
+    <script>
+        // Particle system for loading screen
+        (function() {
+            const canvas = document.getElementById('particle-canvas');
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            
+            // Debris particles
+            const particles = [];
+            for (let i = 0; i < 100; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    vx: (Math.random() - 0.5) * 0.5,
+                    vy: (Math.random() - 0.5) * 0.5,
+                    size: Math.random() * 2 + 0.5,
+                    brightness: Math.random()
+                });
+            }
+            
+            function animateParticles() {
+                if (!document.getElementById('particle-canvas')) return;
+                
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Update and draw particles
+                particles.forEach(p => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    
+                    // Wrap around edges
+                    if (p.x < 0) p.x = canvas.width;
+                    if (p.x > canvas.width) p.x = 0;
+                    if (p.y < 0) p.y = canvas.height;
+                    if (p.y > canvas.height) p.y = 0;
+                    
+                    // Draw particle
+                    ctx.fillStyle = `rgba(255, 255, 255, ${p.brightness * 0.8})`;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+                
+                // Draw connections (proximity lines like login page)
+                particles.forEach((p1, i) => {
+                    particles.slice(i + 1).forEach(p2 => {
+                        const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+                        if (dist < 100) {
+                            ctx.strokeStyle = `rgba(255, 0, 0, ${0.1 * (1 - dist / 100)})`;
+                            ctx.lineWidth = 0.5;
+                            ctx.beginPath();
+                            ctx.moveTo(p1.x, p1.y);
+                            ctx.lineTo(p2.x, p2.y);
+                            ctx.stroke();
+                        }
+                    });
+                });
+                
+                requestAnimationFrame(animateParticles);
+            }
+            
+            animateParticles();
+            
+            // Remove particle canvas when app loads
+            window.addEventListener('red-orbit-loaded', function() {
+                setTimeout(() => {
+                    const particleCanvas = document.getElementById('particle-canvas');
+                    if (particleCanvas) {
+                        particleCanvas.style.opacity = '0';
+                        particleCanvas.style.transition = 'opacity 1s';
+                        setTimeout(() => particleCanvas.remove(), 1000);
+                    }
+                }, 500);
+            });
+            
+            // Handle resize
+            window.addEventListener('resize', () => {
+                if (canvas) {
+                    canvas.width = window.innerWidth;
+                    canvas.height = window.innerHeight;
+                }
+            });
+        })();
+    </script>
   </body>
 </html>
