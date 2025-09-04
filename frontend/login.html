@@ -336,7 +336,7 @@
                 <div style="color: #ff0000; font-size: 24px; font-weight: bold;">CyberRTS</div>
             </div>
             <h1 class="title">RED ORBIT</h1>
-            <p class="subtitle">SPACE DOMAIN AWARENESS</p>
+            <p class="subtitle">THREAT VISUALIZATION & MODELING</p>
         </div>
 
         <div class="message error" id="error-message"></div>
@@ -346,7 +346,7 @@
         <form id="login-form" class="auth-form">
             <div class="form-group">
                 <label for="login-email">Email Address</label>
-                <input type="email" id="login-email" placeholder="pilot@spaceforce.mil" required>
+                <input type="email" id="login-email" placeholder="mission@cyberrts.com" required>
             </div>
             <div class="form-group">
                 <label for="login-password">Password</label>
@@ -363,7 +363,7 @@
         <form id="signup-form" class="auth-form">
             <div class="form-group">
                 <label for="signup-email">Email Address</label>
-                <input type="email" id="signup-email" placeholder="pilot@spaceforce.mil" required>
+                <input type="email" id="signup-email" placeholder="mission@cyberrts.com" required>
             </div>
             <div class="form-group">
                 <label for="signup-password">Create Password</label>
@@ -380,7 +380,7 @@
                     <label for="marketing-opt-in">Get updates on new features and capabilities</label>
                 </div>
                 <p class="marketing-text">
-                    2-week free trial of full RED ORBIT system. Track 15,000+ objects with real physics.
+                    Get updates on the latest RED ORBIT features and capabilities
                 </p>
             </div>
 
@@ -397,7 +397,7 @@
     </div>
 
     <div class="auth-footer">
-        <p>&copy; 2024 CyberRTS | <a href="https://cyberrts.com" target="_blank">cyberrts.com</a></p>
+        <p>&copy; 2025 CyberRTS | <a href="https://cyberrts.com" target="_blank">cyberrts.com</a></p>
     </div>
 
     <!-- Particle Effect Script -->
@@ -539,20 +539,12 @@
             const email = document.getElementById('login-email').value;
             const password = document.getElementById('login-password').value;
 
-            try {
-                const user = await netlifyIdentity.login(email, password);
-                showSuccess('Access granted. Launching RED ORBIT...');
-                
-                // Store login time for trial tracking
-                localStorage.setItem('redOrbitLoginTime', new Date().toISOString());
-                
-                setTimeout(() => {
-                    window.location.href = '/';
-                }, 1500);
-            } catch (error) {
-                showError('Access denied. Check credentials.');
-                loading.classList.remove('active');
-            }
+            // Open Netlify Identity login modal
+            netlifyIdentity.open('login');
+            loading.classList.remove('active');
+            
+            // The login event listener is already set up above
+            // It will handle redirect when login is successful
         });
 
         // Handle Signup
@@ -566,32 +558,38 @@
             const organization = document.getElementById('signup-organization').value;
             const marketingOptIn = document.getElementById('marketing-opt-in').checked;
 
-            try {
-                // Signup with Netlify Identity
-                const user = await netlifyIdentity.signup(email, password, {
+            // Store form data for use after modal
+            window.signupData = {
+                email: email,
+                password: password, 
+                metadata: {
                     organization: organization,
                     marketing_opt_in: marketingOptIn,
-                    trial_start: new Date().toISOString(),
-                    trial_end: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
-                });
-
+                    trial_start: new Date().toISOString()
+                }
+            };
+            
+            // Open Netlify Identity signup modal
+            netlifyIdentity.open('signup');
+            loading.classList.remove('active');
+            
+            // Listen for successful signup
+            netlifyIdentity.on('signup', (user) => {
                 showSuccess('Beta access granted! Check your email to confirm.');
-                
-                // Auto-login after signup
-                setTimeout(async () => {
-                    try {
-                        await netlifyIdentity.login(email, password);
-                        localStorage.setItem('redOrbitTrialStart', new Date().toISOString());
-                        window.location.href = '/';
-                    } catch (error) {
-                        showError('Please check your email to verify your account.');
-                    }
-                    loading.classList.remove('active');
-                }, 2000);
-            } catch (error) {
-                showError(error.message || 'Signup failed. Please try again.');
+                // Clear form
+                signupForm.reset();
+            });
+            
+            // Listen for successful login (after email confirmation)
+            netlifyIdentity.on('login', (user) => {
+                localStorage.setItem('redOrbitTrialStart', new Date().toISOString());
+                window.location.href = '/';
+            });
+            
+            // Listen for modal close
+            netlifyIdentity.on('close', () => {
                 loading.classList.remove('active');
-            }
+            });
         });
 
         // Check if already logged in

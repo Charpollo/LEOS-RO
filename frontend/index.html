@@ -103,6 +103,12 @@
     </style>
 </head>
 <body>
+    <script>
+        // Immediate auth check before anything renders
+        if (typeof netlifyIdentity !== 'undefined' && !netlifyIdentity.currentUser() && window.location.hostname !== 'localhost') {
+            window.location.href = '/login.html';
+        }
+    </script>
     <!-- Particle Canvas for Loading -->
     <canvas id="particle-canvas" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; background: black;"></canvas>
     
