@@ -19,9 +19,9 @@
 3. **Add Custom Subdomain:**
    - Go to Domain settings
    - Add domain alias: `aloha.redorbit.space`
-   - Point it to the branch deploy
+   - Point it to the branch deploy.
 
-### Option 2: Separate Site
+### Option 2: Separate Sitedd
 
 1. **Create new Netlify site:**
    - New site from Git
