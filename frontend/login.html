@@ -517,20 +517,24 @@
         const successMessage = document.getElementById('success-message');
         const loading = document.getElementById('loading');
 
-        // Toggle between login and signup
-        showSignupLink.addEventListener('click', (e) => {
-            e.preventDefault();
-            loginForm.style.display = 'none';
-            signupForm.style.display = 'block';
-            clearMessages();
-        });
+        // Toggle between login and signup (with null checks for invite-only mode)
+        if (showSignupLink) {
+            showSignupLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                loginForm.style.display = 'none';
+                signupForm.style.display = 'block';
+                clearMessages();
+            });
+        }
 
-        showLoginLink.addEventListener('click', (e) => {
-            e.preventDefault();
-            signupForm.style.display = 'none';
-            loginForm.style.display = 'block';
-            clearMessages();
-        });
+        if (showLoginLink) {
+            showLoginLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                signupForm.style.display = 'none';
+                loginForm.style.display = 'block';
+                clearMessages();
+            });
+        }
 
         // Clear messages
         function clearMessages() {
