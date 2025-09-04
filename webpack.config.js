@@ -44,6 +44,7 @@ module.exports = {
         { from: 'frontend/templates', to: 'templates' },
         { from: 'frontend/data', to: 'data' },
         { from: 'frontend/login.html', to: 'login.html' },
+        { from: 'frontend/login-simple.html', to: 'login-simple.html' },
         { from: 'frontend/js/auth', to: 'js/auth' }
       ]
     })

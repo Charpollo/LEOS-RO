@@ -8,7 +8,11 @@
  * - Non-blocking for development
  */
 
+// Toggle between auth systems
+const USE_PASSPHRASE_AUTH = true; // Set to false to use Netlify Identity
+
 import { authManager } from './auth-manager.js';
+import { passphraseAuth } from './passphrase-auth.js';
 import { BETA_CONFIG, getBetaPeriodInfo, getBetaMessage } from './beta-config.js';
 
 export class AuthGuard {
@@ -38,16 +42,26 @@ export class AuthGuard {
         // Wait for auth to initialize
         await this.waitForAuth();
         
-        // Check authentication
-        if (!authManager.isAuthenticated()) {
-            window.location.href = '/login.html';
-            return false;
-        }
-        
-        // Check trial status
-        if (!authManager.isTrialActive()) {
-            this.handleExpiredTrial();
-            return false;
+        // Check authentication based on system
+        if (USE_PASSPHRASE_AUTH) {
+            // Use simple passphrase auth
+            if (!passphraseAuth.isAuthenticated()) {
+                window.location.href = '/login-simple.html';
+                return false;
+            }
+            // No trial check for passphrase auth - it handles its own expiry
+        } else {
+            // Use Netlify Identity
+            if (!authManager.isAuthenticated()) {
+                window.location.href = '/login.html';
+                return false;
+            }
+            
+            // Check trial status
+            if (!authManager.isTrialActive()) {
+                this.handleExpiredTrial();
+                return false;
+            }
         }
         
         // Show trial status
