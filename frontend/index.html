@@ -105,7 +105,11 @@
 <body>
     <script>
         // Immediate auth check before anything renders
-        if (typeof netlifyIdentity !== 'undefined' && !netlifyIdentity.currentUser() && window.location.hostname !== 'localhost') {
+        // Check for passphrase auth first
+        const hasPassphraseSession = localStorage.getItem('redorbit_auth_session');
+        
+        if (!hasPassphraseSession && window.location.hostname !== 'localhost') {
+            // Use passphrase login
             window.location.href = '/login.html';
         }
     </script>

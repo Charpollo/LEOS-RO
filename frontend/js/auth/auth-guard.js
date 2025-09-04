@@ -46,7 +46,7 @@ export class AuthGuard {
         if (USE_PASSPHRASE_AUTH) {
             // Use simple passphrase auth
             if (!passphraseAuth.isAuthenticated()) {
-                window.location.href = '/login-simple.html';
+                window.location.href = '/login.html';
                 return false;
             }
             // No trial check for passphrase auth - it handles its own expiry
@@ -74,20 +74,26 @@ export class AuthGuard {
      * Wait for auth system to initialize
      */
     waitForAuth() {
-        return new Promise((resolve) => {
-            const checkInterval = setInterval(() => {
-                if (authManager.isInitialized) {
+        if (USE_PASSPHRASE_AUTH) {
+            // Passphrase auth is instant, no need to wait
+            return Promise.resolve();
+        } else {
+            // Wait for Netlify Identity
+            return new Promise((resolve) => {
+                const checkInterval = setInterval(() => {
+                    if (authManager.isInitialized) {
+                        clearInterval(checkInterval);
+                        resolve();
+                    }
+                }, 100);
+                
+                // Timeout after 5 seconds
+                setTimeout(() => {
                     clearInterval(checkInterval);
                     resolve();
-                }
-            }, 100);
-            
-            // Timeout after 5 seconds
-            setTimeout(() => {
-                clearInterval(checkInterval);
-                resolve();
-            }, 5000);
-        });
+                }, 5000);
+            });
+        }
     }
     
     /**

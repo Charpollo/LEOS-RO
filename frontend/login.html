@@ -342,62 +342,20 @@
         <div class="message error" id="error-message"></div>
         <div class="message success" id="success-message"></div>
 
-        <!-- Login Form -->
+        <!-- Passphrase Form -->
         <form id="login-form" class="auth-form">
             <div class="form-group">
-                <label for="login-email">Email Address</label>
-                <input type="email" id="login-email" placeholder="mission@cyberrts.com" required>
-            </div>
-            <div class="form-group">
-                <label for="login-password">Password</label>
-                <input type="password" id="login-password" placeholder="••••••••" required>
+                <label for="passphrase">Access Passphrase</label>
+                <input type="password" id="passphrase" placeholder="Enter passphrase" required autocomplete="off" style="font-family: 'Courier New', monospace; letter-spacing: 2px;">
             </div>
             <button type="submit" class="btn btn-primary">ACCESS RED ORBIT</button>
             
             <div class="auth-toggle">
-                <p>Don't have an invite? <a href="mailto:mission@cyberrts.com" style="color: #ff6600;">Request Access</a></p>
+                <p style="color: #ff6600;">Beta Access Only</p>
+                <p style="font-size: 12px;">Contact <a href="mailto:mission@cyberrts.com" style="color: #ff6600;">mission@cyberrts.com</a> for passphrase</p>
             </div>
         </form>
 
-        <!-- Signup Form -->
-        <form id="signup-form" class="auth-form">
-            <div class="form-group">
-                <label for="signup-email">Email Address</label>
-                <input type="email" id="signup-email" placeholder="mission@cyberrts.com" required>
-            </div>
-            <div class="form-group">
-                <label for="signup-password">Create Password</label>
-                <input type="password" id="signup-password" placeholder="Minimum 8 characters" required minlength="8">
-            </div>
-            <div class="form-group">
-                <label for="signup-organization">Organization (Optional)</label>
-                <input type="text" id="signup-organization" placeholder="Space Force, NASA, SpaceX, etc.">
-            </div>
-            
-            <div class="marketing-opt-in">
-                <div class="checkbox-group">
-                    <input type="checkbox" id="marketing-opt-in" checked>
-                    <label for="marketing-opt-in">Get updates on new features and capabilities</label>
-                </div>
-                <p class="marketing-text">
-                    Get updates on the latest RED ORBIT features and capabilities
-                </p>
-            </div>
-
-            <button type="submit" class="btn btn-primary" style="display: none;">START FREE TRIAL</button>
-            
-            <!-- Invite Only Message -->
-            <div class="invite-message" style="background: rgba(255, 100, 0, 0.1); border: 1px solid #ff6600; padding: 20px; border-radius: 8px; margin-top: 20px; text-align: center;">
-                <i class="fas fa-lock" style="color: #ff6600; font-size: 24px; margin-bottom: 10px;"></i>
-                <h3 style="color: #ff6600; margin: 10px 0;">Invite-Only Beta</h3>
-                <p style="color: #ccc; margin: 10px 0;">RED ORBIT is currently in private beta.</p>
-                <p style="color: #aaa; font-size: 14px;">Request access: <a href="mailto:mission@cyberrts.com" style="color: #ff6600;">mission@cyberrts.com</a></p>
-            </div>
-            
-            <div class="auth-toggle">
-                <p>Have an invite? <a href="#" id="show-login">Sign In</a></p>
-            </div>
-        </form>
 
         <div class="loading" id="loading">
             <div class="spinner"></div>
@@ -488,82 +446,15 @@
         });
     </script>
 
-    <!-- Netlify Identity Widget -->
-    <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
-    
-    <!-- Auth Logic -->
-    <script>
-        // Check FIRST if this is an invite - BEFORE initializing anything else
-        const isInviteLink = window.location.hash && (
-            window.location.hash.includes('invite_token') || 
-            window.location.hash.includes('recovery_token') ||
-            window.location.hash.includes('confirmation_token')
-        );
+    <!-- Passphrase Auth Logic -->
+    <script type="module">
+        import { passphraseAuth } from '/js/auth/passphrase-auth.js';
         
-        // If this is an invite/recovery/confirmation, let Netlify handle it completely
-        if (isInviteLink) {
-            console.log('Netlify Identity token detected:', window.location.hash);
-            
-            // Initialize and let Netlify auto-handle the token
-            netlifyIdentity.init();
-            
-            // Listen for successful invite acceptance
-            netlifyIdentity.on('signup', user => {
-                console.log('Invite accepted successfully!');
-                // Show success and redirect
-                setTimeout(() => {
-                    window.location.replace('/');
-                }, 1500);
-            });
-            
-            netlifyIdentity.on('login', user => {
-                console.log('User logged in after invite!');
-                window.location.replace('/');
-            });
-            
-            // Listen for errors
-            netlifyIdentity.on('error', err => {
-                console.error('Invite error:', err);
-            });
-            
-            // Stop here - don't run any other code that might interfere
-            // Netlify will automatically open the appropriate modal
-        } else {
-            // Normal initialization for non-invite pages
-            netlifyIdentity.init();
-
-            // Only run our custom code if NOT processing an invite
-            initializeLoginPage();
-        }
-        
-        function initializeLoginPage() {
-            // DOM Elements
-            const loginForm = document.getElementById('login-form');
-        const signupForm = document.getElementById('signup-form');
-        const showSignupLink = document.getElementById('show-signup');
-        const showLoginLink = document.getElementById('show-login');
+        // DOM Elements
+        const loginForm = document.getElementById('login-form');
         const errorMessage = document.getElementById('error-message');
         const successMessage = document.getElementById('success-message');
         const loading = document.getElementById('loading');
-
-        // Toggle between login and signup (with null checks for invite-only mode)
-        if (showSignupLink) {
-            showSignupLink.addEventListener('click', (e) => {
-                e.preventDefault();
-                loginForm.style.display = 'none';
-                signupForm.style.display = 'block';
-                clearMessages();
-            });
-        }
-
-        if (showLoginLink) {
-            showLoginLink.addEventListener('click', (e) => {
-                e.preventDefault();
-                signupForm.style.display = 'none';
-                loginForm.style.display = 'block';
-                clearMessages();
-            });
-        }
 
         // Clear messages
         function clearMessages() {
@@ -583,137 +474,37 @@
             errorMessage.classList.remove('active');
         }
 
-        // Handle Login  
+        // Handle Passphrase Login
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             clearMessages();
             loading.classList.add('active');
 
-            const email = document.getElementById('login-email').value;
-            const password = document.getElementById('login-password').value;
+            const passphrase = document.getElementById('passphrase').value;
 
-            // Store credentials for the widget to use
-            localStorage.setItem('auth_email', email);
-            
-            // Open login modal with better handling
-            netlifyIdentity.open('login');
+            // Authenticate with passphrase
+            const result = passphraseAuth.authenticate(passphrase);
             
             loading.classList.remove('active');
-        });
-        
-        // Handle Signup
-        signupForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            clearMessages();
-            loading.classList.add('active');
-
-            const email = document.getElementById('signup-email').value;
-            const password = document.getElementById('signup-password').value;
-            const organization = document.getElementById('signup-organization').value;
-            const marketingOptIn = document.getElementById('marketing-opt-in').checked;
-
-            // Store metadata for after signup
-            const metadata = {
-                organization: organization,
-                marketing_opt_in: marketingOptIn,
-                trial_start: new Date().toISOString()
-            };
             
-            // Store for use after modal opens
-            localStorage.setItem('signup_email', email);
-            localStorage.setItem('signup_metadata', JSON.stringify(metadata));
-            
-            // Open signup modal
-            netlifyIdentity.open('signup');
-            
-            loading.classList.remove('active');
-        });
-
-        // Handle successful signup (including invite acceptance)
-        netlifyIdentity.on('signup', user => {
-            // Check if this was an invite acceptance
-            if (window.location.hash && window.location.hash.includes('invite_token')) {
-                showSuccess('Welcome to RED ORBIT Beta! Logging you in...');
-                // For invite acceptances, they're already verified, so log them in
+            if (result.success) {
+                showSuccess(result.message + ' Launching RED ORBIT...');
+                
+                // Redirect to main app
                 setTimeout(() => {
                     window.location.replace('/');
-                }, 1500);
+                }, 1000);
             } else {
-                showSuccess('Beta access granted! Check your email to confirm.');
-                // Clear form and switch to login
-                signupForm.reset();
-                setTimeout(() => {
-                    signupForm.style.display = 'none';
-                    loginForm.style.display = 'block';
-                    clearMessages();
-                }, 3000);
+                showError(result.message);
             }
         });
         
-        // Handle successful login (including after email confirmation)
-        // Add flag to prevent multiple redirects
-        let isRedirecting = false;
-        
-        netlifyIdentity.on('login', user => {
-            if (isRedirecting) return; // Prevent multiple redirects
-            isRedirecting = true;
-            
-            console.log('Login successful, redirecting...');
-            showSuccess('Access granted. Launching RED ORBIT...');
-            
-            // Store login time
-            localStorage.setItem('redOrbitLoginTime', new Date().toISOString());
-            
-            // Force redirect - use replace to prevent back button issues
-            setTimeout(() => {
-                window.location.replace('/');
-            }, 1000);
-        });
-        
-        // Handle modal close
-        netlifyIdentity.on('close', () => {
-            loading.classList.remove('active');
-        });
-
-        // Handle logout
-        netlifyIdentity.on('logout', () => {
-            window.location.href = '/login.html';
-        });
-        
-        // Consolidated authentication check with single redirect
-        // Use a flag to prevent multiple redirects
-        let redirecting = false;
-        
-        function checkAuthAndRedirect() {
-            if (redirecting) return; // Already redirecting, don't do it again
-            
-            const currentUser = netlifyIdentity.currentUser();
-            const hasInviteToken = window.location.hash && window.location.hash.includes('invite_token');
-            
-            // If there's an invite token, let Netlify handle it
-            if (hasInviteToken) {
-                console.log('Processing invite token...');
-                return; // Don't redirect during invite processing
-            }
-            
-            // If user is authenticated and no invite token, redirect to app
-            if (currentUser) {
-                redirecting = true; // Set flag to prevent loops
-                console.log('User already authenticated, redirecting to app...');
-                // Hide page immediately to prevent flicker
-                document.body.style.visibility = 'hidden';
-                window.location.replace('/');
-            }
+        // Check if already authenticated
+        if (passphraseAuth.isAuthenticated()) {
+            console.log('Already authenticated, redirecting to app...');
+            document.body.style.visibility = 'hidden';
+            window.location.replace('/');
         }
-        
-        // Check auth on page load
-        checkAuthAndRedirect();
-        
-        // Also check after Netlify Identity initializes (in case it takes a moment)
-        netlifyIdentity.on('init', () => {
-            checkAuthAndRedirect();
-        });
-        } // End of initializeLoginPage function
     </script>
 </body>
 </html>
