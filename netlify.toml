@@ -10,20 +10,9 @@
   NODE_VERSION = "18"
   NODE_ENV = "production"
 
-# Enable Brotli compression
+# Disable processing - webpack already handles this
 [build.processing]
-  skip_processing = false
-
-[build.processing.css]
-  bundle = true
-  minify = true
-
-[build.processing.js]
-  bundle = true
-  minify = true
-
-[build.processing.images]
-  compress = true
+  skip_processing = true
 
 # Aggressive caching for assets
 [[headers]]
@@ -69,23 +58,9 @@
   to = "/login.html"
   status = 200
 
-# Protect main app (handled by JS but good for SEO)
+# Simple redirect - Let JavaScript handle auth
+# This prevents the catch-all from breaking asset loading
 [[redirects]]
   from = "/"
   to = "/index.html"
   status = 200
-  conditions = {Role = ["user"]}
-
-# Redirect non-authenticated to login
-[[redirects]]
-  from = "/"
-  to = "/login.html"
-  status = 302
-
-# SPA redirect - but don't redirect files that exist
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
-  force = false
-  conditions = {Role = ["user"]}
