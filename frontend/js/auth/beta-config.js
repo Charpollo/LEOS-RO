@@ -13,7 +13,7 @@ export const BETA_CONFIG = {
     // 'FIXED_PERIOD' - Everyone gets same end date
     // 'INDIVIDUAL_TRIAL' - Each user gets X days from signup
     // 'UNLIMITED' - No expiration (for development/special users)
-    mode: 'FIXED_PERIOD',
+    mode: 'UNLIMITED',
     
     // For FIXED_PERIOD mode
     fixedPeriod: {
