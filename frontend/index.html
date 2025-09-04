@@ -148,18 +148,97 @@
         
         <!-- Loading Screen -->
         <div id="loading-screen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 9999; overflow: hidden;">
-            <!-- Aurora Background -->
-            <div class="aurora-background"></div>
+            <!-- Particle Canvas -->
+            <canvas id="loading-particles" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;"></canvas>
             <div style="text-align: center; position: relative; z-index: 2;">
-                <h1 style="color: #ff0000; font-family: 'Orbitron', monospace; font-size: 48px; margin-bottom: 20px; letter-spacing: 4px;">RED ORBIT</h1>
-                <div style="color: #ff6600; font-size: 14px; margin-bottom: 30px; text-transform: uppercase; letter-spacing: 2px;">Space Disaster Simulation Platform</div>
-                <div class="loading-bar" style="width: 300px; height: 4px; background: rgba(255,0,0,0.2); border-radius: 2px; overflow: hidden; margin: 0 auto;">
-                    <div class="loading-progress" style="width: 0%; height: 100%; background: linear-gradient(90deg, #ff0000, #ff6600); transition: width 0.3s; animation: loading 2s ease-in-out;">
-                    </div>
-                </div>
-                <div id="loading-status" style="color: #999; font-size: 12px; margin-top: 20px;">Initializing 10,000 objects...</div>
+                <h1 style="color: #ff0000; font-family: 'Orbitron', monospace; font-size: 48px; letter-spacing: 4px; text-shadow: 0 0 20px rgba(255, 0, 0, 0.5);">RED ORBIT</h1>
             </div>
         </div>
+        
+        <!-- Loading Particle Animation Script -->
+        <script>
+            (function() {
+                const canvas = document.getElementById('loading-particles');
+                if (!canvas) return;
+                
+                const ctx = canvas.getContext('2d');
+                
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                
+                const particles = [];
+                const particleCount = 100;
+                
+                class Particle {
+                    constructor() {
+                        this.x = Math.random() * canvas.width;
+                        this.y = Math.random() * canvas.height;
+                        this.size = Math.random() * 2;
+                        this.speedX = (Math.random() - 0.5) * 0.5;
+                        this.speedY = (Math.random() - 0.5) * 0.5;
+                        this.opacity = Math.random() * 0.5 + 0.2;
+                    }
+                    
+                    update() {
+                        this.x += this.speedX;
+                        this.y += this.speedY;
+                        
+                        if (this.x > canvas.width || this.x < 0) this.speedX *= -1;
+                        if (this.y > canvas.height || this.y < 0) this.speedY *= -1;
+                    }
+                    
+                    draw() {
+                        ctx.fillStyle = `rgba(255, 0, 0, ${this.opacity})`;
+                        ctx.beginPath();
+                        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+                
+                // Create particles
+                for (let i = 0; i < particleCount; i++) {
+                    particles.push(new Particle());
+                }
+                
+                // Animation loop
+                function animate() {
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    
+                    particles.forEach(particle => {
+                        particle.update();
+                        particle.draw();
+                    });
+                    
+                    // Draw connections
+                    particles.forEach((p1, index) => {
+                        particles.slice(index + 1).forEach(p2 => {
+                            const distance = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+                            if (distance < 100) {
+                                ctx.strokeStyle = `rgba(255, 0, 0, ${0.1 * (1 - distance / 100)})`;
+                                ctx.lineWidth = 0.5;
+                                ctx.beginPath();
+                                ctx.moveTo(p1.x, p1.y);
+                                ctx.lineTo(p2.x, p2.y);
+                                ctx.stroke();
+                            }
+                        });
+                    });
+                    
+                    if (document.getElementById('loading-screen').style.display !== 'none') {
+                        requestAnimationFrame(animate);
+                    }
+                }
+                
+                animate();
+                
+                // Handle resize
+                window.addEventListener('resize', () => {
+                    canvas.width = window.innerWidth;
+                    canvas.height = window.innerHeight;
+                });
+            })();
+        </script>
         
         <!-- Floating UI Elements (no black banner) -->
         <div id="red-orbit-ui" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 100;">
