@@ -51,6 +51,8 @@ export class EngineeringPanel {
                                  window.location.hostname.startsWith('aloha.') ||
                                  window.location.hostname === 'localhost'; // For testing
         
+        console.log('InitPanel - hostname:', window.location.hostname, 'isAloha:', isAlohaSubdomain);
+        
         // Create panel container
         const panel = document.createElement('div');
         panel.id = 'engineering-panel';
@@ -524,15 +526,23 @@ export class EngineeringPanel {
                                  window.location.hostname.startsWith('aloha.') ||
                                  window.location.hostname === 'localhost'; // For testing
         
+        console.log('Filtering scenarios, isAlohaSubdomain:', isAlohaSubdomain, 'hostname:', window.location.hostname);
+        
         if (isAlohaSubdomain) {
             // Only show ALOHA, Beautiful Math, and LEO cards for ALOHA subdomain
             const allowedScenarios = ['aloha', 'showcase', 'leo-all'];
             const tiles = document.querySelectorAll('.scenario-tile');
             
+            console.log('Found tiles:', tiles.length);
+            
             tiles.forEach(tile => {
                 const scenario = tile.dataset.scenario;
                 if (!allowedScenarios.includes(scenario)) {
-                    tile.style.display = 'none';
+                    console.log('Hiding tile:', scenario);
+                    tile.style.cssText = 'display: none !important;';
+                    tile.classList.add('hidden-for-aloha');
+                } else {
+                    console.log('Keeping tile:', scenario);
                 }
             });
         }
@@ -1260,27 +1270,7 @@ export class EngineeringPanel {
     executeScenario(scenario) {
         console.log(`Executing scenario: ${scenario}`);
         
-        // Handle ALOHA specially
-        if (scenario === 'aloha') {
-            if (!this.alohaData) {
-                this.showNotification('Please load a trajectory file first', 'error');
-                return;
-            }
-            
-            // Get background objects setting
-            let bgCount = 5000;
-            if (document.getElementById('bg-none')?.checked) bgCount = 0;
-            else if (document.getElementById('bg-15k')?.checked) bgCount = 15000;
-            
-            this.launchALOHA({
-                data: this.alohaData,
-                backgroundObjects: bgCount,
-                showConjunctions: document.getElementById('show-conjunctions-popup')?.checked || true,
-                autoTarget: document.getElementById('auto-target-popup')?.checked || true,
-                playbackSpeed: 1
-            });
-            return;
-        }
+        // Don't handle ALOHA here - let it go through the switch statement below
         
         // Show confirmation that scenario is loading
         if (true) {
@@ -1362,9 +1352,190 @@ export class EngineeringPanel {
     }
 
     applyALOHASettings() {
-        // ALOHA needs file upload first
-        console.log('ALOHA scenario - waiting for file upload');
-        // The file input will trigger the actual loading
+        // Show upload dialog for ALOHA trajectories
+        this.showALOHAUploadDialog();
+    }
+    
+    showALOHAUploadDialog() {
+        // Create modal overlay
+        const modal = document.createElement('div');
+        modal.id = 'aloha-upload-modal';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        `;
+        
+        modal.innerHTML = `
+            <div style="background: #1a1a1a; border: 2px solid #ff0000; border-radius: 10px; padding: 30px; max-width: 600px;">
+                <h2 style="color: #ff0000; margin-top: 0;">Load ALOHA Trajectory</h2>
+                <p style="color: #ccc;">Upload a JSON trajectory file or select an example dataset</p>
+                
+                <!-- File Upload -->
+                <div style="margin: 20px 0;">
+                    <input type="file" id="aloha-file-input" accept=".json" style="display: none;">
+                    <button id="aloha-upload-btn" style="
+                        background: #ff0000;
+                        color: white;
+                        border: none;
+                        padding: 10px 20px;
+                        border-radius: 5px;
+                        cursor: pointer;
+                        font-size: 14px;
+                        width: 100%;
+                    ">📁 Choose JSON File</button>
+                </div>
+                
+                <div style="color: #888; text-align: center; margin: 15px 0;">— OR —</div>
+                
+                <!-- Example Files -->
+                <div style="margin: 20px 0;">
+                    <h4 style="color: #ff6600; margin-bottom: 10px;">Example Datasets:</h4>
+                    <div style="display: grid; gap: 10px;">
+                        <button class="aloha-example-btn" data-file="aloha" style="
+                            background: rgba(255, 0, 0, 0.2);
+                            color: white;
+                            border: 1px solid #ff0000;
+                            padding: 10px;
+                            border-radius: 5px;
+                            cursor: pointer;
+                            text-align: left;
+                        ">
+                            <strong>ALOHA ASAT</strong><br>
+                            <small style="color: #999;">Saudi Arabia • 398km apogee • 206s duration</small>
+                        </button>
+                        <button class="aloha-example-btn" data-file="ascent_traj" style="
+                            background: rgba(0, 255, 0, 0.2);
+                            color: white;
+                            border: 1px solid #00ff00;
+                            padding: 10px;
+                            border-radius: 5px;
+                            cursor: pointer;
+                            text-align: left;
+                        ">
+                            <strong>Ascent Trajectory</strong><br>
+                            <small style="color: #999;">New Zealand Launch • Orbital insertion</small>
+                        </button>
+                        <button class="aloha-example-btn" data-file="traj_0" style="
+                            background: rgba(0, 100, 255, 0.2);
+                            color: white;
+                            border: 1px solid #0066ff;
+                            padding: 10px;
+                            border-radius: 5px;
+                            cursor: pointer;
+                            text-align: left;
+                        ">
+                            <strong>Test Trajectory</strong><br>
+                            <small style="color: #999;">Sample dataset • 206s duration</small>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Options -->
+                <div style="background: rgba(0, 0, 0, 0.5); padding: 15px; border-radius: 5px; margin: 20px 0;">
+                    <label style="display: block; margin-bottom: 10px; color: #ccc;">
+                        <input type="checkbox" id="aloha-conjunctions" checked> Show Conjunction Analysis
+                    </label>
+                    <label style="display: block; margin-bottom: 10px; color: #ccc;">
+                        Background Objects:
+                        <select id="aloha-bg-objects" style="background: #222; color: white; border: 1px solid #444; padding: 5px; margin-left: 10px;">
+                            <option value="0">None (Trajectory Only)</option>
+                            <option value="1000">1,000 Objects</option>
+                            <option value="5000" selected>5,000 Objects</option>
+                            <option value="10000">10,000 Objects</option>
+                        </select>
+                    </label>
+                </div>
+                
+                <div style="display: flex; gap: 10px;">
+                    <button id="aloha-cancel-btn" style="
+                        flex: 1;
+                        background: #444;
+                        color: white;
+                        border: 1px solid #666;
+                        padding: 10px;
+                        border-radius: 5px;
+                        cursor: pointer;
+                    ">Cancel</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // File upload handler
+        const fileInput = document.getElementById('aloha-file-input');
+        const uploadBtn = document.getElementById('aloha-upload-btn');
+        
+        uploadBtn.addEventListener('click', () => {
+            fileInput.click();
+        });
+        
+        fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                try {
+                    const text = await file.text();
+                    const data = JSON.parse(text);
+                    this.loadALOHATrajectory(data);
+                    modal.remove();
+                } catch (error) {
+                    console.error('Error loading file:', error);
+                    this.showNotification('Invalid JSON file', 'error');
+                }
+            }
+        });
+        
+        // Example dataset handlers
+        const exampleBtns = modal.querySelectorAll('.aloha-example-btn');
+        exampleBtns.forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const fileName = btn.dataset.file;
+                try {
+                    const response = await fetch(`/data/${fileName}.json`);
+                    const data = await response.json();
+                    this.loadALOHATrajectory(data);
+                    modal.remove();
+                } catch (error) {
+                    console.error('Error loading example:', error);
+                    this.showNotification('Failed to load example dataset', 'error');
+                }
+            });
+        });
+        
+        // Cancel button
+        document.getElementById('aloha-cancel-btn').addEventListener('click', () => {
+            modal.remove();
+        });
+        
+        // Close on background click
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+    }
+    
+    loadALOHATrajectory(data) {
+        const bgObjects = parseInt(document.getElementById('aloha-bg-objects')?.value || '5000');
+        const showConjunctions = document.getElementById('aloha-conjunctions')?.checked !== false;
+        
+        this.launchALOHA({
+            data: data,
+            backgroundObjects: bgObjects,
+            showConjunctions: showConjunctions,
+            autoTarget: true,
+            playbackSpeed: 1
+        });
+        
+        this.close(); // Close engineering panel
     }
 
     applyASATSettings() {
