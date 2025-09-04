@@ -138,25 +138,11 @@ When hovering over a proximity line:
 - Add object pooling for lines
 - Optimize render calls
 
-### Phase 3: Advanced Features (Week 3)
+### Phase 3: Advanced Features 9All of this will be done on the Red Watch data software we have for data drill down and analysis.
 - Relative velocity indicators
 - TCA calculations
 - Collision probability display
 
-### Phase 4: UI Integration (Week 4)
-- Control panel
-- Hotkeys
-- Information overlays
-
-## Technical Requirements
-- Babylon.js 5.x for 3D rendering
-- Octree.js for spatial indexing
-- Web Workers for distance calculations (optional)
-
-## Performance Targets
-- Handle 15,000 objects
-- Maintain 60 FPS with lines active
-- < 100ms update time for proximity calculations
 
 ## Visual Reference
 The effect should look similar to the particle connection system in `/frontend/login.html` (lines 456-469) but adapted for 3D space with threat-based coloring and orbital dynamics considerations.
