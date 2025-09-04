@@ -495,6 +495,18 @@
     <script>
         // Initialize Netlify Identity
         netlifyIdentity.init();
+        
+        // Check if this is an invite acceptance link
+        const urlParams = new URLSearchParams(window.location.search);
+        const inviteToken = urlParams.get('invite_token');
+        const isInvite = window.location.hash && window.location.hash.includes('invite_token');
+        
+        // If there's an invite token, handle it specially
+        if (inviteToken || isInvite) {
+            console.log('Invite token detected, opening modal for password setup');
+            // Don't redirect, let Netlify handle the invite
+            // The modal will open automatically
+        }
 
         // DOM Elements
         const loginForm = document.getElementById('login-form');
@@ -584,16 +596,25 @@
             loading.classList.remove('active');
         });
 
-        // Handle successful signup
+        // Handle successful signup (including invite acceptance)
         netlifyIdentity.on('signup', user => {
-            showSuccess('Beta access granted! Check your email to confirm.');
-            // Clear form and switch to login
-            signupForm.reset();
-            setTimeout(() => {
-                signupForm.style.display = 'none';
-                loginForm.style.display = 'block';
-                clearMessages();
-            }, 3000);
+            // Check if this was an invite acceptance
+            if (window.location.hash && window.location.hash.includes('invite_token')) {
+                showSuccess('Welcome to RED ORBIT Beta! Logging you in...');
+                // For invite acceptances, they're already verified, so log them in
+                setTimeout(() => {
+                    window.location.replace('/');
+                }, 1500);
+            } else {
+                showSuccess('Beta access granted! Check your email to confirm.');
+                // Clear form and switch to login
+                signupForm.reset();
+                setTimeout(() => {
+                    signupForm.style.display = 'none';
+                    loginForm.style.display = 'block';
+                    clearMessages();
+                }, 3000);
+            }
         });
         
         // Handle successful login (including after email confirmation)
@@ -621,12 +642,21 @@
         });
         
         // Check authentication immediately (no delay to prevent flicker)
+        // BUT don't redirect if this is an invite acceptance
         const currentUser = netlifyIdentity.currentUser();
-        if (currentUser) {
+        const hasInviteToken = window.location.hash && window.location.hash.includes('invite_token');
+        
+        if (currentUser && !hasInviteToken) {
             console.log('User already authenticated, redirecting...');
             // Hide forms immediately to prevent flicker
             document.body.style.display = 'none';
             window.location.replace('/');
+        }
+        
+        // If there's an invite token, let Netlify handle it
+        if (hasInviteToken) {
+            console.log('Processing invite token...');
+            // The Netlify Identity widget will automatically open for invite acceptance
         }
     </script>
 </body>
