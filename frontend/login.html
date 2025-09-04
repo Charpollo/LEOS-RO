@@ -493,23 +493,52 @@
     
     <!-- Auth Logic -->
     <script>
-        // Initialize Netlify Identity
-        netlifyIdentity.init();
+        // Check FIRST if this is an invite - BEFORE initializing anything else
+        const isInviteLink = window.location.hash && (
+            window.location.hash.includes('invite_token') || 
+            window.location.hash.includes('recovery_token') ||
+            window.location.hash.includes('confirmation_token')
+        );
         
-        // Check if this is an invite acceptance link
-        const urlParams = new URLSearchParams(window.location.search);
-        const inviteToken = urlParams.get('invite_token');
-        const isInvite = window.location.hash && window.location.hash.includes('invite_token');
-        
-        // If there's an invite token, handle it specially
-        if (inviteToken || isInvite) {
-            console.log('Invite token detected, opening modal for password setup');
-            // Don't redirect, let Netlify handle the invite
-            // The modal will open automatically
-        }
+        // If this is an invite/recovery/confirmation, let Netlify handle it completely
+        if (isInviteLink) {
+            console.log('Netlify Identity token detected:', window.location.hash);
+            
+            // Initialize and let Netlify auto-handle the token
+            netlifyIdentity.init();
+            
+            // Listen for successful invite acceptance
+            netlifyIdentity.on('signup', user => {
+                console.log('Invite accepted successfully!');
+                // Show success and redirect
+                setTimeout(() => {
+                    window.location.replace('/');
+                }, 1500);
+            });
+            
+            netlifyIdentity.on('login', user => {
+                console.log('User logged in after invite!');
+                window.location.replace('/');
+            });
+            
+            // Listen for errors
+            netlifyIdentity.on('error', err => {
+                console.error('Invite error:', err);
+            });
+            
+            // Stop here - don't run any other code that might interfere
+            // Netlify will automatically open the appropriate modal
+        } else {
+            // Normal initialization for non-invite pages
+            netlifyIdentity.init();
 
-        // DOM Elements
-        const loginForm = document.getElementById('login-form');
+            // Only run our custom code if NOT processing an invite
+            initializeLoginPage();
+        }
+        
+        function initializeLoginPage() {
+            // DOM Elements
+            const loginForm = document.getElementById('login-form');
         const signupForm = document.getElementById('signup-form');
         const showSignupLink = document.getElementById('show-signup');
         const showLoginLink = document.getElementById('show-login');
@@ -622,7 +651,13 @@
         });
         
         // Handle successful login (including after email confirmation)
+        // Add flag to prevent multiple redirects
+        let isRedirecting = false;
+        
         netlifyIdentity.on('login', user => {
+            if (isRedirecting) return; // Prevent multiple redirects
+            isRedirecting = true;
+            
             console.log('Login successful, redirecting...');
             showSuccess('Access granted. Launching RED ORBIT...');
             
@@ -645,23 +680,40 @@
             window.location.href = '/login.html';
         });
         
-        // Check authentication immediately (no delay to prevent flicker)
-        // BUT don't redirect if this is an invite acceptance
-        const currentUser = netlifyIdentity.currentUser();
-        const hasInviteToken = window.location.hash && window.location.hash.includes('invite_token');
+        // Consolidated authentication check with single redirect
+        // Use a flag to prevent multiple redirects
+        let redirecting = false;
         
-        if (currentUser && !hasInviteToken) {
-            console.log('User already authenticated, redirecting...');
-            // Hide forms immediately to prevent flicker
-            document.body.style.display = 'none';
-            window.location.replace('/');
+        function checkAuthAndRedirect() {
+            if (redirecting) return; // Already redirecting, don't do it again
+            
+            const currentUser = netlifyIdentity.currentUser();
+            const hasInviteToken = window.location.hash && window.location.hash.includes('invite_token');
+            
+            // If there's an invite token, let Netlify handle it
+            if (hasInviteToken) {
+                console.log('Processing invite token...');
+                return; // Don't redirect during invite processing
+            }
+            
+            // If user is authenticated and no invite token, redirect to app
+            if (currentUser) {
+                redirecting = true; // Set flag to prevent loops
+                console.log('User already authenticated, redirecting to app...');
+                // Hide page immediately to prevent flicker
+                document.body.style.visibility = 'hidden';
+                window.location.replace('/');
+            }
         }
         
-        // If there's an invite token, let Netlify handle it
-        if (hasInviteToken) {
-            console.log('Processing invite token...');
-            // The Netlify Identity widget will automatically open for invite acceptance
-        }
+        // Check auth on page load
+        checkAuthAndRedirect();
+        
+        // Also check after Netlify Identity initializes (in case it takes a moment)
+        netlifyIdentity.on('init', () => {
+            checkAuthAndRedirect();
+        });
+        } // End of initializeLoginPage function
     </script>
 </body>
 </html>
