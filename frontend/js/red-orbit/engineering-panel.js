@@ -48,39 +48,40 @@ export class EngineeringPanel {
     initPanel() {
         // Check if we're on the ALOHA subdomain
         const isAlohaSubdomain = window.location.hostname === 'aloha.redorbit.space' || 
-                                 window.location.hostname.startsWith('aloha.');
+                                 window.location.hostname.startsWith('aloha.') ||
+                                 window.location.hostname === 'localhost'; // For testing
         
         // Create panel container
         const panel = document.createElement('div');
         panel.id = 'engineering-panel';
         panel.className = 'engineering-panel closed';
         
-        // Different tabs for ALOHA subdomain
+        // Keep exact same look but conditionally hide tabs
         const tabsHTML = isAlohaSubdomain ? 
-            `<button class="tab-btn active" data-tab="scenarios">Scenarios</button>` :
-            `<button class="tab-btn active" data-tab="scenarios">Scenarios</button>
+            '' : // No tabs for ALOHA
+            `<div class="panel-tabs">
+                <button class="tab-btn active" data-tab="scenarios">Scenarios</button>
                 <button class="tab-btn" data-tab="simulation">Simulation</button>
                 <button class="tab-btn" data-tab="display">Display</button>
                 <button class="tab-btn" data-tab="data">Data Pipeline</button>
-                <button class="tab-btn" data-tab="performance">Performance</button>`;
+                <button class="tab-btn" data-tab="performance">Performance</button>
+            </div>`;
         
         panel.innerHTML = `
             <div class="panel-header">
                 <div class="panel-title">
                     <span class="red-orbit-badge">RED ORBIT</span>
-                    <span>${isAlohaSubdomain ? 'ALOHA Control Panel' : 'Engineering Panel'}</span>
+                    <span>${isAlohaSubdomain ? 'ALOHA Panel' : 'Engineering Panel'}</span>
                 </div>
                 <button class="panel-close" id="close-panel">×</button>
             </div>
             
-            <div class="panel-tabs">
-                ${tabsHTML}
-            </div>
+            ${tabsHTML}
             
             <div class="panel-content">
                 <!-- Scenarios Tab -->
                 <div class="tab-content active" id="scenarios-tab">
-                    <h3>${isAlohaSubdomain ? 'ALOHA Scenarios' : 'Quick Scenarios'}</h3>
+                    <h3>Quick Scenarios</h3>
                     <div class="scenario-grid" id="scenario-grid">
                         <div class="scenario-tile" data-scenario="showcase">
                             <svg class="scenario-icon" viewBox="0 0 100 100">
@@ -463,30 +464,38 @@ export class EngineeringPanel {
         const tabButtons = document.querySelectorAll('.tab-btn');
         const tabContents = document.querySelectorAll('.tab-content');
         
-        tabButtons.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const targetTab = btn.dataset.tab;
-                
-                // Update button states
-                tabButtons.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                
-                // Update content visibility
-                tabContents.forEach(content => {
-                    content.classList.remove('active');
-                    if (content.id === `${targetTab}-tab`) {
-                        content.classList.add('active');
-                    }
+        // Only set up tabs if they exist (not in ALOHA mode)
+        if (tabButtons.length > 0) {
+            tabButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const targetTab = btn.dataset.tab;
+                    
+                    // Update button states
+                    tabButtons.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    
+                    // Update content visibility
+                    tabContents.forEach(content => {
+                        content.classList.remove('active');
+                        if (content.id === `${targetTab}-tab`) {
+                            content.classList.add('active');
+                        }
+                    });
                 });
             });
-        });
+        }
         
-        // Initialize scenario tiles
+        // Check if we're in ALOHA mode
+        const isAlohaMode = window.location.hostname === 'aloha.redorbit.space' || 
+                           window.location.hostname.startsWith('aloha.') ||
+                           window.location.hostname === 'localhost';
+        
+        // Always initialize scenarios
         this.initScenarios();
         this.filterScenariosForSubdomain();
         
-        // Initialize controls - only if not ALOHA subdomain
-        if (!isAlohaSubdomain) {
+        // Only initialize other controls if not ALOHA
+        if (!isAlohaMode) {
             this.initSimulationControls();
             this.initDisplayControls();
             this.initDataControls();
@@ -512,7 +521,8 @@ export class EngineeringPanel {
     
     filterScenariosForSubdomain() {
         const isAlohaSubdomain = window.location.hostname === 'aloha.redorbit.space' || 
-                                 window.location.hostname.startsWith('aloha.');
+                                 window.location.hostname.startsWith('aloha.') ||
+                                 window.location.hostname === 'localhost'; // For testing
         
         if (isAlohaSubdomain) {
             // Only show ALOHA, Beautiful Math, and LEO cards for ALOHA subdomain
@@ -525,17 +535,6 @@ export class EngineeringPanel {
                     tile.style.display = 'none';
                 }
             });
-            
-            // Update titles for customer-facing view
-            const showcaseTile = document.querySelector('[data-scenario="showcase"] h4');
-            if (showcaseTile) {
-                showcaseTile.textContent = 'Math Visualization';
-            }
-            
-            const leoTile = document.querySelector('[data-scenario="leo-all"] h4');
-            if (leoTile) {
-                leoTile.textContent = 'LEO Management';
-            }
         }
     }
     
