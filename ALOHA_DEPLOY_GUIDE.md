@@ -19,7 +19,7 @@
 3. **Add Custom Subdomain:**
    - Go to Domain settings
    - Add domain alias: `aloha.redorbit.space`
-   - Point it to the branch deploy.
+   - Point it to the branch deploy...
 
 ### Option 2: Separate Sitedd
 
