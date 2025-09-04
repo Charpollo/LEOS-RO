@@ -355,7 +355,7 @@
             <button type="submit" class="btn btn-primary">ACCESS RED ORBIT</button>
             
             <div class="auth-toggle">
-                <p>Don't have access? <a href="#" id="show-signup">Request Beta Access</a></p>
+                <p>Don't have an invite? <a href="mailto:mission@cyberrts.com" style="color: #ff6600;">Request Access</a></p>
             </div>
         </form>
 
@@ -384,10 +384,18 @@
                 </p>
             </div>
 
-            <button type="submit" class="btn btn-primary">START FREE TRIAL</button>
+            <button type="submit" class="btn btn-primary" style="display: none;">START FREE TRIAL</button>
+            
+            <!-- Invite Only Message -->
+            <div class="invite-message" style="background: rgba(255, 100, 0, 0.1); border: 1px solid #ff6600; padding: 20px; border-radius: 8px; margin-top: 20px; text-align: center;">
+                <i class="fas fa-lock" style="color: #ff6600; font-size: 24px; margin-bottom: 10px;"></i>
+                <h3 style="color: #ff6600; margin: 10px 0;">Invite-Only Beta</h3>
+                <p style="color: #ccc; margin: 10px 0;">RED ORBIT is currently in private beta.</p>
+                <p style="color: #aaa; font-size: 14px;">Request access: <a href="mailto:mission@cyberrts.com" style="color: #ff6600;">mission@cyberrts.com</a></p>
+            </div>
             
             <div class="auth-toggle">
-                <p>Already have access? <a href="#" id="show-login">Sign In</a></p>
+                <p>Have an invite? <a href="#" id="show-login">Sign In</a></p>
             </div>
         </form>
 
@@ -612,14 +620,14 @@
             window.location.href = '/login.html';
         });
         
-        // Check if already authenticated and redirect
-        setTimeout(() => {
-            const currentUser = netlifyIdentity.currentUser();
-            if (currentUser) {
-                console.log('User already authenticated, redirecting...');
-                window.location.replace('/');
-            }
-        }, 100);
+        // Check authentication immediately (no delay to prevent flicker)
+        const currentUser = netlifyIdentity.currentUser();
+        if (currentUser) {
+            console.log('User already authenticated, redirecting...');
+            // Hide forms immediately to prevent flicker
+            document.body.style.display = 'none';
+            window.location.replace('/');
+        }
     </script>
 </body>
 </html>
